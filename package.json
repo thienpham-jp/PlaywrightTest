@@ -1,0 +1,17 @@
+{
+  "name": "playwright-test",
+  "version": "1.0.0",
+  "description": "Playwright TypeScript test project",
+  "scripts": {
+    "test": "npx playwright test",
+    "test:headed": "npx playwright test --headed",
+    "test:ui": "npx playwright test --ui",
+    "show-report": "npx playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^22.0.0",
+    "allure-playwright": "^3.0.0",
+    "typescript": "^5.0.0"
+  }
+}
