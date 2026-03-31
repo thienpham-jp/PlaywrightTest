@@ -33,13 +33,17 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     headless: true,
+    launchOptions: {
+      args: ['--start-maximized'],
+    },
+    viewport: null,
   },
 
   /* Configure projects for major browsers */
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { channel: 'chrome' },
     },
 
     // {
