@@ -18,7 +18,7 @@ export class BasePage {
     registerPage(alias: string, page: Page): void {
         this.pageMap.set(alias, page);
         this.contextMap.set(page, page.context());
-        console.log(`🧭 Registered tab "${alias}" (${page.url()})`);
+        // console.log(`🧭 Registered tab "${alias}" (${page.url()})`);
     }
 
     async click(locator: string) {
@@ -41,7 +41,7 @@ export class BasePage {
         await this.page.locator(locator).hover();
     }
 
-    async navigateTo(url: string) {
+    async goto(url: string) {
         await this.page.goto(url);
     }
 
