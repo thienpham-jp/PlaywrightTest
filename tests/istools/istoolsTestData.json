@@ -1,0 +1,23 @@
+[
+  {
+    "label": "Should login successfully with admin user",
+    "username": "obs-dev@interspace.ne.jp",
+    "password": "1nter5pace",
+    "expectedUrl": "https://st-istools-id.asean-accesstrade.net/s/dashboard",
+    "expectedError": ""
+  },
+  {
+    "label": "Should login successfully with normal user",
+    "username": "k_saito",
+    "password": "X0%eCa5M",
+    "expectedUrl": "https://st-istools-id.asean-accesstrade.net/s/dashboard",
+    "expectedError": ""
+  },
+  {
+    "label": "Should login fail with wrong password",
+    "username": "k_saito_user",
+    "password": "wrongpassword",
+    "expectedUrl": "https://st-istools-id.asean-accesstrade.net/s/signin",
+    "expectedError": "UserID or password is not correct"
+  }
+]
