@@ -4,6 +4,10 @@ name: Playwright Tests
 #   #   branches: [main, master]
 #   # pull_request:
 #   #   branches: [main, master]
+on:
+  schedule:
+    # Run weekdays (Mon-Fri) at 5:00 AM UTC --> 12:00 PM Asia/Bangkok/Hanoi
+    - cron: "0 5 * * 1-5"
 jobs:
   test:
     timeout-minutes: 60
