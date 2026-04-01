@@ -1,13 +1,13 @@
-import { test, expect } from '@playwright/test';
-import { IstoolsPage } from '../../pages/istools-page';
-import testData from './istoolsTestData.json';
+import { test, expect } from "@playwright/test";
+import { IstoolsPage } from "../../pages/istools-page";
+import testData from "./istoolsTestData.json";
 
-test.describe('Istools Tests', () => {
+test.describe("Istools Tests", () => {
   let istoolsPage: IstoolsPage;
 
   test.beforeEach(async ({ page }) => {
     istoolsPage = new IstoolsPage(page);
-    await istoolsPage.navigate();
+    await istoolsPage.open();
   });
 
   for (const data of testData) {
