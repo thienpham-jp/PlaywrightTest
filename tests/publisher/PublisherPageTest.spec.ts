@@ -1,33 +1,51 @@
-import { test, expect } from '@playwright/test';
-import { PublisherPage } from '../../pages/PublisherPage';
+import { test, expect } from "@playwright/test";
+import { PublisherPage } from "../../pages/PublisherPage";
+import userData from "../../src/helpers/users.json";
 
-const adminUsername = 'obs-dev@interspace.ne.jp';
-const adminPassword = '1nter5pace';
+// ── Publisher config ─────────────────────────────────────────
+const PAN = "84255";
+const SITE_ID = "102253";
 
-// Replace with actual publisher pan and siteId
-const pan = '84255';
-const siteId = '102253';
+const DASHBOARD_URL = "https://publisher-staging.accesstrade.co.id/#/dashboard";
 
-test.describe('Publisher Tests', () => {
+const PERFORMANCE_ITEMS = [
+  "Earnings (IDR)",
+  "Clicks",
+  "Conversions",
+  "Earnings per Click (IDR)",
+];
+
+// ── Test suite ───────────────────────────────────────────────
+test.describe("Publisher Tests", () => {
   let publisherPage: PublisherPage;
 
   test.beforeEach(async ({ page }) => {
     publisherPage = new PublisherPage(page);
-    await publisherPage.navigate();
+    await publisherPage.open();
+    await publisherPage.login(userData.admin.username, userData.admin.password);
+    await publisherPage.loginPub(PAN, SITE_ID);
   });
 
-  test('Should login as admin then switch to publisher account', async ({ page }) => {
-    // Step 1: Login with admin user
-    await publisherPage.login(adminUsername, adminPassword);
-    await expect(page).toHaveURL('https://st-istools-id.asean-accesstrade.net/s/dashboard');
+  // ── Tests ──────────────────────────────────────────────────
 
-    // Step 2: Switch to publisher account via superlogin
-    await publisherPage.loginPub(pan, siteId);
+  test("Dashboard - URL verification", async () => {
+    await expect(publisherPage.page).toHaveURL(DASHBOARD_URL);
   });
 
-  test.afterEach(async ({ page }) => {
-    if (page) {
-      await page.close();
+  test("Dashboard - Performance section", async () => {
+    const performanceText = publisherPage.page.getByText("Performance", {
+      exact: true,
+    });
+
+    await performanceText.waitFor({ state: "visible", timeout: 30000 });
+    await expect(performanceText).toBeVisible();
+
+    for (const item of PERFORMANCE_ITEMS) {
+      await expect(publisherPage.page.getByText(item)).toBeVisible();
     }
+  });
+
+  test.afterEach(async () => {
+    await publisherPage.page.close();
   });
 });

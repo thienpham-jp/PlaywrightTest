@@ -1,0 +1,14 @@
+{
+  "admin": {
+    "username": "obs-dev@interspace.ne.jp",
+    "password": "1nter5pace"
+  },
+  "normalUser": {
+    "username": "k_saito",
+    "password": "X0%eCa5M"
+  },
+  "invalidUser": {
+    "username": "invaliduser",
+    "password": "SuperSecretPassword!"
+  }
+}
