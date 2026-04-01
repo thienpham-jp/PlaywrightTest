@@ -34,7 +34,14 @@ export default defineConfig({
     video: 'retain-on-failure',
     headless: true,
     launchOptions: {
-      args: ['--start-maximized'],
+      args: [
+        '--start-maximized',
+        '--disable-features=PasswordLeakDetection',
+        '--no-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-features=BlockInsecurePrivateNetworkRequests',
+        '--allow-insecure-localhost',
+      ],
     },
     viewport: null,
   },
