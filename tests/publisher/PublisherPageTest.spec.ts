@@ -302,6 +302,368 @@ test.describe("Publisher Tests", () => {
     });
   });
 
+  test.describe("Campaign section", () => {
+    test.beforeEach(async () => {
+      // 1. Click on the user profile icon
+      await publisherPage.page
+        .locator('div[class="character"]')
+        .first()
+        .click();
+      // 2. Click on 'Account Settings' in the dropdown
+      await publisherPage.page
+        .getByText("Account Settings", { exact: true })
+        .click();
+    });
+
+    test("View Account Settings", async () => {
+      await expect(publisherPage.page).toHaveURL(
+        `${BASE_URL}/dashboard/account-settings/publisher-account/show`,
+      );
+      await expect(
+        publisherPage.page.getByRole("heading", { name: "Account Settings" }),
+      ).toBeVisible();
+    });
+
+    test("Account Settings - Change password", async () => {
+      // 1. Click on 'Change Password' edit button
+      await publisherPage.page
+        .locator("app-password-block div")
+        .filter({ hasText: /^edit$/ })
+        .click();
+
+      // 2. Input current password
+      await publisherPage.page
+        .locator('input[type="password"]')
+        .first()
+        .fill(userData.admin.password);
+
+      // 3. Input new password
+      await publisherPage.page
+        .locator('input[type="password"]')
+        .nth(1)
+        .fill(userData.admin.password);
+
+      // 4. Input confirm new password
+      await publisherPage.page
+        .locator('input[type="password"]')
+        .nth(2)
+        .fill(userData.admin.password);
+
+      // 5. Click on 'Update' button
+      await publisherPage.page.getByRole("button", { name: "Update" }).click();
+
+      // 6. Expect success message is visible
+      await expect(
+        publisherPage.page.getByText("Password is updated successfully."),
+      ).toBeVisible({ timeout: 10000 });
+    });
+
+    test.describe("Properties section", () => {
+      test.beforeEach(async () => {
+        await publisherPage.page
+          .locator("span")
+          .filter({ hasText: /^Properties$/ })
+          .click();
+        await publisherPage.page.waitForLoadState("load");
+      });
+
+      test.describe("Site Management", () => {
+        test("View Site", async () => {
+          await expect(publisherPage.page).toHaveURL(
+            `${BASE_URL}/dashboard/account-settings/properties/list`,
+          );
+          await expect(
+            publisherPage.page.getByRole("heading", { name: "Property List" }),
+          ).toBeVisible();
+        });
+
+        test("Create Site", async () => {
+          await expect(publisherPage.page).toHaveURL(
+            `${BASE_URL}/dashboard/account-settings/properties/list`,
+          );
+          await expect(
+            publisherPage.page.getByRole("heading", { name: "Property List" }),
+          ).toBeVisible();
+        });
+
+        test("Update Site", async () => {
+          await expect(publisherPage.page).toHaveURL(
+            `${BASE_URL}/dashboard/account-settings/properties/list`,
+          );
+          await expect(
+            publisherPage.page.getByRole("heading", { name: "Property List" }),
+          ).toBeVisible();
+        });
+
+        test("Delete Site", async () => {
+          await expect(publisherPage.page).toHaveURL(
+            `${BASE_URL}/dashboard/account-settings/properties/list`,
+          );
+          await expect(
+            publisherPage.page.getByRole("heading", { name: "Property List" }),
+          ).toBeVisible();
+        });
+      });
+
+      test.describe("Tracing URL", () => {
+        test("View Site", async () => {
+          await expect(publisherPage.page).toHaveURL(
+            `${BASE_URL}/dashboard/account-settings/properties/list`,
+          );
+          await expect(
+            publisherPage.page.getByRole("heading", { name: "Property List" }),
+          ).toBeVisible();
+        });
+
+        test("Create Site", async () => {
+          await expect(publisherPage.page).toHaveURL(
+            `${BASE_URL}/dashboard/account-settings/properties/list`,
+          );
+          await expect(
+            publisherPage.page.getByRole("heading", { name: "Property List" }),
+          ).toBeVisible();
+        });
+
+        test("Update Site", async () => {
+          await expect(publisherPage.page).toHaveURL(
+            `${BASE_URL}/dashboard/account-settings/properties/list`,
+          );
+          await expect(
+            publisherPage.page.getByRole("heading", { name: "Property List" }),
+          ).toBeVisible();
+        });
+
+        test("Delete Site", async () => {
+          await expect(publisherPage.page).toHaveURL(
+            `${BASE_URL}/dashboard/account-settings/properties/list`,
+          );
+          await expect(
+            publisherPage.page.getByRole("heading", { name: "Property List" }),
+          ).toBeVisible();
+        });
+      });
+
+      test.describe("Postback", () => {
+        test("View Site", async () => {
+          await expect(publisherPage.page).toHaveURL(
+            `${BASE_URL}/dashboard/account-settings/properties/list`,
+          );
+          await expect(
+            publisherPage.page.getByRole("heading", { name: "Property List" }),
+          ).toBeVisible();
+        });
+
+        test("Create Site", async () => {
+          await expect(publisherPage.page).toHaveURL(
+            `${BASE_URL}/dashboard/account-settings/properties/list`,
+          );
+          await expect(
+            publisherPage.page.getByRole("heading", { name: "Property List" }),
+          ).toBeVisible();
+        });
+
+        test("Update Site", async () => {
+          await expect(publisherPage.page).toHaveURL(
+            `${BASE_URL}/dashboard/account-settings/properties/list`,
+          );
+          await expect(
+            publisherPage.page.getByRole("heading", { name: "Property List" }),
+          ).toBeVisible();
+        });
+
+        test("Delete Site", async () => {
+          await expect(publisherPage.page).toHaveURL(
+            `${BASE_URL}/dashboard/account-settings/properties/list`,
+          );
+          await expect(
+            publisherPage.page.getByRole("heading", { name: "Property List" }),
+          ).toBeVisible();
+        });
+      });
+    });
+  });
+
+  test.describe("Creatives", () => {
+    test.beforeEach(async () => {
+      // 1. Click on the user profile icon
+      await publisherPage.page
+        .locator('div[class="character"]')
+        .first()
+        .click();
+      // 2. Click on 'Account Settings' in the dropdown
+      await publisherPage.page
+        .getByText("Account Settings", { exact: true })
+        .click();
+    });
+
+    test("View Account Settings", async () => {
+      await expect(publisherPage.page).toHaveURL(
+        `${BASE_URL}/dashboard/account-settings/publisher-account/show`,
+      );
+      await expect(
+        publisherPage.page.getByRole("heading", { name: "Account Settings" }),
+      ).toBeVisible();
+    });
+
+    test("Account Settings - Change password", async () => {
+      // 1. Click on 'Change Password' edit button
+      await publisherPage.page
+        .locator("app-password-block div")
+        .filter({ hasText: /^edit$/ })
+        .click();
+
+      // 2. Input current password
+      await publisherPage.page
+        .locator('input[type="password"]')
+        .first()
+        .fill(userData.admin.password);
+
+      // 3. Input new password
+      await publisherPage.page
+        .locator('input[type="password"]')
+        .nth(1)
+        .fill(userData.admin.password);
+
+      // 4. Input confirm new password
+      await publisherPage.page
+        .locator('input[type="password"]')
+        .nth(2)
+        .fill(userData.admin.password);
+
+      // 5. Click on 'Update' button
+      await publisherPage.page.getByRole("button", { name: "Update" }).click();
+
+      // 6. Expect success message is visible
+      await expect(
+        publisherPage.page.getByText("Password is updated successfully."),
+      ).toBeVisible({ timeout: 10000 });
+    });
+
+    test.describe("Properties section", () => {
+      test.beforeEach(async () => {
+        await publisherPage.page
+          .locator("span")
+          .filter({ hasText: /^Properties$/ })
+          .click();
+        await publisherPage.page.waitForLoadState("load");
+      });
+
+      test.describe("Site Management", () => {
+        test("View Site", async () => {
+          await expect(publisherPage.page).toHaveURL(
+            `${BASE_URL}/dashboard/account-settings/properties/list`,
+          );
+          await expect(
+            publisherPage.page.getByRole("heading", { name: "Property List" }),
+          ).toBeVisible();
+        });
+
+        test("Create Site", async () => {
+          await expect(publisherPage.page).toHaveURL(
+            `${BASE_URL}/dashboard/account-settings/properties/list`,
+          );
+          await expect(
+            publisherPage.page.getByRole("heading", { name: "Property List" }),
+          ).toBeVisible();
+        });
+
+        test("Update Site", async () => {
+          await expect(publisherPage.page).toHaveURL(
+            `${BASE_URL}/dashboard/account-settings/properties/list`,
+          );
+          await expect(
+            publisherPage.page.getByRole("heading", { name: "Property List" }),
+          ).toBeVisible();
+        });
+
+        test("Delete Site", async () => {
+          await expect(publisherPage.page).toHaveURL(
+            `${BASE_URL}/dashboard/account-settings/properties/list`,
+          );
+          await expect(
+            publisherPage.page.getByRole("heading", { name: "Property List" }),
+          ).toBeVisible();
+        });
+      });
+
+      test.describe("Tracing URL", () => {
+        test("View Site", async () => {
+          await expect(publisherPage.page).toHaveURL(
+            `${BASE_URL}/dashboard/account-settings/properties/list`,
+          );
+          await expect(
+            publisherPage.page.getByRole("heading", { name: "Property List" }),
+          ).toBeVisible();
+        });
+
+        test("Create Site", async () => {
+          await expect(publisherPage.page).toHaveURL(
+            `${BASE_URL}/dashboard/account-settings/properties/list`,
+          );
+          await expect(
+            publisherPage.page.getByRole("heading", { name: "Property List" }),
+          ).toBeVisible();
+        });
+
+        test("Update Site", async () => {
+          await expect(publisherPage.page).toHaveURL(
+            `${BASE_URL}/dashboard/account-settings/properties/list`,
+          );
+          await expect(
+            publisherPage.page.getByRole("heading", { name: "Property List" }),
+          ).toBeVisible();
+        });
+
+        test("Delete Site", async () => {
+          await expect(publisherPage.page).toHaveURL(
+            `${BASE_URL}/dashboard/account-settings/properties/list`,
+          );
+          await expect(
+            publisherPage.page.getByRole("heading", { name: "Property List" }),
+          ).toBeVisible();
+        });
+      });
+
+      test.describe("Postback", () => {
+        test("View Site", async () => {
+          await expect(publisherPage.page).toHaveURL(
+            `${BASE_URL}/dashboard/account-settings/properties/list`,
+          );
+          await expect(
+            publisherPage.page.getByRole("heading", { name: "Property List" }),
+          ).toBeVisible();
+        });
+
+        test("Create Site", async () => {
+          await expect(publisherPage.page).toHaveURL(
+            `${BASE_URL}/dashboard/account-settings/properties/list`,
+          );
+          await expect(
+            publisherPage.page.getByRole("heading", { name: "Property List" }),
+          ).toBeVisible();
+        });
+
+        test("Update Site", async () => {
+          await expect(publisherPage.page).toHaveURL(
+            `${BASE_URL}/dashboard/account-settings/properties/list`,
+          );
+          await expect(
+            publisherPage.page.getByRole("heading", { name: "Property List" }),
+          ).toBeVisible();
+        });
+
+        test("Delete Site", async () => {
+          await expect(publisherPage.page).toHaveURL(
+            `${BASE_URL}/dashboard/account-settings/properties/list`,
+          );
+          await expect(
+            publisherPage.page.getByRole("heading", { name: "Property List" }),
+          ).toBeVisible();
+        });
+      });
+    });
+  });
+
   test.afterEach(async () => {
     await publisherPage.page.close();
   });
