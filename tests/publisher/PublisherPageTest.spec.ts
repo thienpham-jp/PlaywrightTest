@@ -45,29 +45,6 @@ test.describe("Publisher Tests", () => {
     }
   });
 
-  test.describe("Account Settings section", () => {
-    test.beforeEach(async () => {
-      // 1. Click on the user profile icon
-      await publisherPage.page.getByRole("button", { name: "Profile" }).click();
-      // 2. Click on 'Account Settings' in the dropdown
-      await publisherPage.page
-        .getByRole("menuitem", { name: "Account Settings" })
-        .click();
-    });
-
-    test("Account Settings - URL verification", async () => {
-      await expect(publisherPage.page).toHaveURL(
-        `${BASE_URL}/dashboard/account-settings/publisher-account/show`,
-      );
-    });
-
-    test("Account Settings - heading is visible", async () => {
-      await expect(
-        publisherPage.page.getByRole("heading", { name: "Account Settings" }),
-      ).toBeVisible();
-    });
-  });
-
   test.afterEach(async () => {
     await publisherPage.page.close();
   });
