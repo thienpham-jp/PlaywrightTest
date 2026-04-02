@@ -177,6 +177,81 @@ test.describe("Publisher Tests", () => {
       ).toBeVisible({ timeout: 10000 });
     });
 
+    test("Change info Account Settings", async () => {
+      // 1. Click on 'Certification Info' edit button
+      await publisherPage.page
+        .locator("app-individual-account")
+        .getByText("edit")
+        .click();
+
+      // 2. Input NPWP number
+      await publisherPage.page
+        .locator('input[name="npwpNumber"]')
+        .fill(`NPWP-${Math.floor(Math.random() * 10000)}`);
+
+      // 3. Input first name
+      await publisherPage.page.locator('input[name="firstName"]').fill("John");
+
+      // 4. Input last name
+      await publisherPage.page.locator('input[name="lastName"]').fill("Doe");
+
+      // 5. Select Gender - random choice from 3 options
+      const genderOptions = ["Unknown", "Male", "Female"];
+      const randomGender =
+        genderOptions[Math.floor(Math.random() * genderOptions.length)];
+
+      // Click on gender dropdown button to open the options
+      await publisherPage.page
+        .locator("button[data-toggle='dropdown']")
+        .click();
+
+      // Click the random gender option
+      await publisherPage.page
+        .getByRole("link", { name: new RegExp(`^${randomGender}`) })
+        .click();
+
+      // 6. Input Valid Birthday
+      await publisherPage.page
+        .locator('input[name="datePicker"]')
+        .fill("1990-01-01");
+
+      // 7. Input Street
+      await publisherPage.page
+        .locator('input[name="address"]')
+        .fill("123 Main Street");
+
+      // 8. Input Province
+      await publisherPage.page
+        .locator('input[name="province"]')
+        .fill("Jakarta");
+
+      // 9. Input City
+      await publisherPage.page
+        .locator('input[name="city"]')
+        .fill("Jakarta Pusat");
+
+      // 10. Input Zip Code
+      await publisherPage.page.locator('input[name="zipCode"]').fill("12345");
+
+      // 11. Input Phone Number
+      await publisherPage.page
+        .locator('input[name="phoneNumber"]')
+        .fill("+62812345678");
+
+      // 13. Click on 'Update' button
+      const updateButtons = publisherPage.page.getByRole("button", {
+        name: "Update",
+      });
+      await updateButtons.click();
+
+      // 14. Expect success message is visible
+      const successMessage = publisherPage.page.getByText(
+        "Profile is updated successfully",
+      );
+
+      await expect(successMessage).toBeVisible();
+    });
+
     test.describe("Properties section", () => {
       test.beforeEach(async () => {
         await publisherPage.page
