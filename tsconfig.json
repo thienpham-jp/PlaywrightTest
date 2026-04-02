@@ -2,12 +2,11 @@
   "compilerOptions": {
     "target": "ESNext",
     "module": "commonjs",
-    "moduleResolution": "node",
     "strict": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "outDir": "./dist",
-    "baseUrl": "."
+    "types": ["node"],
+    "outDir": "./dist"
   },
   "include": ["tests/**/*.ts", "playwright.config.ts"]
 }
