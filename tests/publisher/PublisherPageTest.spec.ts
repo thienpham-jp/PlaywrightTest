@@ -269,6 +269,7 @@ test.describe("Publisher Tests", () => {
       });
 
       test.describe("Site Management", () => {
+        // test.describe.configure({ mode: "serial" });
         test("View Site", async () => {
           await expect(
             publisherPage.page.getByRole("heading", { name: "Property List" }),
@@ -450,6 +451,8 @@ test.describe("Publisher Tests", () => {
             .getByRole("link", { name: LOCATORS.chevronLink })
             .nth(3)
             .click();
+
+          await publisherPage.page.waitForLoadState("networkidle");
 
           await publisherPage.page
             .locator("div")
