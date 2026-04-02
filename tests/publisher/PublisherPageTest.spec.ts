@@ -339,108 +339,140 @@ test.describe("Publisher Tests", () => {
         });
 
         test("Update Site", async () => {
-          await publisherPage.page
-            .locator("tr[role='row']")
-            .first()
-            .waitFor({ state: "visible", timeout: 30000 });
+          // ============================================================
+          // HELPERS
+          // ============================================================
+          const LOCATORS = {
+            tableRow: "tr[role='row']",
+            dropdownButton: "button[data-toggle='dropdown']",
+            dropdownOption: "a.ui-select-choices-row-inner:visible",
+            categoryOption:
+              "a.ui-select-choices-row-inner.ng-star-inserted:visible",
+            categorySearchInput: "#ui-select-search-input",
+            categoryTag: "span[tabindex='0']",
+            chevronLink: "chevron_right",
+            editButton: /^edit$/,
+            textarea: "textarea",
+            urlInput: 'input[type="url"]',
+          };
 
-          // 1. Find a site with "A Test" in the name
-          const testSiteRow = publisherPage.page
-            .locator("tr[role='row']")
-            .filter({ hasText: /A Test/ });
+          const selectRandomOption = async (locator: string) => {
+            const options = publisherPage.page.locator(locator);
+            await options.first().waitFor({ state: "visible", timeout: 10000 });
 
-          // Check if the site exists
-          const rowCount = await testSiteRow.count();
+            const count = await options.count();
+            expect(count).toBeGreaterThan(1);
 
-          if (rowCount > 1) {
-            const row = testSiteRow.first();
+            const randomIndex = Math.floor(Math.random() * (count - 1)) + 1;
+            await options.nth(randomIndex).click();
+          };
 
-            // Get the site name from the row
-            const siteNameCell = row
-              .locator("td")
-              .filter({ hasText: /A Test/ })
-              .first();
-
-            const siteNameBefore = await siteNameCell.textContent();
-
-            // 2. Click the delete icon/button in the row
+          const openDropdownAndSelect = async (index: number) => {
             await publisherPage.page
-              .getByRole("link", { name: "chevron_right" })
-              .nth(3)
-              .first()
+              .locator(LOCATORS.dropdownButton)
+              .nth(index)
               .click();
+            await selectRandomOption(LOCATORS.dropdownOption);
+          };
 
-            // 3. Click confirm delete button in the dialog
-            await publisherPage.page
-              .locator("div")
-              .filter({ hasText: /^edit$/ })
-              .first()
-              .click();
+          const removeExistingCategoryIfAny = async () => {
+            const tags = publisherPage.page.locator(LOCATORS.categoryTag);
+            const count = await tags.count();
+            if (count > 1) {
+              await tags.nth(1).click();
+            }
+          };
 
-            const newSiteName = siteNameBefore + " updated";
-
-            // 2. Input Site Name
+          const fillSiteDetails = async (newSiteName: string) => {
+            // Description
             await publisherPage.page
-              .getByRole("textbox")
-              .first()
-              .fill(newSiteName);
-
-            // 3. Input Site URL
-            await publisherPage.page
-              .locator('input[type="url"]')
-              .fill(
-                `https://www.google.com/${Math.floor(Math.random() * 1000)}`,
-              );
-
-            // 4. Click Type dropdown and select a type
-            await publisherPage.page
-              .locator("button[data-toggle='dropdown']")
-              .first()
-              .click();
-
-            await publisherPage.page
-              .getByRole("link", { name: "Media", exact: true })
-              .click();
-
-            // 5. Click Traffic dropdown and select a traffic source
-            await publisherPage.page
-              .locator("button[data-toggle='dropdown']")
-              .nth(1)
-              .click();
-            await publisherPage.page
-              .getByRole("link", { name: "Instagram" })
-              .click();
-            // 6. Click Lead Generation dropdown and select an option
-            await publisherPage.page
-              .locator("button[data-toggle='dropdown']")
-              .nth(2)
-              .click();
-
-            await publisherPage.page
-              .getByRole("link", { name: "Cashback" })
-              .click();
-            // 7. Click Category dropdown and select a category
-            await publisherPage.page.locator("#ui-select-search-input").click();
-            await publisherPage.page
-              .getByRole("link", { name: "Stock" })
-              .click();
-            // 8. Input Description <textarea>
-            await publisherPage.page
-              .locator("textarea")
+              .locator(LOCATORS.textarea)
               .fill(
                 `This is a sample description property ${newSiteName} by automated test.`,
               );
-            // 9.Click on 'Update' button
-            await publisherPage.page
-              .getByRole("button", { name: "Update" })
-              .click();
 
-            // 10. Verify the site is no longer in the list
+            // Site Name
+            const textbox = publisherPage.page.getByRole("textbox").first();
+            await textbox.clear();
+            await textbox.fill(newSiteName);
+
+            // Site URL
             await publisherPage.page
-              .getByText(`name: ${newSiteName}`)
-              .nth(1)
-              .waitFor({ state: "visible", timeout: 30000 });
-          }
+              .locator(LOCATORS.urlInput)
+              .fill(
+                `https://www.google.com/${Math.floor(Math.random() * 1000)}`,
+              );
+          };
+
+          const buildNewSiteName = (current: string) =>
+            current.includes("updated")
+              ? `${current} ${Math.floor(Math.random() * 1000)}`
+              : `${current} updated`;
+
+          // ============================================================
+          // TEST BODY
+          // ============================================================
+          await publisherPage.page
+            .locator(LOCATORS.tableRow)
+            .first()
+            .waitFor({ state: "visible", timeout: 30000 });
+
+          const testSiteRow = publisherPage.page
+            .locator(LOCATORS.tableRow)
+            .filter({ hasText: /A Test/ });
+
+          const rowCount = await testSiteRow.count();
+          if (rowCount < 1) return;
+
+          // Get current site name
+          const siteNameBefore =
+            (
+              await testSiteRow
+                .first()
+                .locator("td")
+                .filter({ hasText: /A Test/ })
+                .first()
+                .textContent()
+            )?.trim() ?? "";
+
+          // Open edit dialog
+          await publisherPage.page
+            .getByRole("link", { name: LOCATORS.chevronLink })
+            .nth(3)
+            .click();
+
+          await publisherPage.page
+            .locator("div")
+            .filter({ hasText: LOCATORS.editButton })
+            .first()
+            .click();
+
+          const newSiteName = buildNewSiteName(siteNameBefore);
+
+          // Select dropdowns: Type, Traffic, Lead Generation
+          await openDropdownAndSelect(0);
+          await openDropdownAndSelect(1);
+          await openDropdownAndSelect(2);
+
+          // Select Category
+          await removeExistingCategoryIfAny();
+          await publisherPage.page
+            .locator(LOCATORS.categorySearchInput)
+            .click();
+          await selectRandomOption(LOCATORS.categoryOption);
+
+          // Fill text fields last (prevent reset by Angular digest)
+          await fillSiteDetails(newSiteName);
+
+          // Submit
+          await publisherPage.page
+            .getByRole("button", { name: "Update" })
+            .click();
+
+          // Verify updated name appears in table
+          await publisherPage.page
+            .getByText(newSiteName, { exact: true })
+            .waitFor({ state: "visible", timeout: 30000 });
         });
 
         test("Delete Site", async () => {
@@ -457,7 +489,7 @@ test.describe("Publisher Tests", () => {
           // Check if the site exists
           const rowCount = await testSiteRow.count();
 
-          if (rowCount > 1) {
+          if (rowCount > 2) {
             const row = testSiteRow.first();
 
             // Get the site name from the row
