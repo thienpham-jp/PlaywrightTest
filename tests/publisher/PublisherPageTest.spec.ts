@@ -258,44 +258,240 @@ test.describe("Publisher Tests", () => {
           .locator("span")
           .filter({ hasText: /^Properties$/ })
           .click();
-        await publisherPage.page.waitForLoadState("load");
+
+        await publisherPage.page.waitForLoadState("networkidle");
+
+        await expect(publisherPage.page).toHaveURL(
+          `${BASE_URL}/dashboard/account-settings/properties/list`,
+        );
+
+        await publisherPage.page.waitForLoadState("networkidle");
       });
 
       test.describe("Site Management", () => {
         test("View Site", async () => {
-          await expect(publisherPage.page).toHaveURL(
-            `${BASE_URL}/dashboard/account-settings/properties/list`,
-          );
           await expect(
             publisherPage.page.getByRole("heading", { name: "Property List" }),
+          ).toBeVisible();
+          await expect(
+            publisherPage.page.locator("tr[role='row']").first(),
           ).toBeVisible();
         });
 
         test("Create Site", async () => {
-          await expect(publisherPage.page).toHaveURL(
-            `${BASE_URL}/dashboard/account-settings/properties/list`,
-          );
-          await expect(
-            publisherPage.page.getByRole("heading", { name: "Property List" }),
-          ).toBeVisible();
+          // 1. Click on 'Add' button
+          await publisherPage.page
+            .locator("div")
+            .filter({ hasText: /^add$/ })
+            .click();
+          // 2. Input Site Name
+          const siteName = `A Test ${Math.floor(Math.random() * 1000)}`;
+          await publisherPage.page.getByRole("textbox").first().fill(siteName);
+          // 3. Input Site URL
+          await publisherPage.page
+            .locator('input[type="url"]')
+            .fill(`https://www.google.com/${Math.floor(Math.random() * 1000)}`);
+          // 4. Click Type dropdown and select a type
+          await publisherPage.page
+            .locator("single-selector")
+            .filter({ hasText: "? ? Blog Social Network" })
+            .getByRole("button")
+            .click();
+          await publisherPage.page
+            .getByRole("link", { name: "Social Network" })
+            .click();
+          // 5. Click Traffic dropdown and select a traffic source
+          await publisherPage.page
+            .getByText("Traffic? ? Organic Search")
+            .click();
+          await publisherPage.page
+            .getByRole("link", { name: "Paid Search" })
+            .click();
+          // 6. Click Lead Generation dropdown and select an option
+          await publisherPage.page
+            .locator("single-selector")
+            .filter({ hasText: "? ? Product & Service Review" })
+            .getByRole("button")
+            .click();
+          await publisherPage.page
+            .getByRole("link", { name: "Coupon" })
+            .click();
+          // 7. Click Category dropdown and select a category
+          await publisherPage.page.locator("#ui-select-search-input").click();
+          await publisherPage.page
+            .getByRole("link", { name: "General" })
+            .click();
+          // 8. Input Description <textarea>
+          await publisherPage.page
+            .locator("textarea")
+            .fill(
+              `This is a sample description property ${siteName} created by automated test.`,
+            );
+          // 9.Click on 'Create' button
+          await publisherPage.page
+            .getByRole("button", { name: "Create" })
+            .click();
+          // 10. Expect new site is visible in the site list
+          await publisherPage.page
+            .locator("td")
+            .filter({ hasText: siteName })
+            .waitFor({ state: "visible", timeout: 30000 });
         });
 
         test("Update Site", async () => {
-          await expect(publisherPage.page).toHaveURL(
-            `${BASE_URL}/dashboard/account-settings/properties/list`,
-          );
-          await expect(
-            publisherPage.page.getByRole("heading", { name: "Property List" }),
-          ).toBeVisible();
+          await publisherPage.page
+            .locator("tr[role='row']")
+            .first()
+            .waitFor({ state: "visible", timeout: 30000 });
+
+          // 1. Find a site with "A Test" in the name
+          const testSiteRow = publisherPage.page
+            .locator("tr[role='row']")
+            .filter({ hasText: /A Test/ });
+
+          // Check if the site exists
+          const rowCount = await testSiteRow.count();
+
+          if (rowCount > 1) {
+            const row = testSiteRow.first();
+
+            // Get the site name from the row
+            const siteNameCell = row
+              .locator("td")
+              .filter({ hasText: /A Test/ })
+              .first();
+
+            const siteNameBefore = await siteNameCell.textContent();
+
+            // 2. Click the delete icon/button in the row
+            await publisherPage.page
+              .getByRole("link", { name: "chevron_right" })
+              .nth(3)
+              .first()
+              .click();
+
+            // 3. Click confirm delete button in the dialog
+            await publisherPage.page
+              .locator("div")
+              .filter({ hasText: /^edit$/ })
+              .first()
+              .click();
+
+            const newSiteName = siteNameBefore + " updated";
+
+            // 2. Input Site Name
+            await publisherPage.page
+              .getByRole("textbox")
+              .first()
+              .fill(newSiteName);
+
+            // 3. Input Site URL
+            await publisherPage.page
+              .locator('input[type="url"]')
+              .fill(
+                `https://www.google.com/${Math.floor(Math.random() * 1000)}`,
+              );
+
+            // 4. Click Type dropdown and select a type
+            await publisherPage.page
+              .locator("button[data-toggle='dropdown']")
+              .first()
+              .click();
+
+            await publisherPage.page
+              .getByRole("link", { name: "Media", exact: true })
+              .click();
+
+            // 5. Click Traffic dropdown and select a traffic source
+            await publisherPage.page
+              .locator("button[data-toggle='dropdown']")
+              .nth(1)
+              .click();
+            await publisherPage.page
+              .getByRole("link", { name: "Instagram" })
+              .click();
+            // 6. Click Lead Generation dropdown and select an option
+            await publisherPage.page
+              .locator("button[data-toggle='dropdown']")
+              .nth(2)
+              .click();
+
+            await publisherPage.page
+              .getByRole("link", { name: "Cashback" })
+              .click();
+            // 7. Click Category dropdown and select a category
+            await publisherPage.page.locator("#ui-select-search-input").click();
+            await publisherPage.page
+              .getByRole("link", { name: "Stock" })
+              .click();
+            // 8. Input Description <textarea>
+            await publisherPage.page
+              .locator("textarea")
+              .fill(
+                `This is a sample description property ${newSiteName} by automated test.`,
+              );
+            // 9.Click on 'Update' button
+            await publisherPage.page
+              .getByRole("button", { name: "Update" })
+              .click();
+
+            // 10. Verify the site is no longer in the list
+            await publisherPage.page
+              .getByText(`name: ${newSiteName}`)
+              .nth(1)
+              .waitFor({ state: "visible", timeout: 30000 });
+          }
         });
 
         test("Delete Site", async () => {
-          await expect(publisherPage.page).toHaveURL(
-            `${BASE_URL}/dashboard/account-settings/properties/list`,
-          );
-          await expect(
-            publisherPage.page.getByRole("heading", { name: "Property List" }),
-          ).toBeVisible();
+          await publisherPage.page
+            .locator("tr[role='row']")
+            .first()
+            .waitFor({ state: "visible", timeout: 30000 });
+
+          // 1. Find a site with "A Test" in the name
+          const testSiteRow = publisherPage.page
+            .locator("tr[role='row']")
+            .filter({ hasText: /A Test/ });
+
+          // Check if the site exists
+          const rowCount = await testSiteRow.count();
+
+          if (rowCount > 1) {
+            const row = testSiteRow.first();
+
+            // Get the site name from the row
+            const siteNameCell = row
+              .locator("td")
+              .filter({ hasText: /A Test/ })
+              .first();
+
+            const siteName = await siteNameCell.textContent();
+
+            // 2. Click the delete icon/button in the row
+            await publisherPage.page
+              .locator("div")
+              .filter({ hasText: /^delete$/ })
+              .first()
+              .click();
+
+            // 3. Click confirm delete button in the dialog
+            await publisherPage.page
+              .getByRole("button", { name: /Delete/ })
+              .click();
+
+            await publisherPage.page
+              .locator("tr[role='row']")
+              .first()
+              .waitFor({ state: "visible", timeout: 30000 });
+
+            // 4. Verify the site is no longer in the list
+            const deletedRow = publisherPage.page
+              .locator("tr[role='row']")
+              .filter({ hasText: siteName || /A Test/ });
+
+            await expect(deletedRow).toHaveCount(0, { timeout: 15000 });
+          }
         });
       });
 
