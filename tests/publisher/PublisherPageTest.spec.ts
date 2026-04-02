@@ -339,6 +339,23 @@ test.describe("Publisher Tests", () => {
         });
 
         test("Update Site", async () => {
+          const selectRandomVisibleDropdownOption = async () => {
+            const visibleOptions = publisherPage.page.locator(
+              "a.ui-select-choices-row-inner:visible",
+            );
+
+            await visibleOptions.first().waitFor({
+              state: "visible",
+              timeout: 10000,
+            });
+
+            const optionCount = await visibleOptions.count();
+            expect(optionCount).toBeGreaterThan(0);
+
+            const randomIndex = Math.floor(Math.random() * optionCount);
+            await visibleOptions.nth(randomIndex).click();
+          };
+
           await publisherPage.page
             .locator("tr[role='row']")
             .first()
@@ -377,7 +394,7 @@ test.describe("Publisher Tests", () => {
               .first()
               .click();
 
-            const newSiteName = siteNameBefore + " updated";
+            const newSiteName = `${siteNameBefore} updated`;
 
             // 2. Input Site Name
             await publisherPage.page
@@ -398,32 +415,43 @@ test.describe("Publisher Tests", () => {
               .first()
               .click();
 
-            await publisherPage.page
-              .getByRole("link", { name: "Media", exact: true })
-              .click();
+            await selectRandomVisibleDropdownOption();
 
             // 5. Click Traffic dropdown and select a traffic source
             await publisherPage.page
               .locator("button[data-toggle='dropdown']")
               .nth(1)
               .click();
-            await publisherPage.page
-              .getByRole("link", { name: "Instagram" })
-              .click();
+
+            await selectRandomVisibleDropdownOption();
             // 6. Click Lead Generation dropdown and select an option
             await publisherPage.page
               .locator("button[data-toggle='dropdown']")
               .nth(2)
               .click();
 
-            await publisherPage.page
-              .getByRole("link", { name: "Cashback" })
-              .click();
+            await selectRandomVisibleDropdownOption();
             // 7. Click Category dropdown and select a category
             await publisherPage.page.locator("#ui-select-search-input").click();
-            await publisherPage.page
-              .getByRole("link", { name: "Stock" })
-              .click();
+
+            const visibleOptions = publisherPage.page.locator(
+              "a.ui-select-choices-row-inner.ng-star-inserted:visible",
+            );
+
+            await visibleOptions.first().waitFor({
+              state: "visible",
+              timeout: 10000,
+            });
+
+            const optionCount = await visibleOptions.count();
+            expect(optionCount).toBeGreaterThan(0);
+
+            const randomIndex = Math.floor(Math.random() * optionCount);
+            await visibleOptions.nth(randomIndex).click();
+
+            // await publisherPage.page
+            //   .getByRole("link", { name: "Stock" })
+            //   .click();
             // 8. Input Description <textarea>
             await publisherPage.page
               .locator("textarea")
