@@ -17,6 +17,8 @@ const PERFORMANCE_ITEMS = [
 
 // ── Test suite ───────────────────────────────────────────────
 test.describe("Publisher Tests", () => {
+  test.describe.configure({ mode: "serial" });
+
   let publisherPage: PublisherPage;
 
   test.beforeEach(async ({ page }) => {
@@ -429,14 +431,13 @@ test.describe("Publisher Tests", () => {
                 .first()
                 .locator("td")
                 .filter({ hasText: /A Test/ })
-                .first()
                 .textContent()
             )?.trim() ?? "";
 
           // Open edit dialog
-          await publisherPage.page
+          await testSiteRow
+            .first()
             .getByRole("link", { name: LOCATORS.chevronLink })
-            .nth(3)
             .click();
 
           await publisherPage.page.waitForLoadState("networkidle");
@@ -543,8 +544,48 @@ test.describe("Publisher Tests", () => {
         });
       });
 
-      test.describe.skip("Tracing URL", () => {
-        test("View Site", async () => {
+      test.describe("Tracing URL", () => {
+        let siteNameBefore = "";
+        test.beforeEach(async () => {
+          const testSiteRow = publisherPage.page
+            .locator("tr[role='row']")
+            .filter({ hasText: /Thien/ })
+            .first();
+
+          const getSiteName = await testSiteRow
+            .locator("td")
+            .filter({ hasText: /Thien/ })
+            .textContent();
+
+          siteNameBefore = getSiteName?.trim() ?? "";
+
+          // Open edit dialog
+          await testSiteRow
+            .getByRole("link", { name: "chevron_right" })
+            .click();
+
+          await publisherPage.page
+            .locator("a")
+            .filter({ hasText: /^Tracking URL$/ })
+            .click();
+
+          await publisherPage.page.waitForLoadState("networkidle");
+
+          await publisherPage.page
+            .getByText("Affiliate Link Preview", { exact: true })
+            .waitFor({ state: "visible", timeout: 30000 });
+        });
+
+        test("View tracing URL", async () => {
+          const listURL = publisherPage.page
+            .locator("li")
+            .filter({ hasText: /^Custom-\d+=/ });
+
+          const urlCount = await listURL.count();
+          expect(urlCount).toBeGreaterThan(0);
+        });
+
+        test("Create Tracing URL", async () => {
           await expect(publisherPage.page).toHaveURL(
             `${BASE_URL}/dashboard/account-settings/properties/list`,
           );
@@ -553,7 +594,7 @@ test.describe("Publisher Tests", () => {
           ).toBeVisible();
         });
 
-        test("Create Site", async () => {
+        test("Update Tracing URL", async () => {
           await expect(publisherPage.page).toHaveURL(
             `${BASE_URL}/dashboard/account-settings/properties/list`,
           );
@@ -562,22 +603,39 @@ test.describe("Publisher Tests", () => {
           ).toBeVisible();
         });
 
-        test("Update Site", async () => {
-          await expect(publisherPage.page).toHaveURL(
-            `${BASE_URL}/dashboard/account-settings/properties/list`,
-          );
-          await expect(
-            publisherPage.page.getByRole("heading", { name: "Property List" }),
-          ).toBeVisible();
-        });
+        test("Delete Tracing URL", async () => {
+          // 1. Click on edit button
+          await publisherPage.page
+            .locator("span")
+            .filter({ hasText: /^edit$/ })
+            .click();
 
-        test("Delete Site", async () => {
-          await expect(publisherPage.page).toHaveURL(
-            `${BASE_URL}/dashboard/account-settings/properties/list`,
+          // 2. Click on delete button
+          await publisherPage.page.waitForLoadState("networkidle");
+
+          const rowDelete = await publisherPage.page.locator(
+            'input[formcontrolname="name"]',
           );
-          await expect(
-            publisherPage.page.getByRole("heading", { name: "Property List" }),
-          ).toBeVisible();
+
+          if ((await rowDelete.count()) > 1) {
+            const nameInput = publisherPage.page
+              .locator('input[formcontrolname="name"]')
+              .last();
+
+            const siteName = await nameInput.inputValue();
+
+            // getByRole('textbox', { name: 'name', exact: true }).nth(5)
+            await publisherPage.page.getByText("delete").last().click();
+
+            // 3. Confirm Update button
+            await publisherPage.page
+              .getByRole("button", { name: "Update" })
+              .click();
+
+            await expect(
+              publisherPage.page.getByText(siteName, { exact: true }),
+            ).toBeHidden();
+          }
         });
       });
 
