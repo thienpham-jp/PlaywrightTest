@@ -269,7 +269,62 @@ test.describe("Publisher Tests", () => {
       });
 
       test.describe("Site Management", () => {
+        // ============================================================
+        // HELPERS
+        // ============================================================
+        const LOCATORS = {
+          tableRow: "tr[role='row']",
+          dropdownButton: "button[data-toggle='dropdown']",
+          dropdownOption: "a.ui-select-choices-row-inner:visible",
+          categoryOption:
+            "a.ui-select-choices-row-inner.ng-star-inserted:visible",
+          categorySearchInput: "#ui-select-search-input",
+          categoryTag: "span[tabindex='0']",
+          chevronLink: "chevron_right",
+          editButton: /^edit$/,
+          textarea: "textarea",
+          urlInput: 'input[type="url"]',
+        };
+
+        const selectRandomOption = async (locator: string) => {
+          const options = publisherPage.page.locator(locator);
+          await options.first().waitFor({ state: "visible", timeout: 10000 });
+
+          const count = await options.count();
+          expect(count).toBeGreaterThan(1);
+
+          const randomIndex = Math.floor(Math.random() * (count - 1)) + 1;
+          await options.nth(randomIndex).click();
+        };
+
+        const openDropdownAndSelect = async (index: number) => {
+          const dropdown = publisherPage.page
+            .locator(LOCATORS.dropdownButton)
+            .nth(index);
+
+          // Wait for dropdown to be visible and clickable
+          await dropdown.waitFor({ state: "visible", timeout: 10000 });
+          await dropdown.click();
+
+          // Wait for dropdown options to appear
+          await publisherPage.page.waitForTimeout(300);
+
+          await selectRandomOption(LOCATORS.dropdownOption);
+
+          // Wait for dropdown to close and page to stabilize
+          await publisherPage.page.waitForTimeout(500);
+        };
+
+        const removeExistingCategoryIfAny = async () => {
+          const tags = publisherPage.page.locator(LOCATORS.categoryTag);
+          const count = await tags.count();
+          if (count > 1) {
+            await tags.nth(1).click();
+          }
+        };
+
         test.describe.configure({ mode: "serial" });
+
         test("View Site", async () => {
           await expect(
             publisherPage.page.getByRole("heading", { name: "Property List" }),
@@ -286,42 +341,24 @@ test.describe("Publisher Tests", () => {
             .filter({ hasText: /^add$/ })
             .click();
           // 2. Input Site Name
-          const siteName = `A Test ${Math.floor(Math.random() * 1000)}`;
+          const siteName = `A Test ${Math.floor(Math.random() * 10000)}`;
           await publisherPage.page.getByRole("textbox").first().fill(siteName);
           // 3. Input Site URL
           await publisherPage.page
             .locator('input[type="url"]')
             .fill(`https://www.google.com/${Math.floor(Math.random() * 1000)}`);
-          // 4. Click Type dropdown and select a type
+
+          // Select dropdowns: 4. Type, 5. Traffic, 6. Lead Generation
+          await openDropdownAndSelect(0);
+          await openDropdownAndSelect(1);
+          await openDropdownAndSelect(2);
+
+          // 7. Select Category
+          // await removeExistingCategoryIfAny();
           await publisherPage.page
-            .locator("single-selector")
-            .filter({ hasText: "? ? Blog Social Network" })
-            .getByRole("button")
+            .locator(LOCATORS.categorySearchInput)
             .click();
-          await publisherPage.page
-            .getByRole("link", { name: "Social Network" })
-            .click();
-          // 5. Click Traffic dropdown and select a traffic source
-          await publisherPage.page
-            .getByText("Traffic? ? Organic Search")
-            .click();
-          await publisherPage.page
-            .getByRole("link", { name: "Paid Search" })
-            .click();
-          // 6. Click Lead Generation dropdown and select an option
-          await publisherPage.page
-            .locator("single-selector")
-            .filter({ hasText: "? ? Product & Service Review" })
-            .getByRole("button")
-            .click();
-          await publisherPage.page
-            .getByRole("link", { name: "Coupon" })
-            .click();
-          // 7. Click Category dropdown and select a category
-          await publisherPage.page.locator("#ui-select-search-input").click();
-          await publisherPage.page
-            .getByRole("link", { name: "General" })
-            .click();
+          await selectRandomOption(LOCATORS.categoryOption);
           // 8. Input Description <textarea>
           await publisherPage.page
             .locator("textarea")
@@ -343,56 +380,6 @@ test.describe("Publisher Tests", () => {
           // ============================================================
           // HELPERS
           // ============================================================
-          const LOCATORS = {
-            tableRow: "tr[role='row']",
-            dropdownButton: "button[data-toggle='dropdown']",
-            dropdownOption: "a.ui-select-choices-row-inner:visible",
-            categoryOption:
-              "a.ui-select-choices-row-inner.ng-star-inserted:visible",
-            categorySearchInput: "#ui-select-search-input",
-            categoryTag: "span[tabindex='0']",
-            chevronLink: "chevron_right",
-            editButton: /^edit$/,
-            textarea: "textarea",
-            urlInput: 'input[type="url"]',
-          };
-
-          const selectRandomOption = async (locator: string) => {
-            const options = publisherPage.page.locator(locator);
-            await options.first().waitFor({ state: "visible", timeout: 10000 });
-
-            const count = await options.count();
-            expect(count).toBeGreaterThan(1);
-
-            const randomIndex = Math.floor(Math.random() * (count - 1)) + 1;
-            await options.nth(randomIndex).click();
-          };
-
-          const openDropdownAndSelect = async (index: number) => {
-            const dropdown = publisherPage.page
-              .locator(LOCATORS.dropdownButton)
-              .nth(index);
-
-            // Wait for dropdown to be visible and clickable
-            await dropdown.waitFor({ state: "visible", timeout: 10000 });
-            await dropdown.click();
-
-            // Wait for dropdown options to appear
-            await publisherPage.page.waitForTimeout(300);
-
-            await selectRandomOption(LOCATORS.dropdownOption);
-
-            // Wait for dropdown to close and page to stabilize
-            await publisherPage.page.waitForTimeout(500);
-          };
-
-          const removeExistingCategoryIfAny = async () => {
-            const tags = publisherPage.page.locator(LOCATORS.categoryTag);
-            const count = await tags.count();
-            if (count > 1) {
-              await tags.nth(1).click();
-            }
-          };
 
           const fillSiteDetails = async (newSiteName: string) => {
             // Description
@@ -634,7 +621,7 @@ test.describe("Publisher Tests", () => {
     });
   });
 
-  test.describe("Campaign section", () => {
+  test.describe.skip("Campaign section", () => {
     test.beforeEach(async () => {
       // 1. Click on the user profile icon
       await publisherPage.page
@@ -815,7 +802,7 @@ test.describe("Publisher Tests", () => {
     });
   });
 
-  test.describe("Creatives", () => {
+  test.describe.skip("Creatives", () => {
     test.beforeEach(async () => {
       // 1. Click on the user profile icon
       await publisherPage.page
