@@ -269,7 +269,7 @@ test.describe("Publisher Tests", () => {
       });
 
       test.describe("Site Management", () => {
-        // test.describe.configure({ mode: "serial" });
+        test.describe.configure({ mode: "serial" });
         test("View Site", async () => {
           await expect(
             publisherPage.page.getByRole("heading", { name: "Property List" }),
@@ -518,41 +518,41 @@ test.describe("Publisher Tests", () => {
           // Check if the site exists
           const rowCount = await testSiteRow.count();
 
-          if (rowCount > 2) {
-            const row = testSiteRow.first();
+          if (rowCount < 1) return;
 
-            // Get the site name from the row
-            const siteNameCell = row
-              .locator("td")
-              .filter({ hasText: /A Test/ })
-              .first();
+          const row = testSiteRow.first();
 
-            const siteName = await siteNameCell.textContent();
+          // Get the site name from the row
+          const siteNameCell = row
+            .locator("td")
+            .filter({ hasText: /A Test/ })
+            .first();
 
-            // 2. Click the delete icon/button in the row
-            await publisherPage.page
-              .locator("div")
-              .filter({ hasText: /^delete$/ })
-              .first()
-              .click();
+          const siteName = await siteNameCell.textContent();
 
-            // 3. Click confirm delete button in the dialog
-            await publisherPage.page
-              .getByRole("button", { name: /Delete/ })
-              .click();
+          // 2. Click the delete icon/button in the row
+          await row
+            .locator("td")
+            .filter({ hasText: /^delete$/ })
+            .first()
+            .click();
 
-            await publisherPage.page
-              .locator("tr[role='row']")
-              .first()
-              .waitFor({ state: "visible", timeout: 30000 });
+          // 3. Click confirm delete button in the dialog
+          await publisherPage.page
+            .getByRole("button", { name: /Delete/ })
+            .click();
 
-            // 4. Verify the site is no longer in the list
-            const deletedRow = publisherPage.page
-              .locator("tr[role='row']")
-              .filter({ hasText: siteName || /A Test/ });
+          await publisherPage.page
+            .locator("tr[role='row']")
+            .first()
+            .waitFor({ state: "visible", timeout: 30000 });
 
-            await expect(deletedRow).toHaveCount(0, { timeout: 15000 });
-          }
+          // 4. Verify the site is no longer in the list
+          const deletedRow = publisherPage.page
+            .locator("tr[role='row']")
+            .filter({ hasText: siteName || /A Test/ });
+
+          await expect(deletedRow).toHaveCount(0, { timeout: 15000 });
         });
       });
 
