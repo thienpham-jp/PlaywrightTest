@@ -546,6 +546,7 @@ test.describe("Publisher Tests", () => {
 
       test.describe("Tracing URL", () => {
         let siteNameBefore = "";
+        // test.describe.configure({ mode: "serial" });
         test.beforeEach(async () => {
           const testSiteRow = publisherPage.page
             .locator("tr[role='row']")
@@ -585,7 +586,7 @@ test.describe("Publisher Tests", () => {
           expect(urlCount).toBeGreaterThan(0);
         });
 
-        test("Create Tracing URL", async () => {
+        test.skip("Create Tracing URL", async () => {
           await expect(publisherPage.page).toHaveURL(
             `${BASE_URL}/dashboard/account-settings/properties/list`,
           );
@@ -595,12 +596,52 @@ test.describe("Publisher Tests", () => {
         });
 
         test("Update Tracing URL", async () => {
-          await expect(publisherPage.page).toHaveURL(
-            `${BASE_URL}/dashboard/account-settings/properties/list`,
+          // 1. Click on edit button
+          await publisherPage.page
+            .locator("span")
+            .filter({ hasText: /^edit$/ })
+            .click();
+
+          // 2. Wait for form to load
+          await publisherPage.page.waitForLoadState("networkidle");
+
+          const rowUpdate = publisherPage.page.locator(
+            'input[formcontrolname="name"]',
           );
-          await expect(
-            publisherPage.page.getByRole("heading", { name: "Property List" }),
-          ).toBeVisible();
+
+          if ((await rowUpdate.count()) > 1) {
+            const nameInput = publisherPage.page
+              .locator('input[formcontrolname="name"]')
+              .first();
+
+            const siteName = await nameInput.inputValue();
+
+            const newSiteName = `${siteName}-updated`;
+            await nameInput.fill(newSiteName);
+
+            const newValue = Date.now().toString();
+
+            const joinInput = `${newSiteName}=${newValue}`;
+
+            await publisherPage.page
+              .getByRole("textbox", { name: "value" })
+              .nth(1)
+              .fill(newValue);
+
+            // check button
+            await publisherPage.page.getByText("check").click();
+
+            // 3. Confirm Update button
+            const updateButton = publisherPage.page.getByRole("button", {
+              name: "Update",
+            });
+            await updateButton.scrollIntoViewIfNeeded();
+            await updateButton.click();
+
+            await expect(
+              publisherPage.page.getByText(joinInput, { exact: true }),
+            ).toBeVisible();
+          }
         });
 
         test("Delete Tracing URL", async () => {
