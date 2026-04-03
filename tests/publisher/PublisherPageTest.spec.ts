@@ -279,7 +279,7 @@ test.describe("Publisher Tests", () => {
           categoryOption:
             "a.ui-select-choices-row-inner.ng-star-inserted:visible",
           categorySearchInput: "#ui-select-search-input",
-          categoryTag: "span[tabindex='0']",
+          categoryTag: "span[role='button']",
           chevronLink: "chevron_right",
           editButton: /^edit$/,
           textarea: "textarea",
