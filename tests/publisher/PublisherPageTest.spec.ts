@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { PublisherPage } from "../../pages/PublisherPage";
-import userData from "../../src/helpers/users.json";
+import { users as userData } from "../../src/helpers/user-helper";
 
 // ── Publisher config ─────────────────────────────────────────
 const PAN = "84255";
