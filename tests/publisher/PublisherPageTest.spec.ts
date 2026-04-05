@@ -17,8 +17,6 @@ const PERFORMANCE_ITEMS = [
 
 // ── Test suite ───────────────────────────────────────────────
 test.describe("Publisher Tests", () => {
-  test.describe.configure({ mode: "serial" });
-
   let publisherPage: PublisherPage;
 
   test.beforeEach(async ({ page }) => {
@@ -578,6 +576,7 @@ test.describe("Publisher Tests", () => {
         });
 
         test.describe("Tracing URL action", async () => {
+          test.describe.configure({ mode: "serial" });
           test.beforeEach(async () => {
             // 1. Click on edit button
             await publisherPage.page
