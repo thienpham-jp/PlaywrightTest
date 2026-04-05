@@ -545,20 +545,11 @@ test.describe("Publisher Tests", () => {
       });
 
       test.describe("Tracing URL", () => {
-        let siteNameBefore = "";
-        // test.describe.configure({ mode: "serial" });
         test.beforeEach(async () => {
           const testSiteRow = publisherPage.page
             .locator("tr[role='row']")
             .filter({ hasText: /Thien/ })
             .first();
-
-          const getSiteName = await testSiteRow
-            .locator("td")
-            .filter({ hasText: /Thien/ })
-            .textContent();
-
-          siteNameBefore = getSiteName?.trim() ?? "";
 
           // Open edit dialog
           await testSiteRow
@@ -586,12 +577,57 @@ test.describe("Publisher Tests", () => {
           expect(urlCount).toBeGreaterThan(0);
         });
 
-        test.skip("Create Tracing URL", async () => {
-          await expect(publisherPage.page).toHaveURL(
-            `${BASE_URL}/dashboard/account-settings/properties/list`,
-          );
+        test("Create Tracing URL", async () => {
+          // 1. Click on edit button
+          await publisherPage.page
+            .locator("span")
+            .filter({ hasText: /^edit$/ })
+            .click();
+
+          // 2. Wait for form to load
+          await publisherPage.page.waitForLoadState("networkidle");
+
+          // 3. Input name and value for the new tracing URL
+          const newSiteName = `Custom-${Math.floor(Math.random() * 1000)}`;
+          await publisherPage.page
+            .getByRole("textbox", { name: "Name", exact: true })
+            .fill(newSiteName);
+
+          const newValue = Date.now().toString();
+          await publisherPage.page
+            .getByRole("textbox", {
+              name: "Value",
+              exact: true,
+            })
+            .fill(newValue);
+
+          const joinInput = `${newSiteName}=${newValue}`;
+
+          // 4. Click add button
+          await publisherPage.page.getByText("add", { exact: true }).click();
+
+          // Wait for form to stabilize after the check action
+          await publisherPage.page.waitForLoadState("networkidle");
+          await publisherPage.page.waitForTimeout(500);
+
+          // 5. Confirm Update button
+          const updateButton = publisherPage.page.getByRole("button", {
+            name: "Update",
+          });
+          await updateButton.waitFor({ state: "visible", timeout: 10000 });
+
+          // Scroll button into view and ensure it's clickable
+          await updateButton.scrollIntoViewIfNeeded();
+          await publisherPage.page.waitForTimeout(300);
+
+          await updateButton.click();
+
+          // Wait for form submission to complete
+          await publisherPage.page.waitForLoadState("networkidle");
+
+          // 6. Expect new tracing URL is visible in the list
           await expect(
-            publisherPage.page.getByRole("heading", { name: "Property List" }),
+            publisherPage.page.getByText(joinInput, { exact: true }),
           ).toBeVisible();
         });
 
@@ -614,9 +650,8 @@ test.describe("Publisher Tests", () => {
               .locator('input[formcontrolname="name"]')
               .first();
 
-            const siteName = await nameInput.inputValue();
-
-            const newSiteName = `${siteName}-updated`;
+            // 3. Input new name and value for the tracing URL
+            const newSiteName = `$Custom-${Math.floor(Math.random() * 1000)}`;
             await nameInput.fill(newSiteName);
 
             const newValue = Date.now().toString();
@@ -628,16 +663,29 @@ test.describe("Publisher Tests", () => {
               .nth(1)
               .fill(newValue);
 
-            // check button
+            // 4. Click check button
             await publisherPage.page.getByText("check").click();
 
-            // 3. Confirm Update button
+            // Wait for form to stabilize after the check action
+            await publisherPage.page.waitForLoadState("networkidle");
+            await publisherPage.page.waitForTimeout(500);
+
+            // 5. Confirm Update button
             const updateButton = publisherPage.page.getByRole("button", {
               name: "Update",
             });
+            await updateButton.waitFor({ state: "visible", timeout: 10000 });
+
+            // Scroll button into view and ensure it's clickable
             await updateButton.scrollIntoViewIfNeeded();
+            await publisherPage.page.waitForTimeout(300);
+
             await updateButton.click();
 
+            // Wait for form submission to complete
+            await publisherPage.page.waitForLoadState("networkidle");
+
+            // 6 Expect updated tracing URL is visible in the list
             await expect(
               publisherPage.page.getByText(joinInput, { exact: true }),
             ).toBeVisible();
@@ -651,7 +699,7 @@ test.describe("Publisher Tests", () => {
             .filter({ hasText: /^edit$/ })
             .click();
 
-          // 2. Click on delete button
+          // 2. Check and find delete button
           await publisherPage.page.waitForLoadState("networkidle");
 
           const rowDelete = await publisherPage.page.locator(
@@ -661,18 +709,19 @@ test.describe("Publisher Tests", () => {
           if ((await rowDelete.count()) > 1) {
             const nameInput = publisherPage.page
               .locator('input[formcontrolname="name"]')
-              .last();
+              .first();
 
             const siteName = await nameInput.inputValue();
 
-            // getByRole('textbox', { name: 'name', exact: true }).nth(5)
-            await publisherPage.page.getByText("delete").last().click();
+            // 3. Click delete button
+            await publisherPage.page.getByText("delete").first().click();
 
-            // 3. Confirm Update button
+            // 4. Confirm Update button
             await publisherPage.page
               .getByRole("button", { name: "Update" })
               .click();
 
+            // 5. Expect the tracing URL is removed from the list
             await expect(
               publisherPage.page.getByText(siteName, { exact: true }),
             ).toBeHidden();
