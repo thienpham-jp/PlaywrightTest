@@ -33,7 +33,8 @@ export default defineConfig({
     trace: "on",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
-    headless: true,
+    // Run local the same way as Debug (headed + fullscreen viewport).
+    headless: !!process.env.CI,
     launchOptions: {
       args: [
         "--start-maximized",
@@ -44,7 +45,7 @@ export default defineConfig({
         "--allow-insecure-localhost",
       ],
     },
-    viewport: null,
+    viewport: process.env.CI ? { width: 1920, height: 1080 } : null,
   },
 
   /* Configure projects for major browsers */
