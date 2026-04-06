@@ -1069,34 +1069,96 @@ test.describe("Publisher Tests", () => {
 
   test.describe("Creatives", () => {
     test.beforeEach(async () => {
-      // 1. Click on the Custom Creatives menu
+      // 1. Click on the Creatives menu
       await publisherPage.page
-        .getByRole("link", { name: /Custom Creatives/i })
+        .getByRole("link", { name: /Creatives/i })
         .click();
-      // 2. Click Campaign Name in the dropdown
-      await publisherPage.page
-        .locator("input[data-toggle='dropdown']")
-        .filter({ hasText: "Campaign Name" })
-        .click();
-      // 3. Wait for the ul[role="menu"] to be visible and click on 'Manage Creatives' option`
-      const menu = await publisherPage.page.locator("ul[role='menu']");
-
-      await menu.waitFor({ state: "visible", timeout: 10000 });
-
-      // 4. Click on 'Creatives' tab
-      const genderOptions = await menu
-        .locator("a")
-        .filter({ hasText: "Manage Creatives" })
-        .allTextContents();
-      const randomGender =
-        genderOptions[Math.floor(Math.random() * genderOptions.length)];
-
-      // await randomGender.click();
 
       await publisherPage.page
-        .locator("span")
-        .filter({ hasText: /^Creatives$/ })
+        .locator("a", { hasText: "Custom Creatives" })
         .click();
+    });
+
+    test("Create Creatives", async () => {
+      // ============================================================
+      // HELPERS
+      // ============================================================
+      const buildLandingPageURL = (baseURL: string): string => {
+        const suffix = Math.floor(Math.random() * 1000);
+        return baseURL.endsWith("/")
+          ? `${baseURL}${suffix}`
+          : `${baseURL}/${suffix}`;
+      };
+
+      // ============================================================
+      // 1. Select random Campaign
+      // ============================================================
+      await publisherPage.page
+        .getByRole("textbox", { name: "Campaign Name" })
+        .click();
+
+      const EXCLUDED_CAMPAIGNS = ["Shopee", "Lazada"];
+
+      const menuOptions = publisherPage.page.locator(
+        "ul[role='menu'] a.ui-select-choices-row-inner",
+      );
+
+      await menuOptions.first().waitFor({ state: "visible", timeout: 10000 });
+
+      const optionTexts = await menuOptions.allTextContents();
+      const validOptionTexts = optionTexts.filter(
+        (text) =>
+          !EXCLUDED_CAMPAIGNS.some((excluded) => text.includes(excluded)),
+      );
+
+      expect(validOptionTexts.length).toBeGreaterThan(0);
+
+      const randomCampaign =
+        validOptionTexts[Math.floor(Math.random() * validOptionTexts.length)];
+
+      await menuOptions.filter({ hasText: randomCampaign }).click();
+
+      // ============================================================
+      // 2. Build Landing Page URL from accepted formats
+      // ============================================================
+      const acceptedURLItem = publisherPage.page
+        .locator("li.url.ng-star-inserted")
+        .first();
+
+      await acceptedURLItem.waitFor({ state: "visible", timeout: 10000 });
+
+      const acceptedBaseURL = await acceptedURLItem.innerText();
+      const landingPageURL = buildLandingPageURL(acceptedBaseURL.trim());
+
+      // ============================================================
+      // 3. Input Creative Name and Landing Page URL
+      // ============================================================
+      const creativeName = `QA Test-${Math.floor(Math.random() * 10000)}`;
+
+      await publisherPage.page.locator('input[name="name"]').fill(creativeName);
+
+      await publisherPage.page
+        .locator("textarea[name='urls']")
+        .fill(landingPageURL);
+
+      // ============================================================
+      // 4. Click Generate and verify
+      // ============================================================
+      await publisherPage.page
+        .getByRole("button", { name: "Generate" })
+        .click();
+
+      const error = await publisherPage.page.getByText(
+        "info URL is not valid, please",
+      );
+
+      if (!(await error.isVisible())) {
+        await publisherPage.page.getByRole("button").click();
+
+        await expect(
+          publisherPage.page.locator("td").filter({ hasText: creativeName }),
+        ).toBeVisible({ timeout: 15000 });
+      }
     });
   });
 
