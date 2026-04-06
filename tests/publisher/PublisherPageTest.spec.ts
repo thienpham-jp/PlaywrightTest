@@ -577,7 +577,6 @@ test.describe("Publisher Tests", () => {
         });
 
         test.describe("Tracing URL action", async () => {
-          test.describe.configure({ mode: "serial" });
           test.beforeEach(async () => {
             // 1. Click on edit button
             await publisherPage.page
@@ -640,9 +639,7 @@ test.describe("Publisher Tests", () => {
             );
 
             if ((await rowUpdate.count()) > 1) {
-              const nameInput = publisherPage.page
-                .locator('input[formcontrolname="name"]')
-                .first();
+              const nameInput = rowUpdate.first();
 
               // 3. Input new name and value for the tracing URL
               const newSiteName = `Custom-${Math.floor(Math.random() * 1000)}`;
@@ -692,9 +689,7 @@ test.describe("Publisher Tests", () => {
             );
 
             if ((await rowDelete.count()) > 1) {
-              const nameInput = publisherPage.page
-                .locator('input[formcontrolname="name"]')
-                .first();
+              const nameInput = rowDelete.first();
 
               const siteName = await nameInput.inputValue();
 
@@ -715,41 +710,172 @@ test.describe("Publisher Tests", () => {
         });
       });
 
-      test.describe.skip("Postback", () => {
-        test("View Site", async () => {
-          await expect(publisherPage.page).toHaveURL(
-            `${BASE_URL}/dashboard/account-settings/properties/list`,
-          );
-          await expect(
-            publisherPage.page.getByRole("heading", { name: "Property List" }),
-          ).toBeVisible();
+      test.describe("Postback", () => {
+        test.beforeEach(async () => {
+          const testSiteRow = publisherPage.page
+            .locator("tr[role='row']")
+            .filter({ hasText: /Thien/ })
+            .first();
+
+          // Open edit dialog
+          await testSiteRow
+            .getByRole("link", { name: "chevron_right" })
+            .click();
+
+          await publisherPage.page
+            .locator("a")
+            .filter({ hasText: /^Postback$/ })
+            .click();
+
+          await publisherPage.page.waitForLoadState("networkidle");
+
+          await publisherPage.page
+            .getByText("Parameters", { exact: true })
+            .waitFor({ state: "visible", timeout: 30000 });
         });
 
-        test("Create Site", async () => {
-          await expect(publisherPage.page).toHaveURL(
-            `${BASE_URL}/dashboard/account-settings/properties/list`,
-          );
-          await expect(
-            publisherPage.page.getByRole("heading", { name: "Property List" }),
-          ).toBeVisible();
+        test("View Postback", async () => {
+          const listURL = publisherPage.page
+            .locator("div.parameter-value")
+            .filter({ hasText: /Name-/ });
+
+          const urlCount = await listURL.count();
+          expect(urlCount).toBeGreaterThan(0);
         });
 
-        test("Update Site", async () => {
-          await expect(publisherPage.page).toHaveURL(
-            `${BASE_URL}/dashboard/account-settings/properties/list`,
-          );
-          await expect(
-            publisherPage.page.getByRole("heading", { name: "Property List" }),
-          ).toBeVisible();
-        });
+        test.describe("Postback action", async () => {
+          test.beforeEach(async () => {
+            // 1. Click on edit button
+            await publisherPage.page
+              .locator("span")
+              .filter({ hasText: /^edit$/ })
+              .click();
 
-        test("Delete Site", async () => {
-          await expect(publisherPage.page).toHaveURL(
-            `${BASE_URL}/dashboard/account-settings/properties/list`,
-          );
-          await expect(
-            publisherPage.page.getByRole("heading", { name: "Property List" }),
-          ).toBeVisible();
+            // 2. Wait for form to load
+            await publisherPage.page.waitForLoadState("networkidle");
+          });
+
+          test("Create Postback", async () => {
+            // 3. Input name for the new postback
+            const newName = `Name-${Math.floor(Math.random() * 10000)}`;
+            await publisherPage.page
+              .getByRole("textbox", { name: "Name" })
+              .first()
+              .fill(newName);
+
+            // 4. Input value for the new postback
+            const newValue = `${Date.now()}`;
+            await publisherPage.page
+              .locator('input[formcontrolname="value"]')
+              .first()
+              .fill(newValue);
+            const joinInput = `${newName} = ${newValue}`;
+
+            // 5. Click add button
+            await publisherPage.page
+              .locator("span")
+              .filter({ hasText: /^add$/ })
+              .first()
+              .click();
+
+            // 6. if radio button appears, select "Create new postback"
+            const radioOption = await publisherPage.page
+              .locator(
+                "#mat-radio-8 > .mat-radio-label > .mat-radio-container > .mat-radio-inner-circle",
+              )
+              .first();
+
+            if ((await radioOption.isChecked()) === false) {
+              await radioOption.check();
+            }
+
+            // 7. Click confirm update button
+            const updateButton = publisherPage.page.getByRole("button", {
+              name: "Update",
+            });
+            await updateButton.waitFor({ state: "visible", timeout: 10000 });
+            await updateButton.click();
+
+            // 8. Expect new postback is visible in the list
+            await expect(
+              publisherPage.page.getByText(joinInput, { exact: true }),
+            ).toBeVisible();
+          });
+
+          test("Update Postback", async () => {
+            const rowUpdate = await publisherPage.page.locator(
+              'div.sub-ids-content.mobile-hidden.ng-star-inserted input[formcontrolname="name"]',
+            );
+
+            if ((await rowUpdate.count()) > 1) {
+              const nameInput = rowUpdate.first();
+
+              // 3. Input new name and value for the postback
+              const newSiteName = `Name-${Math.floor(Math.random() * 1000)}`;
+              await nameInput.fill(newSiteName);
+
+              const newValue = Date.now().toString();
+
+              const joinInput = `${newSiteName} = ${newValue}`;
+
+              await publisherPage.page
+                .getByRole("textbox", { name: "value" })
+                .nth(1)
+                .fill(newValue);
+
+              // 4. Click check button
+              await publisherPage.page.getByText("check").click();
+
+              // Wait for form to stabilize after the check action
+              await publisherPage.page.waitForLoadState("networkidle");
+              await publisherPage.page.waitForTimeout(500);
+
+              // 5. Confirm Update button
+              const updateButton = publisherPage.page.getByRole("button", {
+                name: "Update",
+              });
+              await updateButton.waitFor({ state: "visible", timeout: 10000 });
+
+              // Scroll button into view and ensure it's clickable
+              await updateButton.scrollIntoViewIfNeeded();
+              await publisherPage.page.waitForTimeout(300);
+
+              await updateButton.click();
+
+              // Wait for form submission to complete
+              await publisherPage.page.waitForLoadState("networkidle");
+
+              // 6 Expect updated tracing URL is visible in the list
+              await expect(
+                publisherPage.page.getByText(joinInput, { exact: true }),
+              ).toBeVisible();
+            }
+          });
+
+          test("Delete Postback", async () => {
+            const rowDelete = await publisherPage.page.locator(
+              'div.sub-ids-content.mobile-hidden.ng-star-inserted input[formcontrolname="name"]',
+            );
+
+            if ((await rowDelete.count()) > 1) {
+              const nameInput = rowDelete.first();
+
+              const siteName = await nameInput.inputValue();
+
+              // 3. Click delete button
+              await publisherPage.page.getByText("delete").first().click();
+
+              // 4. Confirm Update button
+              await publisherPage.page
+                .getByRole("button", { name: "Update" })
+                .click();
+
+              // 5. Expect the tracing URL is removed from the list
+              await expect(
+                publisherPage.page.getByText(siteName, { exact: true }),
+              ).toBeHidden();
+            }
+          });
         });
       });
     });
