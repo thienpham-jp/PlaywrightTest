@@ -886,184 +886,78 @@ test.describe("Publisher Tests", () => {
     });
   });
 
-  test.describe.skip("Campaign section", () => {
+  test.describe("Campaign", () => {
     test.beforeEach(async () => {
-      // 1. Click on the user profile icon
+      // 1. Click on the Campaigns menu
       await publisherPage.page
-        .locator('div[class="character"]')
-        .first()
-        .click();
-      // 2. Click on 'Account Settings' in the dropdown
-      await publisherPage.page
-        .getByText("Account Settings", { exact: true })
+        .getByRole("link", { name: /Campaigns/i })
         .click();
     });
 
-    test("View Account Settings", async () => {
-      await expect(publisherPage.page).toHaveURL(
-        `${BASE_URL}/dashboard/account-settings/publisher-account/show`,
+    test("Search 1 Campaign", async () => {
+      // Find the search input and fill in the keyword
+      const searchInput = await publisherPage.page.locator(
+        "input[name='keyword']",
       );
+      await searchInput.fill("wardah");
+      await searchInput.press("Enter");
+
       await expect(
-        publisherPage.page.getByRole("heading", { name: "Account Settings" }),
-      ).toBeVisible();
-    });
-
-    test("Account Settings - Change password", async () => {
-      // 1. Click on 'Change Password' edit button
-      await publisherPage.page
-        .locator("app-password-block div")
-        .filter({ hasText: /^edit$/ })
-        .click();
-
-      // 2. Input current password
-      await publisherPage.page
-        .locator('input[type="password"]')
-        .first()
-        .fill(userData.admin.password);
-
-      // 3. Input new password
-      await publisherPage.page
-        .locator('input[type="password"]')
-        .nth(1)
-        .fill(userData.admin.password);
-
-      // 4. Input confirm new password
-      await publisherPage.page
-        .locator('input[type="password"]')
-        .nth(2)
-        .fill(userData.admin.password);
-
-      // 5. Click on 'Update' button
-      await publisherPage.page.getByRole("button", { name: "Update" }).click();
-
-      // 6. Expect success message is visible
-      await expect(
-        publisherPage.page.getByText("Password is updated successfully."),
+        publisherPage.page.locator("div.campaign-block.bg-white").first(),
       ).toBeVisible({ timeout: 10000 });
     });
 
-    test.describe("Properties section", () => {
-      test.beforeEach(async () => {
-        await publisherPage.page
-          .locator("span")
-          .filter({ hasText: /^Properties$/ })
-          .click();
-        await publisherPage.page.waitForLoadState("load");
-      });
+    test("Search multiple Campaigns", async () => {
+      // Find the search input and fill in the keyword
+      const searchInput = await publisherPage.page.locator(
+        "input[name='keyword']",
+      );
+      await searchInput.fill("shopee");
+      await searchInput.press("Enter");
 
-      test.describe("Site Management", () => {
-        test("View Site", async () => {
-          await expect(publisherPage.page).toHaveURL(
-            `${BASE_URL}/dashboard/account-settings/properties/list`,
-          );
-          await expect(
-            publisherPage.page.getByRole("heading", { name: "Property List" }),
-          ).toBeVisible();
-        });
+      await publisherPage.page.waitForLoadState("networkidle");
 
-        test("Create Site", async () => {
-          await expect(publisherPage.page).toHaveURL(
-            `${BASE_URL}/dashboard/account-settings/properties/list`,
-          );
-          await expect(
-            publisherPage.page.getByRole("heading", { name: "Property List" }),
-          ).toBeVisible();
-        });
+      expect(
+        await publisherPage.page.locator("div.campaign-block.bg-white").count(),
+      ).toBeGreaterThan(0);
+    });
 
-        test("Update Site", async () => {
-          await expect(publisherPage.page).toHaveURL(
-            `${BASE_URL}/dashboard/account-settings/properties/list`,
-          );
-          await expect(
-            publisherPage.page.getByRole("heading", { name: "Property List" }),
-          ).toBeVisible();
-        });
+    test("Go to Campaigns detail", async () => {
+      // Switch to AFFILIATED tab
+      await publisherPage.page
+        .getByRole("link", { name: /AFFILIATED/i })
+        .click();
 
-        test("Delete Site", async () => {
-          await expect(publisherPage.page).toHaveURL(
-            `${BASE_URL}/dashboard/account-settings/properties/list`,
-          );
-          await expect(
-            publisherPage.page.getByRole("heading", { name: "Property List" }),
-          ).toBeVisible();
-        });
-      });
+      const listCampaign = publisherPage.page.locator(
+        "div.campaign-block.bg-white",
+      );
 
-      test.describe("Tracing URL", () => {
-        test("View Site", async () => {
-          await expect(publisherPage.page).toHaveURL(
-            `${BASE_URL}/dashboard/account-settings/properties/list`,
-          );
-          await expect(
-            publisherPage.page.getByRole("heading", { name: "Property List" }),
-          ).toBeVisible();
-        });
+      const campaignCount = await listCampaign.count();
 
-        test("Create Site", async () => {
-          await expect(publisherPage.page).toHaveURL(
-            `${BASE_URL}/dashboard/account-settings/properties/list`,
-          );
-          await expect(
-            publisherPage.page.getByRole("heading", { name: "Property List" }),
-          ).toBeVisible();
-        });
+      const randomIndex = Math.floor(Math.random() * campaignCount);
 
-        test("Update Site", async () => {
-          await expect(publisherPage.page).toHaveURL(
-            `${BASE_URL}/dashboard/account-settings/properties/list`,
-          );
-          await expect(
-            publisherPage.page.getByRole("heading", { name: "Property List" }),
-          ).toBeVisible();
-        });
+      // catch event open new tab and switch to that tab
+      const [newPage] = await Promise.all([
+        publisherPage.page.context().waitForEvent("page"),
+        listCampaign.nth(randomIndex).click(),
+      ]);
 
-        test("Delete Site", async () => {
-          await expect(publisherPage.page).toHaveURL(
-            `${BASE_URL}/dashboard/account-settings/properties/list`,
-          );
-          await expect(
-            publisherPage.page.getByRole("heading", { name: "Property List" }),
-          ).toBeVisible();
-        });
-      });
+      try {
+        await newPage.waitForLoadState("networkidle");
 
-      test.describe("Postback", () => {
-        test("View Site", async () => {
-          await expect(publisherPage.page).toHaveURL(
-            `${BASE_URL}/dashboard/account-settings/properties/list`,
-          );
-          await expect(
-            publisherPage.page.getByRole("heading", { name: "Property List" }),
-          ).toBeVisible();
-        });
+        const escapedBaseURL = BASE_URL.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-        test("Create Site", async () => {
-          await expect(publisherPage.page).toHaveURL(
-            `${BASE_URL}/dashboard/account-settings/properties/list`,
-          );
-          await expect(
-            publisherPage.page.getByRole("heading", { name: "Property List" }),
-          ).toBeVisible();
-        });
+        await expect(newPage).toHaveURL(
+          new RegExp(`${escapedBaseURL}/dashboard/sites/campaigns/details/.*`),
+        );
 
-        test("Update Site", async () => {
-          await expect(publisherPage.page).toHaveURL(
-            `${BASE_URL}/dashboard/account-settings/properties/list`,
-          );
-          await expect(
-            publisherPage.page.getByRole("heading", { name: "Property List" }),
-          ).toBeVisible();
-        });
-
-        test("Delete Site", async () => {
-          await expect(publisherPage.page).toHaveURL(
-            `${BASE_URL}/dashboard/account-settings/properties/list`,
-          );
-          await expect(
-            publisherPage.page.getByRole("heading", { name: "Property List" }),
-          ).toBeVisible();
-        });
-      });
+        expect(
+          await newPage.locator("div", { hasText: "CAMPAIGN" }).first(),
+        ).toBeVisible({ timeout: 10000 });
+      } finally {
+        // ✅ always close the new tab after the test step is done, even if assertions fail
+        await newPage.close();
+      }
     });
   });
 
