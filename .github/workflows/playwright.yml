@@ -36,11 +36,9 @@ jobs:
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
 
-      # IMPORTANT: bỏ --ignore ở đây
       - name: Run Playwright tests
         run: npx playwright test
 
-      # (tuỳ chọn) vẫn upload artifact để tải về nếu cần
       - name: Upload Playwright report artifact
         if: always()
         uses: actions/upload-artifact@v4
