@@ -15,6 +15,11 @@ const PERFORMANCE_ITEMS = [
   "Earnings per Click (IDR)",
 ];
 
+const buildLandingPageURL = (baseURL: string): string => {
+  const suffix = Math.floor(Math.random() * 1000);
+  return baseURL.endsWith("/") ? `${baseURL}${suffix}` : `${baseURL}/${suffix}`;
+};
+
 // ── Test suite ───────────────────────────────────────────────
 test.describe("Publisher Tests", () => {
   test.describe.configure({ mode: "serial" });
@@ -951,11 +956,86 @@ test.describe("Publisher Tests", () => {
           new RegExp(`${escapedBaseURL}/dashboard/sites/campaigns/details/.*`),
         );
 
-        expect(
-          await newPage.locator("div", { hasText: "CAMPAIGN" }).first(),
-        ).toBeVisible({ timeout: 10000 });
+        await expect(newPage.getByText("Description").first()).toBeVisible({
+          timeout: 10000,
+        });
       } finally {
         // ✅ always close the new tab after the test step is done, even if assertions fail
+        await newPage.close();
+      }
+    });
+
+    test("Campaigns detail > Custom Creatives", async () => {
+      // 1. Switch to AFFILIATED tab
+      await publisherPage.page
+        .getByRole("link", { name: /AFFILIATED/i })
+        .click();
+
+      const listCampaign = publisherPage.page.locator(
+        "div.campaign-block.bg-white",
+      );
+
+      await listCampaign.last().waitFor({ state: "visible", timeout: 10000 });
+
+      const campaignCount = await listCampaign.count();
+
+      await publisherPage.page.waitForLoadState("networkidle");
+
+      expect(campaignCount).toBeGreaterThan(0);
+
+      const randomIndex = Math.floor(Math.random() * campaignCount);
+
+      // 2. Open campaign detail in new tab
+      const [newPage] = await Promise.all([
+        publisherPage.page.context().waitForEvent("page"),
+        listCampaign.nth(randomIndex).click(),
+      ]);
+
+      try {
+        await newPage.waitForLoadState("networkidle");
+
+        const escapedBaseURL = BASE_URL.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        await expect(newPage).toHaveURL(
+          new RegExp(`${escapedBaseURL}/dashboard/sites/campaigns/details/.*`),
+        );
+
+        await expect(newPage.getByText("Description").first()).toBeVisible({
+          timeout: 10000,
+        });
+
+        // 3. Navigate to Custom Creatives tab
+        await newPage.getByText("Custom Creatives", { exact: true }).click();
+
+        // 4. Build landing page URL
+        const acceptedURLItem = newPage
+          .locator("li.url.ng-star-inserted")
+          .first();
+
+        const acceptedBaseURL = (await acceptedURLItem.isVisible())
+          ? await acceptedURLItem.innerText()
+          : "https://www.example.com/";
+
+        const landingPageURL = buildLandingPageURL(acceptedBaseURL.trim());
+
+        // 5. Fill form
+        const creativeName = `QA Test-${Math.floor(Math.random() * 10000)}`;
+
+        await newPage.locator("input[name='landingUrl']").fill(landingPageURL);
+        await newPage.locator('input[name="name"]').fill(creativeName);
+
+        // 6. Generate and verify
+        await newPage.getByRole("button", { name: "Generate" }).click();
+
+        const error = await newPage.getByText("info URL is not valid, please");
+
+        if (!(await error.isVisible())) {
+          await newPage.locator("button.close").click();
+
+          await expect(
+            newPage.locator("td").filter({ hasText: creativeName }),
+          ).toBeVisible({ timeout: 15000 });
+        }
+      } finally {
         await newPage.close();
       }
     });
@@ -974,16 +1054,6 @@ test.describe("Publisher Tests", () => {
     });
 
     test("Create Creatives", async () => {
-      // ============================================================
-      // HELPERS
-      // ============================================================
-      const buildLandingPageURL = (baseURL: string): string => {
-        const suffix = Math.floor(Math.random() * 1000);
-        return baseURL.endsWith("/")
-          ? `${baseURL}${suffix}`
-          : `${baseURL}/${suffix}`;
-      };
-
       // ============================================================
       // 1. Select random Campaign
       // ============================================================
