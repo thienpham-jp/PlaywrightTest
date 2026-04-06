@@ -190,6 +190,11 @@ test.describe("Publisher Tests", () => {
         .locator('input[name="npwpNumber"]')
         .fill(`NPWP-${Math.floor(Math.random() * 10000)}`);
 
+      // 3. Input NPWP Photo
+      await publisherPage.page
+        .locator('input[type="file"]')
+        .setInputFiles("test-data/images/lgtm.png");
+
       // 3. Input first name
       await publisherPage.page.locator('input[name="firstName"]').fill("John");
 
