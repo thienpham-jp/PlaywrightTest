@@ -9,6 +9,8 @@ export class PublisherPage extends IstoolsPage {
       `https://st-istools-id.asean-accesstrade.net/p/partner-account-superlogin-v2?pan=${pan}&siteId=${siteId}`,
     );
 
+    await page.waitForLoadState("networkidle");
+
     // Wait redirect from sign-in to dashboard
     await page.waitForURL("**/dashboard**", { timeout: 30000 });
   }

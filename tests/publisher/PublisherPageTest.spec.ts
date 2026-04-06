@@ -17,6 +17,7 @@ const PERFORMANCE_ITEMS = [
 
 // ── Test suite ───────────────────────────────────────────────
 test.describe("Publisher Tests", () => {
+  test.describe.configure({ mode: "serial" });
   let publisherPage: PublisherPage;
 
   test.beforeEach(async ({ page }) => {
@@ -518,7 +519,7 @@ test.describe("Publisher Tests", () => {
 
           // 2. Click the delete icon/button in the row
           await row
-            .locator("td")
+            .locator("td span")
             .filter({ hasText: /^delete$/ })
             .first()
             .click();
