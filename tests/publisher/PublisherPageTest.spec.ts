@@ -208,15 +208,21 @@ test.describe("Publisher Tests", () => {
       // 4. Input last name
       await publisherPage.page.locator('input[name="lastName"]').fill("Doe");
 
-      // 5. Select Gender - random choice from 2 options
-      const genderOptions = ["Male", "Female"];
+      // get current selected gender value
+      const dropdownButton = publisherPage.page.locator(
+        "button[data-toggle='dropdown']",
+      );
+      const currentText = (await dropdownButton.textContent())?.trim() ?? "";
+
+      // 5. Select Gender - random choice from 3 options, filter out the current selected value to ensure the test can run multiple times without manual reset
+      const genderOptions = ["Unknown", "Male", "Female"].filter(
+        (option) => option !== currentText,
+      );
       const randomGender =
         genderOptions[Math.floor(Math.random() * genderOptions.length)];
 
       // Click on gender dropdown button to open the options
-      await publisherPage.page
-        .locator("button[data-toggle='dropdown']")
-        .click();
+      await dropdownButton.click();
 
       // Click the random gender option
       await publisherPage.page
@@ -226,7 +232,7 @@ test.describe("Publisher Tests", () => {
       // 6. Input Valid Birthday
       await publisherPage.page
         .locator('input[name="datePicker"]')
-        .fill("1990-01-01");
+        .fill("1999-10-01");
 
       // 7. Input Street
       await publisherPage.page
