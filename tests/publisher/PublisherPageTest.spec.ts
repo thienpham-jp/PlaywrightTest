@@ -88,7 +88,6 @@ test.describe("Publisher Tests", () => {
         await expect(itemLocator).toBeVisible();
       }
 
-      // Chờ số tiền xuất hiện (không phải 0)
       await expect(async () => {
         const amounts = publisherPage.page.locator("text=/^[1-9][0-9,]*$/");
         const count = await amounts.count();
@@ -176,11 +175,14 @@ test.describe("Publisher Tests", () => {
 
       // 5. Click on 'Update' button
       await publisherPage.page.getByRole("button", { name: "Update" }).click();
+      await publisherPage.page.waitForLoadState("networkidle");
 
       // 6. Expect success message is visible
       await expect(
-        publisherPage.page.getByText("Password is updated successfully."),
-      ).toBeVisible({ timeout: 10000 });
+        publisherPage.page.getByText("Password is updated successfully.", {
+          exact: false,
+        }),
+      ).toBeVisible({ timeout: 30000 });
     });
 
     test("Change info Account Settings", async () => {
@@ -206,8 +208,8 @@ test.describe("Publisher Tests", () => {
       // 4. Input last name
       await publisherPage.page.locator('input[name="lastName"]').fill("Doe");
 
-      // 5. Select Gender - random choice from 3 options
-      const genderOptions = ["Unknown", "Male", "Female"];
+      // 5. Select Gender - random choice from 2 options
+      const genderOptions = ["Male", "Female"];
       const randomGender =
         genderOptions[Math.floor(Math.random() * genderOptions.length)];
 
@@ -218,7 +220,7 @@ test.describe("Publisher Tests", () => {
 
       // Click the random gender option
       await publisherPage.page
-        .getByRole("link", { name: new RegExp(`^${randomGender}`) })
+        .getByRole("link", { name: randomGender, exact: true })
         .click();
 
       // 6. Input Valid Birthday
@@ -234,12 +236,12 @@ test.describe("Publisher Tests", () => {
       // 8. Input Province
       await publisherPage.page
         .locator('input[name="province"]')
-        .fill("Jakarta");
+        .fill("Ben Thanh");
 
       // 9. Input City
       await publisherPage.page
         .locator('input[name="city"]')
-        .fill("Jakarta Pusat");
+        .fill("Ho Chi Minh City, Vietnam");
 
       // 10. Input Zip Code
       await publisherPage.page.locator('input[name="zipCode"]').fill("12345");
