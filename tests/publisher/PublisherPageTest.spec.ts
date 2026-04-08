@@ -922,7 +922,7 @@ test.describe("Publisher Tests", () => {
       const searchInput = await publisherPage.page.locator(
         "input[name='keyword']",
       );
-      await searchInput.fill("wardah");
+      await searchInput.fill("zataru");
       await searchInput.press("Enter");
 
       await expect(
