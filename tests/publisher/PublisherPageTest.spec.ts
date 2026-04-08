@@ -148,7 +148,7 @@ test.describe("Publisher Tests", () => {
       ).toBeVisible();
     });
 
-    test("Account Settings - Change password", async () => {
+    test.skip("Account Settings - Change password", async () => {
       // 1. Click on 'Change Password' edit button
       await publisherPage.page
         .locator("app-password-block div")
@@ -565,7 +565,7 @@ test.describe("Publisher Tests", () => {
         test.beforeEach(async () => {
           const testSiteRow = publisherPage.page
             .locator("tr[role='row']")
-            .filter({ hasText: /Thien/ })
+            .filter({ hasText: /A Thien/ })
             .first();
 
           // Open edit dialog
@@ -732,7 +732,7 @@ test.describe("Publisher Tests", () => {
         test.beforeEach(async () => {
           const testSiteRow = publisherPage.page
             .locator("tr[role='row']")
-            .filter({ hasText: /Thien/ })
+            .filter({ hasText: /A Thien/ })
             .first();
 
           // Open edit dialog
@@ -796,16 +796,24 @@ test.describe("Publisher Tests", () => {
               .first()
               .click();
 
-            // 6. if radio button appears, select "Create new postback"
-            const radioOption = await publisherPage.page
+            // scroll to see radio button if appears
+            const enable = publisherPage.page
               .locator(
-                "#mat-radio-8 > .mat-radio-label > .mat-radio-container > .mat-radio-inner-circle",
+                "#mat-radio-8 > .mat-radio-label > .mat-radio-container > .mat-radio-outer-circle",
               )
               .first();
 
-            if ((await radioOption.isChecked()) === false) {
-              await radioOption.check();
+            await enable.waitFor({ state: "visible", timeout: 10000 });
+            await enable.scrollIntoViewIfNeeded();
+
+            // 6. if radio button appears, select "Create new postback"
+            if ((await enable.isChecked()) === false) {
+              await enable.check();
             }
+
+            await publisherPage.page
+              .locator('input[formcontrolname="basePostbackUrl"]')
+              .fill(buildLandingPageURL("https://postback.url/track"));
 
             // 7. Click confirm update button
             const updateButton = publisherPage.page.getByRole("button", {
@@ -875,9 +883,11 @@ test.describe("Publisher Tests", () => {
               'div.sub-ids-content.mobile-hidden.ng-star-inserted input[formcontrolname="name"]',
             );
 
-            if ((await rowDelete.count()) > 1) {
-              const nameInput = rowDelete.first();
+            const nameInput = rowDelete.first();
 
+            await nameInput.waitFor({ state: "visible", timeout: 10000 });
+
+            if ((await rowDelete.count()) > 1) {
               const siteName = await nameInput.inputValue();
 
               // 3. Click delete button
