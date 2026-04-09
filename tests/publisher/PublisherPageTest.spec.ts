@@ -931,6 +931,11 @@ test.describe("Publisher Tests", () => {
     });
 
     test("Search multiple Campaigns", async () => {
+      // Switch to AVAILABLE tab
+      await publisherPage.page
+        .getByRole("link", { name: /AVAILABLE/i })
+        .click();
+
       // Find the search input and fill in the keyword
       const searchInput = await publisherPage.page.locator(
         "input[name='keyword']",
@@ -938,11 +943,15 @@ test.describe("Publisher Tests", () => {
       await searchInput.fill("shopee");
       await searchInput.press("Enter");
 
-      await publisherPage.page.waitForLoadState("networkidle");
+      const campaignBlocks = publisherPage.page.locator(
+        "div.campaign-block.bg-white",
+      );
 
-      expect(
-        await publisherPage.page.locator("div.campaign-block.bg-white").count(),
-      ).toBeGreaterThan(0);
+      await campaignBlocks
+        .first()
+        .waitFor({ state: "visible", timeout: 10000 });
+
+      expect(await campaignBlocks.count()).toBeGreaterThan(0);
     });
 
     test("Go to Campaigns detail", async () => {
