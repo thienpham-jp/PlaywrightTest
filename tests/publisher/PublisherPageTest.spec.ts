@@ -1,6 +1,15 @@
 import { test, expect } from "@playwright/test";
 import { PublisherPage } from "../../pages/PublisherPage";
 import { users as userData } from "../../src/helpers/user-helper";
+import { randomInt } from "crypto";
+import {
+  randomAddress,
+  randomArrayElement,
+  randomDateString,
+  randomPhoneNumber,
+  randomString,
+  randomURL,
+} from "../../src/helpers/function-helper";
 
 // ── Publisher config ─────────────────────────────────────────
 const PAN = "84255";
@@ -195,7 +204,7 @@ test.describe("Publisher Tests", () => {
       // 2. Input NPWP number
       await publisherPage.page
         .locator('input[name="npwpNumber"]')
-        .fill(`NPWP-${Math.floor(Math.random() * 10000)}`);
+        .fill(`NPWP-${randomInt(100, 9999)}`);
 
       // 3. Input NPWP Photo
       await publisherPage.page
@@ -203,10 +212,14 @@ test.describe("Publisher Tests", () => {
         .setInputFiles("test-data/images/lgtm.png");
 
       // 3. Input first name
-      await publisherPage.page.locator('input[name="firstName"]').fill("John");
+      await publisherPage.page
+        .locator('input[name="firstName"]')
+        .fill(`John${randomString(5)}`);
 
       // 4. Input last name
-      await publisherPage.page.locator('input[name="lastName"]').fill("Doe");
+      await publisherPage.page
+        .locator('input[name="lastName"]')
+        .fill(`Doe${randomString(5)}`);
 
       // get current selected gender value
       const dropdownButton = publisherPage.page.locator(
@@ -232,30 +245,28 @@ test.describe("Publisher Tests", () => {
       // 6. Input Valid Birthday
       await publisherPage.page
         .locator('input[name="datePicker"]')
-        .fill("1999-10-01");
+        .fill(randomDateString());
 
       // 7. Input Street
       await publisherPage.page
         .locator('input[name="address"]')
-        .fill("123 Main Street");
+        .fill(randomAddress());
 
       // 8. Input Province
-      await publisherPage.page
-        .locator('input[name="province"]')
-        .fill("Ben Thanh");
+      await publisherPage.page.locator('input[name="province"]').fill("City");
 
       // 9. Input City
-      await publisherPage.page
-        .locator('input[name="city"]')
-        .fill("Ho Chi Minh City, Vietnam");
+      await publisherPage.page.locator('input[name="city"]').fill("Vietnam");
 
       // 10. Input Zip Code
-      await publisherPage.page.locator('input[name="zipCode"]').fill("12345");
+      await publisherPage.page
+        .locator('input[name="zipCode"]')
+        .fill(randomInt(1000, 99999).toString());
 
       // 11. Input Phone Number
       await publisherPage.page
         .locator('input[name="phoneNumber"]')
-        .fill("+62812345678");
+        .fill(randomPhoneNumber());
 
       // 13. Click on 'Update' button
       const updateButtons = publisherPage.page.getByRole("button", {
@@ -360,12 +371,12 @@ test.describe("Publisher Tests", () => {
             .filter({ hasText: /^add$/ })
             .click();
           // 2. Input Site Name
-          const siteName = `A Test ${Math.floor(Math.random() * 10000)}`;
+          const siteName = `A Test ${randomInt(1000, 9999)}`;
           await publisherPage.page.getByRole("textbox").first().fill(siteName);
           // 3. Input Site URL
           await publisherPage.page
             .locator('input[type="url"]')
-            .fill(`https://www.google.com/${Math.floor(Math.random() * 1000)}`);
+            .fill(`https://www.google.com/${randomInt(1000, 9999)}`);
 
           // Select dropdowns: 4. Type, 5. Traffic, 6. Lead Generation
           await openDropdownAndSelect(0);
@@ -416,14 +427,12 @@ test.describe("Publisher Tests", () => {
             // Site URL
             await publisherPage.page
               .locator(LOCATORS.urlInput)
-              .fill(
-                `https://www.google.com/${Math.floor(Math.random() * 1000)}`,
-              );
+              .fill(`https://www.google.com/${randomInt(1000, 9999)}`);
           };
 
           const buildNewSiteName = (current: string) =>
             current.includes("updated")
-              ? `${current} ${Math.floor(Math.random() * 1000)}`
+              ? `${current} ${randomInt(1000, 9999)}`
               : `${current} updated`;
 
           // ============================================================
@@ -608,7 +617,7 @@ test.describe("Publisher Tests", () => {
 
           test("Create Tracing URL", async () => {
             // 3. Input name and value for the new tracing URL
-            const newSiteName = `Custom-${Math.floor(Math.random() * 1000)}`;
+            const newSiteName = `Custom-${randomInt(1000, 9999)}`;
             await publisherPage.page
               .getByRole("textbox", { name: "Name", exact: true })
               .fill(newSiteName);
@@ -660,7 +669,7 @@ test.describe("Publisher Tests", () => {
               const nameInput = rowUpdate.first();
 
               // 3. Input new name and value for the tracing URL
-              const newSiteName = `Custom-${Math.floor(Math.random() * 1000)}`;
+              const newSiteName = `Custom-${randomInt(1000, 9999)}`;
               await nameInput.fill(newSiteName);
 
               const newValue = Date.now().toString();
@@ -775,7 +784,7 @@ test.describe("Publisher Tests", () => {
 
           test("Create Postback", async () => {
             // 3. Input name for the new postback
-            const newName = `Name-${Math.floor(Math.random() * 10000)}`;
+            const newName = `Name-${randomInt(1000, 9999)}`;
             await publisherPage.page
               .getByRole("textbox", { name: "Name" })
               .first()
@@ -813,7 +822,7 @@ test.describe("Publisher Tests", () => {
 
             await publisherPage.page
               .locator('input[formcontrolname="basePostbackUrl"]')
-              .fill(buildLandingPageURL("https://postback.url/track"));
+              .fill(buildLandingPageURL(randomURL()));
 
             // 7. Click confirm update button
             const updateButton = publisherPage.page.getByRole("button", {
@@ -837,7 +846,7 @@ test.describe("Publisher Tests", () => {
               const nameInput = rowUpdate.first();
 
               // 3. Input new name and value for the postback
-              const newSiteName = `Name-${Math.floor(Math.random() * 1000)}`;
+              const newSiteName = `Name-${randomInt(1000, 9999)}`;
               await nameInput.fill(newSiteName);
 
               const newValue = Date.now().toString();
@@ -1040,12 +1049,12 @@ test.describe("Publisher Tests", () => {
 
         const acceptedBaseURL = (await acceptedURLItem.isVisible())
           ? await acceptedURLItem.innerText()
-          : "https://www.example.com/";
+          : randomURL();
 
         const landingPageURL = buildLandingPageURL(acceptedBaseURL.trim());
 
         // 5. Fill form
-        const creativeName = `QA Test-${Math.floor(Math.random() * 10000)}`;
+        const creativeName = `QA Test-${randomInt(1000, 9999)}`;
 
         await newPage.locator("input[name='landingUrl']").fill(landingPageURL);
         await newPage.locator('input[name="name"]').fill(creativeName);
@@ -1104,8 +1113,7 @@ test.describe("Publisher Tests", () => {
 
       expect(validOptionTexts.length).toBeGreaterThan(0);
 
-      const randomCampaign =
-        validOptionTexts[Math.floor(Math.random() * validOptionTexts.length)];
+      const randomCampaign = randomArrayElement(validOptionTexts).trim();
 
       await menuOptions.filter({ hasText: randomCampaign }).click();
 
@@ -1124,7 +1132,7 @@ test.describe("Publisher Tests", () => {
       // ============================================================
       // 3. Input Creative Name and Landing Page URL
       // ============================================================
-      const creativeName = `QA Test-${Math.floor(Math.random() * 10000)}`;
+      const creativeName = `QA Test-${randomInt(1000, 9999)}`;
 
       await publisherPage.page.locator('input[name="name"]').fill(creativeName);
 

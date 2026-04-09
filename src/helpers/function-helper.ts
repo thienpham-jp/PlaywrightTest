@@ -1,3 +1,17 @@
+import {
+  randomInt as cryptoRandomInt,
+  randomUUID as cryptoRandomUUID,
+} from "crypto";
+
+// ── Internal helpers ──────────────────────────────────────────────────────────
+
+/** Chọn ngẫu nhiên 1 index trong [0, max) bằng crypto */
+function secureIndex(max: number): number {
+  return cryptoRandomInt(0, max);
+}
+
+// ── Public API ────────────────────────────────────────────────────────────────
+
 export function random_secure_password(
   length: number = 12,
   include_confirmation: boolean = false,
@@ -9,7 +23,7 @@ export function random_secure_password(
   const allChars = uppercaseChars + lowercaseChars + numberChars + specialChars;
   let password = "";
   for (let i = 0; i < length; i++) {
-    password += allChars.charAt(Math.floor(Math.random() * allChars.length));
+    password += allChars.charAt(secureIndex(allChars.length));
   }
   if (include_confirmation) {
     return [password, password];
@@ -22,25 +36,31 @@ export function randomString(length: number): string {
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   let result = "";
   for (let i = 0; i < length; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
+    result += chars.charAt(secureIndex(chars.length));
   }
   return result;
 }
 
+/** Số nguyên ngẫu nhiên trong [min, max] (inclusive) */
 export function randomInt(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+  return cryptoRandomInt(min, max + 1);
 }
 
+/** Số thực ngẫu nhiên trong [min, max] với số chữ số thập phân tùy chỉnh */
 export function randomFloat(
   min: number,
   max: number,
   decimals: number = 2,
 ): number {
-  return parseFloat((Math.random() * (max - min) + min).toFixed(decimals));
+  // Dùng hai số nguyên ngẫu nhiên để tạo float có phân phối đồng đều
+  const scale = 10 ** decimals;
+  const scaledMin = Math.ceil(min * scale);
+  const scaledMax = Math.floor(max * scale);
+  return cryptoRandomInt(scaledMin, scaledMax + 1) / scale;
 }
 
 export function randomBoolean(): boolean {
-  return Math.random() < 0.5;
+  return cryptoRandomInt(0, 2) === 1;
 }
 
 export function randomEmail(domain: string = "example.com"): string {
@@ -49,21 +69,23 @@ export function randomEmail(domain: string = "example.com"): string {
 }
 
 export function randomPhoneNumber(countryCode: string = "+84"): string {
-  const digits = Array.from({ length: 9 }, () => randomInt(0, 9)).join("");
+  const digits = Array.from({ length: 9 }, () => cryptoRandomInt(0, 10)).join(
+    "",
+  );
   return `${countryCode}${digits}`;
 }
 
 export function randomDate(
-  start: Date = new Date(2000, 0, 1),
+  start: Date = new Date(1960, 0, 1),
   end: Date = new Date(),
 ): Date {
-  return new Date(
-    start.getTime() + Math.random() * (end.getTime() - start.getTime()),
-  );
+  const startMs = start.getTime();
+  const endMs = end.getTime();
+  return new Date(cryptoRandomInt(startMs, endMs + 1));
 }
 
 export function randomDateString(
-  start: Date = new Date(2000, 0, 1),
+  start: Date = new Date(1960, 0, 1),
   end: Date = new Date(),
   format: "ISO" | "locale" = "ISO",
 ): string {
@@ -73,12 +95,17 @@ export function randomDateString(
     : date.toLocaleDateString();
 }
 
-export function randomPickFrom<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
+export function randomArrayElement<T>(arr: T[]): T {
+  return arr[secureIndex(arr.length)];
 }
 
+/** Fisher-Yates shuffle — phân phối đồng đều, không bị bias như .sort() */
 export function randomSample<T>(arr: T[], count: number): T[] {
-  const shuffled = [...arr].sort(() => Math.random() - 0.5);
+  const shuffled = [...arr];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = cryptoRandomInt(0, i + 1);
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
   return shuffled.slice(0, Math.min(count, arr.length));
 }
 
@@ -117,7 +144,7 @@ export function randomFullName(): string {
     "Dương",
     "Lý",
   ];
-  return `${randomPickFrom(lastNames)} ${randomPickFrom(firstNames)}`;
+  return `${randomArrayElement(lastNames)} ${randomArrayElement(firstNames)}`;
 }
 
 export function randomAddress(): string {
@@ -140,13 +167,19 @@ export function randomAddress(): string {
     "Gò Vấp",
   ];
   const houseNo = randomInt(1, 500);
-  return `${houseNo} ${randomPickFrom(streets)}, ${randomPickFrom(districts)}, TP.HCM`;
+  return `${houseNo} ${randomArrayElement(streets)}, ${randomArrayElement(districts)}, TP.HCM`;
 }
 
+/** Dùng crypto.randomUUID() built-in — chuẩn RFC 4122 */
 export function randomUUID(): string {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
+  return cryptoRandomUUID();
+}
+
+export function randomURL(): string {
+  const domain =
+    randomString(10).toLowerCase() +
+    "." +
+    randomArrayElement(["com", "net", "org", "io", "dev"]);
+
+  return `https://${domain}`;
 }
