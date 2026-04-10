@@ -343,8 +343,6 @@ test.describe("Publisher Production Tests", () => {
           }
         };
 
-        test.describe.configure({ mode: "serial" });
-
         test("View Site", async () => {
           await expect(
             publisherPage.page.getByRole("heading", { name: "Property List" }),
