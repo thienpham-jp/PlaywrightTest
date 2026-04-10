@@ -10,6 +10,7 @@ import {
   randomString,
   randomURL,
 } from "../../src/helpers/function-helper";
+import { count } from "console";
 
 // ── Publisher config ─────────────────────────────────────────
 const PAN = "84255";
@@ -1156,6 +1157,35 @@ test.describe("Publisher Staging Tests", () => {
           publisherPage.page.locator("td").filter({ hasText: creativeName }),
         ).toBeVisible({ timeout: 15000 });
       }
+    });
+  });
+
+  test.describe("Reports", () => {
+    test.beforeEach(async () => {
+      // 1. Click on the Reports menu
+      await publisherPage.page.getByRole("link", { name: /Reports/i }).click();
+
+      await publisherPage.page.waitForLoadState("networkidle");
+    });
+
+    test("Count Report tabs", async () => {
+      // 2. Click on Report tab
+      const count = await publisherPage.page
+        .locator("a.navigation-link")
+        .count();
+
+      expect(count).toBe(9);
+    });
+
+    test("First Report tab", async () => {
+      // 2. Click on Report tab
+      const conversion = await publisherPage.page
+        .locator("a.navigation-link")
+        .first();
+
+      const text = await conversion.textContent();
+
+      expect(text?.trim()).toBe("Conversion");
     });
   });
 
