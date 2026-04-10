@@ -19,7 +19,7 @@ const PERFORMANCE_ITEMS = [
 ];
 
 // ── Test suite ───────────────────────────────────────────────
-test.describe("Publisher Tests", () => {
+test.describe("Publisher Production Tests", () => {
   test.describe.configure({ mode: "serial" });
   let publisherPage: PublisherPage;
 

@@ -30,7 +30,7 @@ const buildLandingPageURL = (baseURL: string): string => {
 };
 
 // ── Test suite ───────────────────────────────────────────────
-test.describe("Publisher Tests", () => {
+test.describe("Publisher Staging Tests", () => {
   test.describe.configure({ mode: "serial" });
   let publisherPage: PublisherPage;
 
