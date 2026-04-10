@@ -903,36 +903,36 @@ test.describe("Publisher Production Tests", () => {
           });
         });
       });
+    });
 
-      test.describe("Reports", () => {
-        test.beforeEach(async () => {
-          // 1. Click on the Reports menu
-          await publisherPage.page
-            .getByRole("link", { name: /Reports/i })
-            .click();
+    test.describe("Reports", () => {
+      test.beforeEach(async () => {
+        // 1. Click on the Reports menu
+        await publisherPage.page
+          .getByRole("link", { name: /Reports/i })
+          .click();
 
-          await publisherPage.page.waitForLoadState("networkidle");
-        });
+        await publisherPage.page.waitForLoadState("networkidle");
+      });
 
-        test("Count Report tabs", async () => {
-          // 2. Click on Report tab
-          const count = await publisherPage.page
-            .locator("a.navigation-link")
-            .count();
+      test("Count Report tabs", async () => {
+        // 2. Click on Report tab
+        const count = await publisherPage.page
+          .locator("a.navigation-link")
+          .count();
 
-          expect(count).toBe(9);
-        });
+        expect(count).toBe(9);
+      });
 
-        test("First Report tab", async () => {
-          // 2. Click on Report tab
-          const conversion = await publisherPage.page
-            .locator("a.navigation-link")
-            .first();
+      test("First Report tab", async () => {
+        // 2. Click on Report tab
+        const conversion = await publisherPage.page
+          .locator("a.navigation-link")
+          .first();
 
-          const text = await conversion.textContent();
+        const text = await conversion.textContent();
 
-          expect(text?.trim()).toBe("Conversion");
-        });
+        expect(text?.trim()).toBe("Conversion");
       });
     });
   });
