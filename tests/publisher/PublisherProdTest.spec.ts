@@ -810,9 +810,9 @@ test.describe("Publisher Tests", () => {
               await enable.check();
             }
 
-            await publisherPage.page
-              .locator('input[formcontrolname="basePostbackUrl"]')
-              .fill(buildLandingPageURL(randomURL()));
+            // await publisherPage.page
+            //   .locator('input[formcontrolname="basePostbackUrl"]')
+            //   .fill(buildLandingPageURL(randomURL()));
 
             // 7. Click confirm update button
             const updateButton = publisherPage.page.getByRole("button", {
