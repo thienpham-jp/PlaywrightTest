@@ -10,5 +10,9 @@
   "invalidUser": {
     "username": "invaliduser",
     "password": "SuperSecretPassword!"
+  },
+  "pubUser": {
+    "username": "thienpham.jp@interspace.vn",
+    "password": "Thien@123"
   }
 }
