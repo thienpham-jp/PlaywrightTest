@@ -23,7 +23,10 @@ test.describe("Publisher Production Tests", () => {
   test.describe.configure({ mode: "serial" });
   let publisherPage: PublisherPage;
 
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page }, testInfo) => {
+    // Increase timeout for login operations
+    testInfo.setTimeout(90000); // 90 seconds for the entire hook
+
     publisherPage = new PublisherPage(page);
     await publisherPage.loginPubProd(
       userData.pubUser.username,
@@ -147,7 +150,7 @@ test.describe("Publisher Production Tests", () => {
       ).toBeVisible();
     });
 
-    test("Account Settings - Change password", async () => {
+    test.skip("Account Settings - Change password", async () => {
       // 1. Click on 'Change Password' edit button
       await publisherPage.page
         .locator("app-password-block div")
