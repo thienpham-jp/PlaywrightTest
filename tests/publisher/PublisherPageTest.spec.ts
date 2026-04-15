@@ -1146,10 +1146,6 @@ test.describe("Publisher Staging Tests", () => {
       );
 
       if (!(await error.isVisible())) {
-        const closeButton = publisherPage.page.locator("button.close");
-        await closeButton.waitFor({ state: "visible", timeout: 10000 });
-        await closeButton.click();
-
         await expect(
           publisherPage.page.locator("td").filter({ hasText: creativeName }),
         ).toBeVisible({ timeout: 15000 });
