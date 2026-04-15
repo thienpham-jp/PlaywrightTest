@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { generateJWT } from "../example.spec";
+import { generateJWT } from "../../src/helpers/jwt-helper";
 import { SECRET_KEY, USER_UID } from "../../src/helpers/user-helper";
 
 test.describe("Mass Approval API - Limit Validation", () => {
