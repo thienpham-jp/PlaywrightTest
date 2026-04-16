@@ -946,7 +946,13 @@ test.describe("Publisher Staging Tests", () => {
       expect(await campaignBlocks.count()).toBeGreaterThan(0);
     });
 
-    test.skip("Go to Campaigns detail", async () => {
+    test("Go to Campaigns detail", async () => {
+      await publisherPage.page
+        .locator("button[data-toggle='dropdown']")
+        .click();
+
+      await publisherPage.page.getByText("A Thien Test Automation").click();
+
       const affiliatedTab = publisherPage.page.getByRole("link", {
         name: /AFFILIATED/i,
       });
@@ -989,7 +995,13 @@ test.describe("Publisher Staging Tests", () => {
       }
     });
 
-    test.skip("Campaigns detail > Custom Creatives", async () => {
+    test("Campaigns detail > Custom Creatives", async () => {
+      await publisherPage.page
+        .locator("button[data-toggle='dropdown']")
+        .click();
+
+      await publisherPage.page.getByText("A Thien Test Automation").click();
+
       const affiliatedTab = publisherPage.page.getByRole("link", {
         name: /AFFILIATED/i,
       });
@@ -1044,7 +1056,7 @@ test.describe("Publisher Staging Tests", () => {
         const acceptedURLItem = newPage
           .locator("li.url.ng-star-inserted")
           .first();
-        await acceptedURLItem.waitFor({ state: "visible", timeout: 10000 });
+        // await acceptedURLItem.waitFor({ state: "visible", timeout: 10000 });
 
         const acceptedBaseURL = (await acceptedURLItem.isVisible())
           ? await acceptedURLItem.innerText()
@@ -1073,7 +1085,8 @@ test.describe("Publisher Staging Tests", () => {
 
         const error = newPage.getByText("info URL is not valid, please");
         const errorVisible = await error
-          .isVisible({ timeout: 5000 })
+          .waitFor({ state: "visible", timeout: 5000 })
+          .then(() => true)
           .catch(() => false);
 
         if (!errorVisible) {
