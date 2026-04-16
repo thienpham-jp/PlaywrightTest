@@ -241,9 +241,15 @@ test.describe("Publisher Staging Tests", () => {
         .getByRole("link", { name: randomGender, exact: true })
         .click();
 
-      await publisherPage.page
-        .locator('input[name="datePicker"]')
-        .fill(randomDateString());
+      const dateInput = randomDateString();
+
+      const datePickerInput = publisherPage.page.locator(
+        'input[name="datePicker"]',
+      );
+      await datePickerInput.click();
+      await datePickerInput.selectText();
+      await datePickerInput.pressSequentially(dateInput);
+      await datePickerInput.press("Tab");
 
       await publisherPage.page
         .locator('input[name="address"]')
@@ -817,13 +823,16 @@ test.describe("Publisher Staging Tests", () => {
               'div.sub-ids-content.mobile-hidden.ng-star-inserted input[formcontrolname="name"]',
             );
 
+            const firstRow = await rowUpdate.first();
+
+            await firstRow.waitFor({ state: "visible", timeout: 10000 });
+
             if ((await rowUpdate.count()) > 1) {
-              const nameInput = rowUpdate.first();
-              await nameInput.waitFor({ state: "visible", timeout: 10000 });
-              await nameInput.scrollIntoViewIfNeeded();
+              await firstRow.waitFor({ state: "visible", timeout: 10000 });
+              await firstRow.scrollIntoViewIfNeeded();
 
               const newSiteName = `Name-${randomInt(1000, 9999)}`;
-              await nameInput.fill(newSiteName);
+              await firstRow.fill(newSiteName);
 
               const newValue = Date.now().toString();
               const joinInput = `${newSiteName} = ${newValue}`;
