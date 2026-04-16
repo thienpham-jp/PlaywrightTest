@@ -225,14 +225,21 @@ randomArrayElement(["A", "B", "C"]); // "B"
 
 ### 5. **Authentication & JWT Token**
 
-The project supports generating JWT tokens for API testing:
+The project supports generating JWT tokens for API testing via `src/helpers/jwt-helper.ts`:
 
 ```typescript
-function generateJWT(userUid: string, secretKey: string): string {
+// src/helpers/jwt-helper.ts
+export function generateJWT(userUid: string, secretKey: string): string {
   const header = { alg: "HS256", typ: "JWT" };
   const payload = { sub: userUid, iat: Math.floor(Date.now() / 1000) };
-  // Encode & sign...
+  // Encode & sign with HMAC-SHA256...
 }
+```
+
+Import from the helper — never from another spec file:
+
+```typescript
+import { generateJWT } from "../../src/helpers/jwt-helper";
 ```
 
 ### 6. **Browser Configuration**
@@ -787,7 +794,7 @@ await Promise.all([step1(), step2()]);
 
 ---
 
-**Version**: 1.0.0  
-**Last Updated**: 2026-04-13  
+**Version**: 1.1.0  
+**Last Updated**: 2026-04-16  
 **Maintainers**: Your Team  
 **License**: MIT
