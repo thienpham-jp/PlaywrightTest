@@ -150,7 +150,7 @@ test.describe("Publisher Production Tests", () => {
       ).toBeVisible();
     });
 
-    test.skip("Account Settings - Change password", async () => {
+    test("Account Settings - Change password", async () => {
       // 1. Click on 'Change Password' edit button
       await publisherPage.page
         .locator("app-password-block div")
@@ -907,36 +907,127 @@ test.describe("Publisher Production Tests", () => {
         });
       });
     });
+  });
 
-    test.describe("Reports", () => {
-      test.beforeEach(async () => {
-        // 1. Click on the Reports menu
-        await publisherPage.page
-          .getByRole("link", { name: /Reports/i })
-          .click();
+  test.describe("Campaign", () => {
+    test.beforeEach(async () => {
+      await publisherPage.page
+        .getByRole("link", { name: /Campaigns/i })
+        .click();
+    });
 
-        await publisherPage.page.waitForLoadState("networkidle");
+    test("Search 1 Campaign", async () => {
+      const searchInput = publisherPage.page.locator("input[name='keyword']");
+      await searchInput.waitFor({ state: "visible", timeout: 10000 });
+      await searchInput.scrollIntoViewIfNeeded();
+      await searchInput.fill("zataru");
+      await searchInput.press("Enter");
+
+      await publisherPage.page.waitForLoadState("networkidle");
+
+      await expect(
+        publisherPage.page.locator("div.campaign-block.bg-white").first(),
+      ).toBeVisible({ timeout: 15000 });
+    });
+
+    test("Search multiple Campaigns", async () => {
+      const availableTab = publisherPage.page.getByRole("link", {
+        name: /AVAILABLE/i,
       });
+      await availableTab.waitFor({ state: "visible", timeout: 10000 });
+      await availableTab.click();
 
-      test("Count Report tabs", async () => {
-        // 2. Click on Report tab
-        const count = await publisherPage.page
-          .locator("a.navigation-link")
-          .count();
+      await publisherPage.page.waitForLoadState("networkidle");
 
-        expect(count).toBe(9);
+      const searchInput = publisherPage.page.locator("input[name='keyword']");
+      await searchInput.waitFor({ state: "visible", timeout: 10000 });
+      await searchInput.scrollIntoViewIfNeeded();
+      await searchInput.fill("shopee");
+      await searchInput.press("Enter");
+
+      await publisherPage.page.waitForLoadState("networkidle");
+
+      const campaignBlocks = publisherPage.page.locator(
+        "div.campaign-block.bg-white",
+      );
+
+      await campaignBlocks
+        .first()
+        .waitFor({ state: "visible", timeout: 15000 });
+
+      expect(await campaignBlocks.count()).toBeGreaterThan(1);
+    });
+
+    test("Go to Campaigns detail", async () => {
+      const affiliatedTab = publisherPage.page.getByRole("link", {
+        name: /AFFILIATED/i,
       });
+      await affiliatedTab.waitFor({ state: "visible", timeout: 10000 });
+      await affiliatedTab.click();
 
-      test("First Report tab", async () => {
-        // 2. Click on Report tab
-        const conversion = await publisherPage.page
-          .locator("a.navigation-link")
-          .first();
+      await publisherPage.page.waitForLoadState("networkidle");
 
-        const text = await conversion.textContent();
+      const listCampaign = publisherPage.page.locator(
+        "div.campaign-block.bg-white",
+      );
 
-        expect(text?.trim()).toBe("Conversion");
-      });
+      await listCampaign.first().waitFor({ state: "visible", timeout: 30000 });
+      const campaignCount = await listCampaign.count();
+
+      const randomIndex = Math.floor(Math.random() * campaignCount);
+      const selectedCampaign = listCampaign.nth(randomIndex);
+      await selectedCampaign.waitFor({ state: "visible", timeout: 10000 });
+      await selectedCampaign.scrollIntoViewIfNeeded();
+
+      const [newPage] = await Promise.all([
+        publisherPage.page.context().waitForEvent("page"),
+        selectedCampaign.click(),
+      ]);
+
+      try {
+        await newPage.waitForLoadState("networkidle");
+
+        // FIX: replaced fragile escaped BASE_URL regex with a simple path pattern
+        await expect(newPage).toHaveURL(
+          /\/dashboard\/sites\/campaigns\/details\//,
+          { timeout: 15000 },
+        );
+
+        await expect(newPage.getByText("Description").first()).toBeVisible({
+          timeout: 15000,
+        });
+      } finally {
+        await newPage.close();
+      }
+    });
+  });
+
+  test.describe("Reports", () => {
+    test.beforeEach(async () => {
+      // 1. Click on the Reports menu
+      await publisherPage.page.getByRole("link", { name: /Reports/i }).click();
+
+      await publisherPage.page.waitForLoadState("networkidle");
+    });
+
+    test("Count Report tabs", async () => {
+      // 2. Click on Report tab
+      const count = await publisherPage.page
+        .locator("a.navigation-link")
+        .count();
+
+      expect(count).toBe(9);
+    });
+
+    test("First Report tab", async () => {
+      // 2. Click on Report tab
+      const conversion = await publisherPage.page
+        .locator("a.navigation-link")
+        .first();
+
+      const text = await conversion.textContent();
+
+      expect(text?.trim()).toBe("Conversion");
     });
   });
 

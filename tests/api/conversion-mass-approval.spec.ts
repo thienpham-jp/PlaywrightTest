@@ -60,7 +60,6 @@ test.describe("Mass Approval API - Limit Validation", () => {
       { length: 100_001 },
       (_, i) => `${String(i + 1).padStart(7, "0")}`,
     );
-    console.log("Generated conversionIds:", conversionIds);
 
     const response = await page.request.put(
       "https://gurkha-staging.accesstrade.co.id/v1/staff/conversion/mass-approval",
@@ -99,7 +98,6 @@ test.describe("Mass Approval API - Limit Validation", () => {
       { length: 100_000 },
       (_, i) => `${String(i + 1).padStart(7, "0")}`,
     );
-    console.log("Generated conversionIds:", conversionIds);
 
     const response = await page.request.put(
       "https://gurkha-staging.accesstrade.co.id/v1/staff/conversion/mass-approval",
@@ -194,7 +192,6 @@ test.describe("Mass Approval API - Limit Validation", () => {
       { length: 10_001 },
       (_, i) => `TXN${String(i + 1).padStart(7, "0")}`,
     );
-    console.log("Generated transactionIds:", transactionIds);
 
     const response = await page.request.put(
       "https://gurkha-staging.accesstrade.co.id/v1/staff/conversion/mass-approval",
