@@ -943,7 +943,7 @@ test.describe("Publisher Staging Tests", () => {
         .first()
         .waitFor({ state: "visible", timeout: 15000 });
 
-      expect(await campaignBlocks.count()).toBeGreaterThan(0);
+      expect(await campaignBlocks.count()).toBeGreaterThan(1);
     });
 
     test("Go to Campaigns detail", async () => {
