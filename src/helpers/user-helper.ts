@@ -10,4 +10,8 @@ export const NORMAL_PASSWORD = users.normalUser.password;
 const USER_UID = users.secretKey.user;
 const SECRET_KEY = users.secretKey.key;
 
+// CFD User Credentials
+export const CFD_USERNAME = users.cfdUser.username;
+export const CFD_PASSWORD = users.cfdUser.password;
+
 export { users, USER_UID, SECRET_KEY };
