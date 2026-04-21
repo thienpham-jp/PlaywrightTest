@@ -104,6 +104,32 @@ export async function getDashboardMetrics(
   };
 }
 
+/**
+ * Calculates the % change of each KPI: (yesterday - dayBefore) / dayBefore * 100.
+ * Returns null for a metric when dayBefore value is 0 (avoid division by zero).
+ */
+export async function getDashboardMetricsDelta(): Promise<{
+  totalClicks: number | null;
+  legitimateClicks: number | null;
+  blockedFraud: number | null;
+  suspicious: number | null;
+}> {
+  const yest = await getDashboardMetrics(yesterday());
+  const prev = await getDashboardMetrics(daysAgo(2));
+
+  const pct = (cur: number, old: number): number | null => {
+    if (old === 0) return null;
+    return Math.round(((cur - old) / old) * 1000) / 10; // 1 decimal place
+  };
+
+  return {
+    totalClicks: pct(yest.totalClicks, prev.totalClicks),
+    legitimateClicks: pct(yest.legitimateClicks, prev.legitimateClicks),
+    blockedFraud: pct(yest.blockedFraud, prev.blockedFraud),
+    suspicious: pct(yest.suspicious, prev.suspicious),
+  };
+}
+
 export interface ThreatVectorRow {
   category: string;
   blocks: number;
