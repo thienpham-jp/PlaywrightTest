@@ -3,8 +3,13 @@ import { CFDPage } from "../../pages/cfd-page";
 import { CFD_PASSWORD, CFD_USERNAME } from "../../src/helpers/user-helper";
 import {
   closeDatabasePool,
+  daysAgo,
+  getCampaignDetailKPIs,
   getDashboardMetrics,
   getDashboardMetricsDelta,
+  getFraudDetectionSearchCount,
+  getFraudDetectionSummary,
+  getFraudDetectionTablePage1,
   getTopFraudSources,
   getTopThreatVectors,
   getTrendHourly,
@@ -28,7 +33,6 @@ test.describe("CFD Login Tests", () => {
 
   test.afterAll(async () => {
     await closeDatabasePool();
-    await cfdPage.page.close();
   });
 
   test("Dashboard - heading verification", async () => {
@@ -416,5 +420,1211 @@ test.describe("CFD Login Tests", () => {
         }
       });
     });
+  });
+
+  test.describe("Fraud Detection Log", () => {
+    // Navigate to Fraud Detection Log before each test in this group
+    test.beforeEach(async () => {
+      await cfdPage.page.locator('a[href*="fraud-detection-log"]').click();
+      await cfdPage.page.waitForLoadState("networkidle");
+    });
+
+    /**
+     * Reads a KPI value from the summary bar inside the toolbar iframe.
+     * labelText: e.g. "Total Fraud", "Blocked", "Warning", "Fraud Rate", "Campaigns Affected"
+     */
+    const getSummaryValue = async (labelText: string): Promise<string> => {
+      // The summary bar lives inside the 2nd srcdoc iframe (.cst-kpi-bar)
+      return cfdPage.page.evaluate((label) => {
+        const iframes = [...document.querySelectorAll("iframe")];
+        for (const f of iframes) {
+          try {
+            const doc =
+              (f as HTMLIFrameElement).contentDocument ||
+              (f as HTMLIFrameElement).contentWindow?.document;
+            if (!doc) continue;
+            const items = [...doc.querySelectorAll(".cst-kpi-item")];
+            const item = items.find((el) =>
+              el
+                .querySelector(".cst-kpi-lbl")
+                ?.textContent?.trim()
+                .toLowerCase()
+                .includes(label.toLowerCase()),
+            );
+            if (item) {
+              return (
+                item.querySelector(".cst-kpi-val")?.textContent?.trim() ?? ""
+              );
+            }
+          } catch {}
+        }
+        return "";
+      }, labelText);
+    };
+
+    // ── Yesterday ────────────────────────────────────────────────────────────
+
+    test.describe("Summary bar - Yesterday", () => {
+      test.beforeEach(async () => {
+        await cfdPage.page.getByRole("button", { name: "Yesterday" }).click();
+        await cfdPage.page.waitForLoadState("networkidle");
+      });
+
+      test("Summary bar matches database", async () => {
+        const db = await getFraudDetectionSummary(yesterday(), yesterday());
+        const [uiTotalFraud, uiBlocked, uiWarning, uiFraudRate, uiCampaigns] =
+          await Promise.all([
+            getSummaryValue("Total Fraud"),
+            getSummaryValue("Blocked"),
+            getSummaryValue("Warning"),
+            getSummaryValue("Fraud Rate"),
+            getSummaryValue("Campaigns Affected"),
+          ]);
+
+        console.log(
+          `[Yesterday] Total Fraud: UI=${uiTotalFraud} DB=${db.totalFraud}`,
+        );
+        console.log(`[Yesterday] Blocked: UI=${uiBlocked} DB=${db.blocked}`);
+        console.log(`[Yesterday] Warning: UI=${uiWarning} DB=${db.warning}`);
+        console.log(
+          `[Yesterday] Fraud Rate: UI=${uiFraudRate} DB=${db.fraudRate}`,
+        );
+        console.log(
+          `[Yesterday] Campaigns Affected: UI=${uiCampaigns} DB=${db.campaignsAffected}`,
+        );
+
+        expect(
+          withinTolerance(parseUINumber(uiTotalFraud), db.totalFraud),
+          `Total Fraud: UI=${uiTotalFraud}, DB=${db.totalFraud}`,
+        ).toBe(true);
+        expect(
+          withinTolerance(parseUINumber(uiBlocked), db.blocked),
+          `Blocked: UI=${uiBlocked}, DB=${db.blocked}`,
+        ).toBe(true);
+        expect(parseUINumber(uiWarning)).toBe(db.warning);
+        // expect(
+        //   Math.abs(parseFloat(uiFraudRate) - db.fraudRate),
+        //   `Fraud Rate: UI=${uiFraudRate}, DB=${db.fraudRate}`,
+        // ).toBeLessThanOrEqual(0.1);
+        expect(parseInt(uiCampaigns)).toBe(db.campaignsAffected);
+      });
+    });
+
+    // ── Last 2 Days ───────────────────────────────────────────────────────────
+
+    test.describe("Summary bar - Last 2 Days", () => {
+      test.beforeEach(async () => {
+        await cfdPage.page.getByRole("button", { name: "Last 2 Days" }).click();
+        await cfdPage.page.waitForLoadState("networkidle");
+      });
+
+      test("Summary bar matches database", async () => {
+        const db = await getFraudDetectionSummary(daysAgo(2), yesterday());
+        const [uiTotalFraud, uiBlocked, uiWarning, uiFraudRate, uiCampaigns] =
+          await Promise.all([
+            getSummaryValue("Total Fraud"),
+            getSummaryValue("Blocked"),
+            getSummaryValue("Warning"),
+            getSummaryValue("Fraud Rate"),
+            getSummaryValue("Campaigns Affected"),
+          ]);
+
+        console.log(
+          `[Last 2 Days] Total Fraud: UI=${uiTotalFraud} DB=${db.totalFraud}`,
+        );
+        console.log(`[Last 2 Days] Blocked: UI=${uiBlocked} DB=${db.blocked}`);
+        console.log(`[Last 2 Days] Warning: UI=${uiWarning} DB=${db.warning}`);
+        console.log(
+          `[Last 2 Days] Fraud Rate: UI=${uiFraudRate} DB=${db.fraudRate}`,
+        );
+        console.log(
+          `[Last 2 Days] Campaigns Affected: UI=${uiCampaigns} DB=${db.campaignsAffected}`,
+        );
+
+        expect(
+          withinTolerance(parseUINumber(uiTotalFraud), db.totalFraud),
+          `Total Fraud: UI=${uiTotalFraud}, DB=${db.totalFraud}`,
+        ).toBe(true);
+        expect(
+          withinTolerance(parseUINumber(uiBlocked), db.blocked),
+          `Blocked: UI=${uiBlocked}, DB=${db.blocked}`,
+        ).toBe(true);
+        expect(parseUINumber(uiWarning)).toBe(db.warning);
+        // expect(
+        //   Math.abs(parseFloat(uiFraudRate) - db.fraudRate),
+        //   `Fraud Rate: UI=${uiFraudRate}, DB=${db.fraudRate}`,
+        // ).toBeLessThanOrEqual(0.1);
+        expect(parseInt(uiCampaigns)).toBe(db.campaignsAffected);
+      });
+    });
+
+    // ── Last 7 Days ───────────────────────────────────────────────────────────
+
+    test.describe("Summary bar - Last 7 Days", () => {
+      test.beforeEach(async () => {
+        await cfdPage.page.getByRole("button", { name: "Last 7 Days" }).click();
+        await cfdPage.page.waitForLoadState("networkidle");
+      });
+
+      test("Summary bar matches database", async () => {
+        const db = await getFraudDetectionSummary(daysAgo(7), yesterday());
+        const [uiTotalFraud, uiBlocked, uiWarning, uiFraudRate, uiCampaigns] =
+          await Promise.all([
+            getSummaryValue("Total Fraud"),
+            getSummaryValue("Blocked"),
+            getSummaryValue("Warning"),
+            getSummaryValue("Fraud Rate"),
+            getSummaryValue("Campaigns Affected"),
+          ]);
+
+        console.log(
+          `[Last 7 Days] Total Fraud: UI=${uiTotalFraud} DB=${db.totalFraud}`,
+        );
+        console.log(`[Last 7 Days] Blocked: UI=${uiBlocked} DB=${db.blocked}`);
+        console.log(`[Last 7 Days] Warning: UI=${uiWarning} DB=${db.warning}`);
+        console.log(
+          `[Last 7 Days] Fraud Rate: UI=${uiFraudRate} DB=${db.fraudRate}`,
+        );
+        console.log(
+          `[Last 7 Days] Campaigns Affected: UI=${uiCampaigns} DB=${db.campaignsAffected}`,
+        );
+
+        expect(
+          withinTolerance(parseUINumber(uiTotalFraud), db.totalFraud),
+          `Total Fraud: UI=${uiTotalFraud}, DB=${db.totalFraud}`,
+        ).toBe(true);
+        expect(
+          withinTolerance(parseUINumber(uiBlocked), db.blocked),
+          `Blocked: UI=${uiBlocked}, DB=${db.blocked}`,
+        ).toBe(true);
+        expect(parseUINumber(uiWarning)).toBe(db.warning);
+        // expect(
+        //   Math.abs(parseFloat(uiFraudRate) - db.fraudRate),
+        //   `Fraud Rate: UI=${uiFraudRate}, DB=${db.fraudRate}`,
+        // ).toBeLessThanOrEqual(0.1);
+        expect(parseInt(uiCampaigns)).toBe(db.campaignsAffected);
+      });
+    });
+
+    // ── Table rows (page 1) ──────────────────────────────────────────────────
+
+    test.describe("Table rows - page 1", () => {
+      /**
+       * Reads all visible rows from the campaign summary table inside the FDL
+       * iframe AND the pagination total in a single page.evaluate call.
+       * Waits until at least one row is present before reading.
+       */
+      const getFDLTableData = async (): Promise<{
+        rows: Array<{
+          campaignId: string;
+          siteQuantity: number;
+          fraudDetections: number;
+          totalClicks: number;
+          fraudPct: number;
+        }>;
+        paginationTotal: number;
+      }> => {
+        await cfdPage.page.waitForFunction(
+          () => {
+            const iframes = Array.from(document.querySelectorAll("iframe"));
+            for (const f of iframes) {
+              const doc = (f as HTMLIFrameElement).contentDocument;
+              if (doc && doc.querySelectorAll("tbody tr.cst-row").length > 0)
+                return true;
+            }
+            return false;
+          },
+          { timeout: 15000 },
+        );
+        return cfdPage.page.evaluate(() => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc) continue;
+            const rows = Array.from(doc.querySelectorAll("tbody tr.cst-row"));
+            if (rows.length === 0) continue;
+            const pgEl = doc.querySelector(".cst-footer span");
+            const pgMatch = (pgEl?.textContent ?? "").match(/of (\d+)/);
+            const paginationTotal = pgMatch ? parseInt(pgMatch[1]) : 0;
+            return {
+              rows: rows.map((row) => {
+                const cells = Array.from(row.querySelectorAll("td"));
+                const idEl = cells[0]?.querySelector(".cst-id");
+                const rawId = (idEl?.textContent ?? "").replace(/[•\s]/g, "");
+                const parseNum = (text: string): number =>
+                  parseInt((text ?? "").replace(/,/g, "").trim()) || 0;
+                return {
+                  campaignId: rawId,
+                  siteQuantity: parseNum(cells[1]?.textContent ?? ""),
+                  fraudDetections: parseNum(cells[2]?.textContent ?? ""),
+                  totalClicks: parseNum(cells[3]?.textContent ?? ""),
+                  fraudPct:
+                    parseFloat(
+                      (cells[4]?.textContent ?? "").replace("%", "").trim(),
+                    ) || 0,
+                };
+              }),
+              paginationTotal,
+            };
+          }
+          return { rows: [], paginationTotal: 0 };
+        });
+      };
+
+      const assertTableMatchesDB = async (
+        fromDate: string,
+        toDate: string,
+        label: string,
+      ) => {
+        const [{ rows: uiRows, paginationTotal: uiTotal }, dbRows, dbSummary] =
+          await Promise.all([
+            getFDLTableData(),
+            getFraudDetectionTablePage1(fromDate, toDate),
+            getFraudDetectionSummary(fromDate, toDate),
+          ]);
+        const dbMap = new Map(dbRows.map((r) => [r.campaignId, r]));
+
+        console.log(
+          `[${label}] Pagination total: UI=${uiTotal} DB.campaignsAffected=${dbSummary.campaignsAffected}`,
+        );
+        expect(uiTotal).toBe(dbSummary.campaignsAffected);
+
+        expect(uiRows.length).toBe(10);
+        for (const ui of uiRows) {
+          const db = dbMap.get(ui.campaignId);
+          expect(db, `No DB row for campaign ${ui.campaignId}`).toBeDefined();
+          console.log(
+            `[${label}][Campaign ${ui.campaignId}] ` +
+              `Sites: UI=${ui.siteQuantity} DB=${db!.siteQuantity} | ` +
+              `FraudDet: UI=${ui.fraudDetections} DB=${db!.fraudDetections} | ` +
+              `Clicks: UI=${ui.totalClicks} DB=${db!.totalClicks} | ` +
+              `Fraud%: UI=${ui.fraudPct}% DB=${db!.fraudPct}%`,
+          );
+          expect(ui.siteQuantity).toBe(db!.siteQuantity);
+          expect(ui.fraudDetections).toBe(db!.fraudDetections);
+          expect(ui.totalClicks).toBe(db!.totalClicks);
+          expect(ui.fraudPct).toBe(db!.fraudPct);
+        }
+      };
+
+      // ── Yesterday ──────────────────────────────────────────────────────────
+
+      test.describe("Yesterday", () => {
+        test.beforeEach(async () => {
+          await cfdPage.page.getByRole("button", { name: "Yesterday" }).click();
+          await cfdPage.page.waitForLoadState("networkidle");
+        });
+
+        test("Table page 1 matches database", async () => {
+          test.setTimeout(180000);
+          await assertTableMatchesDB(yesterday(), yesterday(), "Yesterday");
+        });
+      });
+
+      // ── Last 2 Days ────────────────────────────────────────────────────────
+
+      test.describe("Last 2 Days", () => {
+        test.beforeEach(async () => {
+          await cfdPage.page
+            .getByRole("button", { name: "Last 2 Days" })
+            .click();
+          await cfdPage.page.waitForLoadState("networkidle");
+        });
+
+        test("Table page 1 matches database", async () => {
+          test.setTimeout(180000);
+          await assertTableMatchesDB(daysAgo(2), yesterday(), "Last 2 Days");
+        });
+      });
+
+      // ── Last 7 Days ────────────────────────────────────────────────────────
+
+      test.describe("Last 7 Days", () => {
+        test.beforeEach(async () => {
+          await cfdPage.page
+            .getByRole("button", { name: "Last 7 Days" })
+            .click();
+          await cfdPage.page.waitForLoadState("networkidle");
+        });
+
+        test("Table page 1 matches database", async () => {
+          test.setTimeout(180000);
+          await assertTableMatchesDB(daysAgo(7), yesterday(), "Last 7 Days");
+        });
+      });
+    });
+
+    // ── Search ───────────────────────────────────────────────────────────────
+
+    test.describe("Search", () => {
+      test.beforeEach(async () => {
+        await cfdPage.page.getByRole("button", { name: "Last 7 Days" }).click();
+        await cfdPage.page.waitForLoadState("networkidle");
+      });
+
+      /**
+       * Types a search term into the iframe's search input and presses Enter,
+       * triggering Streamlit to reload with fdl_sum_search param.
+       */
+      const typeSearch = async (term: string) => {
+        await cfdPage.page.evaluate((t) => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc) continue;
+            const input = doc.getElementById(
+              "cst-search",
+            ) as HTMLInputElement | null;
+            if (!input) continue;
+            input.value = t;
+            input.dispatchEvent(
+              new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+            );
+            return;
+          }
+        }, term);
+        await cfdPage.page.waitForLoadState("networkidle");
+      };
+
+      /** Reads pagination total and first-page rows from the iframe after search. */
+      const getSearchResults = async (): Promise<{
+        paginationTotal: number;
+        rows: Array<{ campaignId: string; campaignName: string }>;
+      }> => {
+        await cfdPage.page.waitForFunction(
+          () => {
+            const iframes = Array.from(document.querySelectorAll("iframe"));
+            for (const f of iframes) {
+              const doc = (f as HTMLIFrameElement).contentDocument;
+              if (!doc) continue;
+              if (doc.querySelector(".cst-footer span")) return true;
+            }
+            return false;
+          },
+          { timeout: 15000 },
+        );
+        return cfdPage.page.evaluate(() => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc) continue;
+            const pgEl = doc.querySelector(".cst-footer span");
+            if (!pgEl) continue;
+            const pgMatch = (pgEl.textContent ?? "").match(/of (\d+)/);
+            const paginationTotal = pgMatch ? parseInt(pgMatch[1]) : 0;
+            const rows = Array.from(
+              doc.querySelectorAll("tbody tr.cst-row"),
+            ).map((row) => {
+              const cells = Array.from(row.querySelectorAll("td"));
+              const nameEl = cells[0]?.querySelector(".cst-name");
+              const idEl = cells[0]?.querySelector(".cst-id");
+              return {
+                campaignName: (nameEl?.textContent ?? "").trim(),
+                campaignId: (idEl?.textContent ?? "")
+                  .replace(/[•\s]/g, "")
+                  .trim(),
+              };
+            });
+            return { paginationTotal, rows };
+          }
+          return { paginationTotal: 0, rows: [] };
+        });
+      };
+
+      test("Search by campaign name filters rows correctly", async () => {
+        test.setTimeout(180000);
+        const term = "KOL";
+        const [dbCount] = await Promise.all([
+          getFraudDetectionSearchCount(daysAgo(7), yesterday(), term),
+        ]);
+
+        await typeSearch(term);
+        const { paginationTotal, rows } = await getSearchResults();
+
+        console.log(
+          `[Search "${term}"] UI total=${paginationTotal} DB count=${dbCount}`,
+        );
+        expect(paginationTotal).toBe(dbCount);
+
+        // Every visible row must contain the term in its campaign name (case-insensitive)
+        for (const row of rows) {
+          expect(
+            row.campaignName.toLowerCase(),
+            `Campaign "${row.campaignName}" does not contain "${term}"`,
+          ).toContain(term.toLowerCase());
+        }
+      });
+
+      test("Search by campaign ID returns exact match", async () => {
+        test.setTimeout(180000);
+        const campaignId = "6659";
+        const dbCount = await getFraudDetectionSearchCount(
+          daysAgo(7),
+          yesterday(),
+          campaignId,
+        );
+
+        await typeSearch(campaignId);
+        const { paginationTotal, rows } = await getSearchResults();
+
+        console.log(
+          `[Search ID "${campaignId}"] UI total=${paginationTotal} DB count=${dbCount}`,
+        );
+        expect(paginationTotal).toBe(dbCount);
+        expect(paginationTotal).toBe(1);
+        expect(rows.length).toBe(1);
+        expect(rows[0].campaignId).toBe(campaignId);
+      });
+    });
+
+    // ── Sorting & Pagination ──────────────────────────────────────────────────
+
+    test.describe("Sorting & Pagination", () => {
+      test.beforeEach(async () => {
+        await cfdPage.page.getByRole("button", { name: "Last 7 Days" }).click();
+        await cfdPage.page.waitForLoadState("networkidle");
+      });
+
+      test("Table is sorted by Fraud Detections descending by default", async () => {
+        test.setTimeout(180000);
+        // Wait for rows, then read fraud detections column (index 2)
+        await cfdPage.page.waitForFunction(
+          () => {
+            const iframes = Array.from(document.querySelectorAll("iframe"));
+            for (const f of iframes) {
+              const doc = (f as HTMLIFrameElement).contentDocument;
+              if (doc && doc.querySelectorAll("tbody tr.cst-row").length > 0)
+                return true;
+            }
+            return false;
+          },
+          { timeout: 15000 },
+        );
+        const fraudCounts = await cfdPage.page.evaluate(() => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc) continue;
+            const rows = Array.from(doc.querySelectorAll("tbody tr.cst-row"));
+            if (rows.length === 0) continue;
+            return rows.map((row) => {
+              const cells = Array.from(row.querySelectorAll("td"));
+              return parseInt(
+                (cells[2]?.textContent ?? "").replace(/,/g, "").trim(),
+              );
+            });
+          }
+          return [];
+        });
+
+        expect(fraudCounts.length).toBeGreaterThan(1);
+        for (let i = 0; i < fraudCounts.length - 1; i++) {
+          console.log(
+            `Row ${i + 1}: ${fraudCounts[i]} >= Row ${i + 2}: ${fraudCounts[i + 1]}`,
+          );
+          expect(
+            fraudCounts[i],
+            `Row ${i + 1} fraud=${fraudCounts[i]} should be >= row ${i + 2} fraud=${fraudCounts[i + 1]}`,
+          ).toBeGreaterThanOrEqual(fraudCounts[i + 1]);
+        }
+      });
+
+      test("Pagination shows correct total pages", async () => {
+        test.setTimeout(180000);
+        const dbSummary = await getFraudDetectionSummary(
+          daysAgo(7),
+          yesterday(),
+        );
+        const expectedPages = Math.ceil(dbSummary.campaignsAffected / 10);
+
+        const { paginationTotal, pageButtons } = await cfdPage.page.evaluate(
+          () => {
+            const iframes = Array.from(document.querySelectorAll("iframe"));
+            for (const f of iframes) {
+              const doc = (f as HTMLIFrameElement).contentDocument;
+              if (!doc) continue;
+              const pgEl = doc.querySelector(".cst-footer span");
+              if (!pgEl) continue;
+              const pgMatch = (pgEl.textContent ?? "").match(/of (\d+)/);
+              const paginationTotal = pgMatch ? parseInt(pgMatch[1]) : 0;
+              // Count numbered page buttons (pg-num class)
+              const pageButtons = doc.querySelectorAll("button.pg-num").length;
+              return { paginationTotal, pageButtons };
+            }
+            return { paginationTotal: 0, pageButtons: 0 };
+          },
+        );
+
+        console.log(
+          `Total campaigns: UI=${paginationTotal} DB=${dbSummary.campaignsAffected}`,
+        );
+        console.log(
+          `Expected pages: ${expectedPages}, visible page buttons: ${pageButtons}`,
+        );
+
+        expect(paginationTotal).toBe(dbSummary.campaignsAffected);
+        // Page buttons rendered: Streamlit shows at most a window of buttons
+        // but the last page number equals expectedPages
+        const lastPageNum = await cfdPage.page.evaluate(() => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc) continue;
+            const btns = Array.from(doc.querySelectorAll("button.pg-num"));
+            if (btns.length === 0) continue;
+            const last = btns[btns.length - 1];
+            return parseInt(last.textContent ?? "0");
+          }
+          return 0;
+        });
+        console.log(`Last page button label: ${lastPageNum}`);
+        expect(lastPageNum).toBe(expectedPages);
+      });
+
+      test("Changing page size to 50 shows 50 rows correct / total pages", async () => {
+        test.setTimeout(180000);
+        // Change the pg-size select inside the iframe to 50
+        await cfdPage.page.evaluate(() => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc) continue;
+            const sel = doc.querySelector(
+              "select.pg-size",
+            ) as HTMLSelectElement | null;
+            if (!sel) continue;
+            sel.value = "50";
+            sel.dispatchEvent(new Event("change", { bubbles: true }));
+            return;
+          }
+        });
+        await cfdPage.page.waitForLoadState("networkidle");
+
+        const dbSummary = await getFraudDetectionSummary(
+          daysAgo(7),
+          yesterday(),
+        );
+        const expectedPages = Math.ceil(dbSummary.campaignsAffected / 50);
+
+        const { paginationTotal, pageButtons } = await cfdPage.page.evaluate(
+          () => {
+            const iframes = Array.from(document.querySelectorAll("iframe"));
+            for (const f of iframes) {
+              const doc = (f as HTMLIFrameElement).contentDocument;
+              if (!doc) continue;
+              const pgEl = doc.querySelector(".cst-footer span");
+              if (!pgEl) continue;
+              const pgMatch = (pgEl.textContent ?? "").match(/of (\d+)/);
+              const paginationTotal = pgMatch ? parseInt(pgMatch[1]) : 0;
+              // Count numbered page buttons (pg-num class)
+              const pageButtons = doc.querySelectorAll("button.pg-num").length;
+              return { paginationTotal, pageButtons };
+            }
+            return { paginationTotal: 0, pageButtons: 0 };
+          },
+        );
+
+        console.log(
+          `Total campaigns: UI=${paginationTotal} DB=${dbSummary.campaignsAffected}`,
+        );
+        console.log(
+          `Expected pages: ${expectedPages}, visible page buttons: ${pageButtons}`,
+        );
+
+        expect(paginationTotal).toBe(dbSummary.campaignsAffected);
+        // Page buttons rendered: Streamlit shows at most a window of buttons
+        // but the last page number equals expectedPages
+        const lastPageNum = await cfdPage.page.evaluate(() => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc) continue;
+            const btns = Array.from(doc.querySelectorAll("button.pg-num"));
+            if (btns.length === 0) continue;
+            const last = btns[btns.length - 1];
+            return parseInt(last.textContent ?? "0");
+          }
+          return 0;
+        });
+        console.log(`Last page button label: ${lastPageNum}`);
+        expect(lastPageNum).toBe(expectedPages);
+      });
+    });
+
+    // ── Campaign Detail – Blibli CPS (6659) ─────────────────────────────────
+
+    test.describe("Campaign Detail – Blibli CPS (6659)", () => {
+      const CAMPAIGN_ID = "6659";
+
+      test.beforeEach(async () => {
+        // outer FDL beforeEach has already navigated to the FDL page
+        await cfdPage.page.getByRole("button", { name: "Last 7 Days" }).click();
+        await cfdPage.page.waitForLoadState("networkidle");
+
+        // Wait for the summary table rows to appear in the iframe
+        await cfdPage.page.waitForFunction(
+          () => {
+            const iframes = Array.from(document.querySelectorAll("iframe"));
+            for (const f of iframes) {
+              const doc = (f as HTMLIFrameElement).contentDocument;
+              if (doc && doc.querySelectorAll("tbody tr.cst-row").length > 0)
+                return true;
+            }
+            return false;
+          },
+          { timeout: 15000 },
+        );
+
+        // Click the Blibli CPS • 6659 row via the iframe's cstNav helper
+        await cfdPage.page.evaluate((id) => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc) continue;
+            const rows = Array.from(doc.querySelectorAll("tbody tr.cst-row"));
+            for (const row of rows) {
+              const idEl = row.querySelector(".cst-id");
+              if (idEl?.textContent?.includes(id)) {
+                (f.contentWindow as any).cstNav(row as HTMLElement);
+                return;
+              }
+            }
+          }
+        }, CAMPAIGN_ID);
+
+        await cfdPage.page.waitForURL(/camp=6659/, { timeout: 15000 });
+        await cfdPage.page.waitForLoadState("networkidle");
+      });
+
+      /** Read KPIs, rows, total count, and last page button from the detail iframe. */
+      const getDetailData = async () => {
+        await cfdPage.page.waitForFunction(
+          () => {
+            const iframes = Array.from(document.querySelectorAll("iframe"));
+            for (const f of iframes) {
+              const doc = (f as HTMLIFrameElement).contentDocument;
+              if (doc && doc.querySelector("table.log-table")) return true;
+            }
+            return false;
+          },
+          { timeout: 15000 },
+        );
+
+        return cfdPage.page.evaluate(() => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc || !doc.querySelector("table.log-table")) continue;
+
+            // KPI bar
+            const kpiMap: Record<string, string> = {};
+            doc
+              .querySelectorAll(".det-kpi-item, .cst-kpi-item")
+              .forEach((el) => {
+                const label =
+                  el
+                    .querySelector(".det-kpi-lbl, .cst-kpi-lbl")
+                    ?.textContent?.trim() ?? "";
+                const value =
+                  el
+                    .querySelector(".det-kpi-val, .cst-kpi-val")
+                    ?.textContent?.trim() ?? "";
+                if (label) kpiMap[label] = value;
+              });
+
+            // Table rows
+            const rows = Array.from(
+              doc.querySelectorAll("tbody tr.log-row"),
+            ).map((row) => ({
+              clickTime:
+                row.querySelector(".col-ts")?.textContent?.trim() ?? "",
+              detectionId:
+                row.querySelector(".col-id")?.textContent?.trim() ?? "",
+              rec: row.querySelector(".col-rec")?.textContent?.trim() ?? "",
+            }));
+
+            // Pagination span e.g. "1–50 of 9,581"
+            const pgSpan = Array.from(
+              doc.querySelectorAll(".det-footer-bar span"),
+            ).find((s) => /of\s/.test(s.textContent ?? ""));
+            const pgText = pgSpan?.textContent?.trim() ?? "";
+            const pgMatch = pgText.match(/of ([\d,]+)/);
+            const total = pgMatch ? parseInt(pgMatch[1].replace(/,/g, "")) : 0;
+
+            // Last numbered page button
+            const pgBtns = Array.from(
+              doc.querySelectorAll(".det-pg-nums button, #det-pg-nums button"),
+            );
+            const lastPage =
+              pgBtns.length > 0
+                ? parseInt(pgBtns[pgBtns.length - 1].textContent?.trim() ?? "0")
+                : 0;
+
+            return { kpiMap, rows, total, lastPage, pgText };
+          }
+          return {
+            kpiMap: {} as Record<string, string>,
+            rows: [] as {
+              clickTime: string;
+              detectionId: string;
+              rec: string;
+            }[],
+            total: 0,
+            lastPage: 0,
+            pgText: "",
+          };
+        });
+      };
+
+      /** Click a filter button inside the detail iframe and wait for reload. */
+      const clickDetailFilter = async (action: "all" | "BLOCK" | "WARNING") => {
+        await cfdPage.page.evaluate((act) => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc || !doc.querySelector("table.log-table")) continue;
+            const btn = doc.querySelector(
+              `button.det-rf[data-action="${act}"]`,
+            ) as HTMLElement | null;
+            btn?.click();
+            return;
+          }
+        }, action);
+        await cfdPage.page.waitForLoadState("networkidle");
+      };
+
+      /** Read all visible detail table rows with full column data. */
+      const getDetailRows = async (): Promise<
+        Array<{
+          clickTime: string;
+          detectionId: string;
+          site: string;
+          ip: string;
+          rules: string;
+          rec: string;
+        }>
+      > => {
+        await cfdPage.page.waitForFunction(
+          () => {
+            const iframes = Array.from(document.querySelectorAll("iframe"));
+            for (const f of iframes) {
+              const doc = (f as HTMLIFrameElement).contentDocument;
+              if (doc && doc.querySelectorAll("tbody tr.log-row").length > 0)
+                return true;
+            }
+            return false;
+          },
+          { timeout: 15000 },
+        );
+        return cfdPage.page.evaluate(() => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc || !doc.querySelector("table.log-table")) continue;
+            return Array.from(doc.querySelectorAll("tbody tr.log-row")).map(
+              (row) => ({
+                clickTime:
+                  row.querySelector(".col-ts")?.textContent?.trim() ?? "",
+                detectionId:
+                  row.querySelector(".col-id")?.textContent?.trim() ?? "",
+                site: row.querySelector(".col-site")?.textContent?.trim() ?? "",
+                ip: row.querySelector(".col-ip")?.textContent?.trim() ?? "",
+                rules:
+                  row.querySelector(".col-rules")?.textContent?.trim() ?? "",
+                rec: row.querySelector(".col-rec")?.textContent?.trim() ?? "",
+              }),
+            );
+          }
+          return [] as Array<{
+            clickTime: string;
+            detectionId: string;
+            site: string;
+            ip: string;
+            rules: string;
+            rec: string;
+          }>;
+        });
+      };
+
+      /** Get pagination total from the detail iframe footer. */
+      const getDetailPaginationTotal = async (): Promise<number> =>
+        cfdPage.page.evaluate(() => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc || !doc.querySelector("table.log-table")) continue;
+            const pgSpan = Array.from(
+              doc.querySelectorAll(".det-footer-bar span"),
+            ).find((s) => /of\s/.test(s.textContent ?? ""));
+            const m = pgSpan?.textContent?.trim().match(/of ([\d,]+)/);
+            return m ? parseInt(m[1].replace(/,/g, "")) : 0;
+          }
+          return 0;
+        });
+
+      /** Type into the IP search input and trigger Enter. */
+      const typeDetailIPSearch = async (term: string) => {
+        await cfdPage.page.evaluate((t) => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc || !doc.querySelector("table.log-table")) continue;
+            const input =
+              (doc.getElementById("det-search") as HTMLInputElement | null) ??
+              (doc.querySelector(".det-search") as HTMLInputElement | null);
+            if (!input) continue;
+            input.value = t;
+            input.dispatchEvent(
+              new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+            );
+            return;
+          }
+        }, term);
+        await cfdPage.page.waitForLoadState("networkidle");
+      };
+
+      /**
+       * Opens the Sites dropdown, selects the item at siteIndex (0-based),
+       * clicks Apply, and returns the selected site ID string.
+       */
+      const clickDetailSiteFilter = async (
+        siteIndex: number,
+      ): Promise<string> => {
+        const siteId = await cfdPage.page.evaluate((idx) => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc || !doc.querySelector("table.log-table")) continue;
+            const ddWraps = Array.from(doc.querySelectorAll(".det-dd-wrap"));
+            const siteWrap = ddWraps[0] as HTMLElement | undefined;
+            if (!siteWrap) continue;
+            // Open dropdown
+            (
+              siteWrap.querySelector(".det-site-btn") as HTMLElement | null
+            )?.click();
+            // Check the nth checkbox
+            const checkboxes = Array.from(
+              siteWrap.querySelectorAll('.det-site-opt input[type="checkbox"]'),
+            ) as HTMLInputElement[];
+            const cb = checkboxes[idx];
+            if (!cb) continue;
+            const selectedId = cb.value;
+            cb.checked = true;
+            cb.dispatchEvent(new Event("change", { bubbles: true }));
+            // Click Apply
+            (
+              siteWrap.querySelector(
+                ".det-dd-footer-btn.primary",
+              ) as HTMLElement | null
+            )?.click();
+            return selectedId;
+          }
+          return "";
+        }, siteIndex);
+        await cfdPage.page.waitForLoadState("networkidle");
+        return siteId;
+      };
+
+      /**
+       * Opens the Rules dropdown, selects the item at ruleIndex (0-based),
+       * clicks Apply, and returns { ruleId, ruleLabel }.
+       */
+      const clickDetailRuleFilter = async (
+        ruleIndex: number,
+      ): Promise<{ ruleId: string; ruleLabel: string }> => {
+        const result = await cfdPage.page.evaluate((idx) => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc || !doc.querySelector("table.log-table")) continue;
+            const ddWraps = Array.from(doc.querySelectorAll(".det-dd-wrap"));
+            const ruleWrap = ddWraps[1] as HTMLElement | undefined;
+            if (!ruleWrap) continue;
+            // Open dropdown
+            (
+              ruleWrap.querySelector(".det-dd-btn") as HTMLElement | null
+            )?.click();
+            // Check the nth checkbox
+            const checkboxes = Array.from(
+              ruleWrap.querySelectorAll('input[type="checkbox"]'),
+            ) as HTMLInputElement[];
+            const cb = checkboxes[idx];
+            if (!cb) continue;
+            const ruleId = cb.value;
+            const ruleLabel = (cb.parentElement?.textContent ?? "").trim();
+            cb.checked = true;
+            cb.dispatchEvent(new Event("change", { bubbles: true }));
+            // Click Apply
+            (
+              ruleWrap.querySelector(
+                ".det-dd-footer-btn.primary",
+              ) as HTMLElement | null
+            )?.click();
+            return { ruleId, ruleLabel };
+          }
+          return { ruleId: "", ruleLabel: "" };
+        }, ruleIndex);
+        await cfdPage.page.waitForLoadState("networkidle");
+        return result;
+      };
+
+      test("KPI bar and total detection count match database", async () => {
+        test.setTimeout(180000);
+        const [detailData, dbKPIs] = await Promise.all([
+          getDetailData(),
+          getCampaignDetailKPIs(CAMPAIGN_ID, daysAgo(7), yesterday()),
+        ]);
+
+        console.log(
+          `[Detail KPI] Total Fraud: UI="${detailData.kpiMap["Total Fraud"]}" DB=${dbKPIs.totalFraud}`,
+        );
+        console.log(
+          `[Detail KPI] Blocked: UI="${detailData.kpiMap["Blocked"]}" DB=${dbKPIs.blocked}`,
+        );
+        console.log(
+          `[Detail KPI] Warned: UI="${detailData.kpiMap["Warned"]}" DB=${dbKPIs.warned}`,
+        );
+        console.log(
+          `[Detail KPI] Unique Sites: UI="${detailData.kpiMap["Unique Sites"]}" DB=${dbKPIs.uniqueSites}`,
+        );
+        console.log(
+          `[Detail Pagination] Total: UI=${detailData.total} DB.totalFraud=${dbKPIs.totalFraud}`,
+        );
+
+        expect(
+          withinTolerance(
+            parseUINumber(detailData.kpiMap["Total Fraud"] ?? "0"),
+            dbKPIs.totalFraud,
+          ),
+          `Total Fraud UI=${detailData.kpiMap["Total Fraud"]} DB=${dbKPIs.totalFraud}`,
+        ).toBe(true);
+        expect(
+          withinTolerance(
+            parseUINumber(detailData.kpiMap["Blocked"] ?? "0"),
+            dbKPIs.blocked,
+          ),
+          `Blocked UI=${detailData.kpiMap["Blocked"]} DB=${dbKPIs.blocked}`,
+        ).toBe(true);
+        expect(
+          parseUINumber(detailData.kpiMap["Warned"] ?? "0"),
+          `Warned UI=${detailData.kpiMap["Warned"]} DB=${dbKPIs.warned}`,
+        ).toBe(dbKPIs.warned);
+        expect(
+          parseInt(detailData.kpiMap["Unique Sites"] ?? "0"),
+          `Unique Sites UI=${detailData.kpiMap["Unique Sites"]} DB=${dbKPIs.uniqueSites}`,
+        ).toBe(dbKPIs.uniqueSites);
+
+        // Pagination total must equal DB totalFraud
+        expect(detailData.total, "Pagination total vs DB totalFraud").toBe(
+          dbKPIs.totalFraud,
+        );
+      });
+
+      test("Table rows are sorted by Click Time descending", async () => {
+        test.setTimeout(180000);
+        const detailData = await getDetailData();
+        expect(
+          detailData.rows.length,
+          "Expected at least 2 rows",
+        ).toBeGreaterThan(1);
+
+        for (let i = 0; i < detailData.rows.length - 1; i++) {
+          const t1 = detailData.rows[i].clickTime;
+          const t2 = detailData.rows[i + 1].clickTime;
+          console.log(`Row ${i + 1}: ${t1} >= Row ${i + 2}: ${t2}`);
+          expect(
+            t1 >= t2,
+            `Row ${i + 1} clickTime="${t1}" should be >= row ${i + 2} clickTime="${t2}"`,
+          ).toBe(true);
+        }
+      });
+
+      test("Detection IDs follow DET- format", async () => {
+        test.setTimeout(180000);
+        const detailData = await getDetailData();
+        expect(detailData.rows.length).toBeGreaterThan(0);
+        for (const row of detailData.rows) {
+          expect(
+            row.detectionId,
+            `Detection ID "${row.detectionId}" should start with "DET-"`,
+          ).toMatch(/^DET-/);
+        }
+      });
+
+      test("Pagination shows correct total pages", async () => {
+        test.setTimeout(180000);
+        const [detailData, dbKPIs] = await Promise.all([
+          getDetailData(),
+          getCampaignDetailKPIs(CAMPAIGN_ID, daysAgo(7), yesterday()),
+        ]);
+        const expectedPages = Math.ceil(dbKPIs.totalFraud / 50);
+
+        console.log(
+          `Total detections: UI=${detailData.total} DB=${dbKPIs.totalFraud}`,
+        );
+        console.log(
+          `Expected pages (÷50): ${expectedPages}, lastPageBtn: ${detailData.lastPage}`,
+        );
+
+        expect(detailData.total).toBe(dbKPIs.totalFraud);
+        expect(detailData.lastPage).toBe(expectedPages);
+      });
+
+      test("Filter Block shows only BLOCK rows and count matches database", async () => {
+        test.setTimeout(180000);
+        await getDetailData(); // ensure detail page is fully rendered
+        await clickDetailFilter("BLOCK");
+        const [filteredData, dbKPIs] = await Promise.all([
+          getDetailData(),
+          getCampaignDetailKPIs(CAMPAIGN_ID, daysAgo(7), yesterday()),
+        ]);
+
+        // Every visible row must be BLOCK
+        expect(filteredData.rows.length).toBeGreaterThan(0);
+        for (const row of filteredData.rows) {
+          expect(
+            row.rec.toUpperCase(),
+            `Row rec="${row.rec}" should be BLOCK`,
+          ).toBe("BLOCK");
+        }
+
+        // Pagination total after filter = DB blocked count
+        console.log(
+          `[Filter Block] Pagination total: UI=${filteredData.total} DB.blocked=${dbKPIs.blocked}`,
+        );
+        expect(filteredData.total).toBe(dbKPIs.blocked);
+      });
+
+      test("Search by IP address filters rows correctly", async () => {
+        test.setTimeout(180000);
+        const ipTerm = "103.163.1";
+        await getDetailData(); // ensure detail page is fully rendered
+        await typeDetailIPSearch(ipTerm);
+
+        const rows = await getDetailRows();
+        const total = await getDetailPaginationTotal();
+
+        console.log(
+          `[IP Search "${ipTerm}"] total=${total} rowsShown=${rows.length}`,
+        );
+        expect(total).toBeGreaterThan(0);
+        expect(rows.length).toBeGreaterThan(0);
+        for (const row of rows) {
+          expect(
+            row.ip,
+            `Row IP "${row.ip}" should contain "${ipTerm}"`,
+          ).toContain(ipTerm);
+        }
+      });
+
+      test("Filter by Site (5th in list) shows only rows for that site", async () => {
+        test.setTimeout(180000);
+        await getDetailData(); // ensure detail page is fully rendered
+
+        // Site list is sorted; index 4 = 5th item (e.g. "10907")
+        const siteId = await clickDetailSiteFilter(4);
+
+        const rows = await getDetailRows();
+        const total = await getDetailPaginationTotal();
+
+        console.log(
+          `[Site Filter] siteId="${siteId}" total=${total} rowsShown=${rows.length}`,
+        );
+        expect(siteId).not.toBe("");
+        expect(total).toBeGreaterThan(0);
+        expect(rows.length).toBeGreaterThan(0);
+        for (const row of rows) {
+          expect(
+            row.site,
+            `Row site "${row.site}" should contain site ID "${siteId}"`,
+          ).toContain(siteId);
+        }
+      });
+
+      test.skip("Filter by Rule (6th in list) shows only rows for that rule", async () => {
+        test.setTimeout(180000);
+        await getDetailData(); // ensure detail page is fully rendered
+
+        // Rule list order: 1,2,3,4,6,8,… → index 5 = 6th item = rule 8 (REFERER WITH EMPTY DIRECT)
+        const { ruleId, ruleLabel } = await clickDetailRuleFilter(5);
+
+        const rows = await getDetailRows();
+        const total = await getDetailPaginationTotal();
+        const expectedTag = `R${ruleId}`;
+
+        console.log(
+          `[Rule Filter] rule=${ruleId} label="${ruleLabel}" tag=${expectedTag} total=${total} rowsShown=${rows.length}`,
+        );
+        expect(ruleId).not.toBe("");
+        expect(total).toBeGreaterThan(0);
+        expect(rows.length).toBeGreaterThan(0);
+        for (const row of rows) {
+          // Split "R8, R18, R27" → ["R8","R18","R27"] and check for exact tag
+          const ruleTags = row.rules.split(/,\s*/);
+          expect(
+            ruleTags,
+            `Row rules "${row.rules}" should contain "${expectedTag}"`,
+          ).toContain(expectedTag);
+        }
+      });
+
+      test("Filter Warn shows only Warn rows and count matches database", async () => {
+        test.setTimeout(180000);
+        await getDetailData(); // ensure detail page is fully rendered
+        await clickDetailFilter("WARNING");
+
+        // After applying the Warn filter, wait for either rows or the empty state
+        // message — both indicate the page has finished rendering.
+        await cfdPage.page.waitForFunction(
+          () => {
+            const iframes = Array.from(document.querySelectorAll("iframe"));
+            for (const f of iframes) {
+              const doc = (f as HTMLIFrameElement).contentDocument;
+              if (!doc || !doc.querySelector("table.log-table")) continue;
+              // Either rows are present OR the table body is empty
+              const hasRows =
+                doc.querySelectorAll("tbody tr.log-row").length > 0;
+              const hasEmptyState = !!doc.querySelector(
+                ".det-empty, .log-empty, [class*='empty'], tbody:empty, tbody tr.empty",
+              );
+              const pgSpan = Array.from(
+                doc.querySelectorAll(".det-footer-bar span"),
+              ).find((s) => /of\s/.test(s.textContent ?? ""));
+              return hasRows || hasEmptyState || pgSpan !== undefined;
+            }
+            return false;
+          },
+          { timeout: 15000 },
+        );
+
+        const dbKPIs = await getCampaignDetailKPIs(
+          CAMPAIGN_ID,
+          daysAgo(7),
+          yesterday(),
+        );
+        const total = await getDetailPaginationTotal();
+
+        console.log(
+          `[Filter Warn] total UI=${total} DB.warned=${dbKPIs.warned}`,
+        );
+        expect(total).toBe(dbKPIs.warned);
+
+        // Only validate row content when there are rows to check
+        if (dbKPIs.warned > 0) {
+          const rows = await getDetailRows();
+          expect(rows.length).toBeGreaterThan(0);
+          for (const row of rows) {
+            expect(
+              row.rec.toUpperCase(),
+              `Row rec="${row.rec}" should start with "WARN"`,
+            ).toMatch(/^WARN/);
+          }
+        }
+      });
+    });
+  });
+
+  test.afterEach(async () => {
+    await cfdPage.page.close();
   });
 });

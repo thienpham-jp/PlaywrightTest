@@ -130,6 +130,55 @@ export async function getDashboardMetricsDelta(): Promise<{
   };
 }
 
+// ── Fraud Detection Log queries ───────────────────────────────────────────────
+
+export interface FraudDetectionSummary {
+  totalFraud: number; // BLOCK + WARNING
+  blocked: number; // final_action_name = 'BLOCK'
+  warning: number; // non-ALLOW, non-BLOCK
+  fraudRate: number; // blocked / totalClicks * 100, 1 decimal
+  campaignsAffected: number; // COUNT(DISTINCT campaign_id) with any fraud
+}
+
+/**
+ * Returns summary bar metrics for the Fraud Detection Log page.
+ * date range is inclusive: [fromDate, toDate].
+ */
+export async function getFraudDetectionSummary(
+  fromDate: string,
+  toDate: string,
+): Promise<FraudDetectionSummary> {
+  const sql = `
+    SELECT
+      COUNT(*) FILTER (WHERE final_action_name != 'ALLOW')                       AS "totalFraud",
+      COUNT(*) FILTER (WHERE final_action_name = 'BLOCK')                        AS "blocked",
+      COUNT(*) FILTER (WHERE final_action_name != 'ALLOW'
+                         AND final_action_name != 'BLOCK')                       AS "warning",
+      ROUND(
+        COUNT(*) FILTER (WHERE final_action_name = 'BLOCK') * 100.0
+        / NULLIF(COUNT(*), 0),
+        2
+      )                                                                           AS "fraudRate",
+      COUNT(DISTINCT campaign_id) FILTER (WHERE final_action_name != 'ALLOW')    AS "campaignsAffected"
+    FROM click_events
+    WHERE DATE(request_date) BETWEEN $1 AND $2
+  `;
+  const row = await queryOne<{
+    totalFraud: string;
+    blocked: string;
+    warning: string;
+    fraudRate: string;
+    campaignsAffected: string;
+  }>(sql, [fromDate, toDate]);
+  return {
+    totalFraud: Number(row.totalFraud),
+    blocked: Number(row.blocked),
+    warning: Number(row.warning),
+    fraudRate: Number(row.fraudRate),
+    campaignsAffected: Number(row.campaignsAffected),
+  };
+}
+
 export interface ThreatVectorRow {
   category: string;
   blocks: number;
@@ -364,4 +413,126 @@ export function daysAgo(n: number): string {
   const d = new Date();
   d.setUTCDate(d.getUTCDate() - n);
   return d.toISOString().split("T")[0];
+}
+
+// ── Fraud Detection Log — Campaign Summary table ──────────────────────────────
+
+export interface FraudDetectionTableRow {
+  campaignId: string;
+  campaignName: string;
+  siteQuantity: number;
+  fraudDetections: number;
+  totalClicks: number;
+  fraudPct: number; // integer %, e.g. 100, 99, 33
+}
+
+/**
+ * Returns the first page (top 10) of the campaign summary table in the Fraud
+ * Detection Log, ordered by fraud detections descending — matching UI default.
+ */
+export async function getFraudDetectionTablePage1(
+  fromDate: string,
+  toDate: string,
+): Promise<FraudDetectionTableRow[]> {
+  const sql = `
+    SELECT
+      campaign_id::text                                                           AS "campaignId",
+      campaign_name                                                               AS "campaignName",
+      COUNT(DISTINCT site_id)                                                     AS "siteQuantity",
+      COUNT(*) FILTER (WHERE final_action_name != 'ALLOW')                       AS "fraudDetections",
+      COUNT(*)                                                                    AS "totalClicks",
+      ROUND(
+        COUNT(*) FILTER (WHERE final_action_name != 'ALLOW') * 100.0
+        / NULLIF(COUNT(*), 0)
+      )                                                                           AS "fraudPct"
+    FROM click_events
+    WHERE DATE(request_date) BETWEEN $1 AND $2
+    GROUP BY campaign_id, campaign_name
+    HAVING COUNT(*) FILTER (WHERE final_action_name != 'ALLOW') > 0
+    ORDER BY "fraudDetections" DESC
+    LIMIT 10
+  `;
+  const rows = await query<{
+    campaignId: string;
+    campaignName: string;
+    siteQuantity: string;
+    fraudDetections: string;
+    totalClicks: string;
+    fraudPct: string;
+  }>(sql, [fromDate, toDate]);
+  return rows.map((r) => ({
+    campaignId: r.campaignId,
+    campaignName: r.campaignName,
+    siteQuantity: Number(r.siteQuantity),
+    fraudDetections: Number(r.fraudDetections),
+    totalClicks: Number(r.totalClicks),
+    fraudPct: Number(r.fraudPct),
+  }));
+}
+
+/**
+ * Returns the total number of distinct campaigns that match a search term
+ * (by campaign name ILIKE or campaign_id text ILIKE) and have at least one
+ * fraud detection in the given date range.
+ * Mirrors the server-side filtering applied by fdl_sum_search.
+ */
+export async function getFraudDetectionSearchCount(
+  fromDate: string,
+  toDate: string,
+  term: string,
+): Promise<number> {
+  const sql = `
+    SELECT COUNT(DISTINCT campaign_id) AS "count"
+    FROM click_events
+    WHERE DATE(request_date) BETWEEN $1 AND $2
+      AND final_action_name != 'ALLOW'
+      AND (
+        LOWER(campaign_name) LIKE '%' || LOWER($3) || '%'
+        OR campaign_id::text LIKE '%' || $3 || '%'
+      )
+  `;
+  const row = await queryOne<{ count: string }>(sql, [fromDate, toDate, term]);
+  return Number(row.count);
+}
+
+// ── Campaign Detail ──────────────────────────────────────────────────────────
+
+export interface CampaignDetailKPIs {
+  totalFraud: number;
+  blocked: number;
+  warned: number;
+  uniqueSites: number;
+}
+
+/**
+ * Returns KPIs for a single campaign's detail page:
+ * totalFraud, blocked, warned (non-ALLOW non-BLOCK), uniqueSites.
+ */
+export async function getCampaignDetailKPIs(
+  campaignId: string,
+  fromDate: string,
+  toDate: string,
+): Promise<CampaignDetailKPIs> {
+  const sql = `
+    SELECT
+      COUNT(*)                                                           FILTER (WHERE final_action_name != 'ALLOW')             AS "totalFraud",
+      COUNT(*)                                                           FILTER (WHERE final_action_name = 'BLOCK')              AS "blocked",
+      COUNT(*)                                                           FILTER (WHERE final_action_name NOT IN ('ALLOW','BLOCK')) AS "warned",
+      COUNT(DISTINCT site_id)                                            FILTER (WHERE final_action_name != 'ALLOW')             AS "uniqueSites"
+    FROM click_events
+    WHERE campaign_id::text = $1
+      AND DATE(request_date) BETWEEN $2 AND $3
+  `;
+  const row = await queryOne<{
+    totalFraud: string;
+    blocked: string;
+    warned: string;
+    uniqueSites: string;
+  }>(sql, [campaignId, fromDate, toDate]);
+  return {
+    totalFraud: Number(row.totalFraud),
+    blocked: Number(row.blocked),
+    warned: Number(row.warned),
+    uniqueSites: Number(row.uniqueSites),
+  };
 }
