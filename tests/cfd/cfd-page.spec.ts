@@ -1820,7 +1820,65 @@ test.describe("CFD Login Tests", () => {
             return;
           }
         }, risk);
-        await cfdPage.page.waitForLoadState("networkidle");
+        // Risk filter is client-side; wait until the active button reflects the new selection
+        await cfdPage.page.waitForFunction(
+          (r) => {
+            const iframes = Array.from(document.querySelectorAll("iframe"));
+            for (const f of iframes) {
+              const doc = (f as HTMLIFrameElement).contentDocument;
+              if (!doc?.getElementById("fdl-siip")) continue;
+              const active = doc.querySelector(".siip-rf.active");
+              return (
+                active?.textContent?.trim().toLowerCase() === r.toLowerCase()
+              );
+            }
+            return false;
+          },
+          risk,
+          { timeout: 10000 },
+        );
+      };
+
+      /** Change the Sites & IPs page size selector and wait for count to update. */
+      const changeSiipPageSize = async (size: number) => {
+        const prevText = await cfdPage.page.evaluate(() => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc?.getElementById("fdl-siip")) continue;
+            return doc.getElementById("siip-count")?.textContent?.trim() ?? "";
+          }
+          return "";
+        });
+        await cfdPage.page.evaluate((s) => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc?.getElementById("fdl-siip")) continue;
+            const sel = doc.querySelector(
+              "select.siip-pg-size",
+            ) as HTMLSelectElement | null;
+            if (!sel) continue;
+            sel.value = String(s);
+            sel.dispatchEvent(new Event("change", { bubbles: true }));
+            return;
+          }
+        }, size);
+        await cfdPage.page.waitForFunction(
+          (prev) => {
+            const iframes = Array.from(document.querySelectorAll("iframe"));
+            for (const f of iframes) {
+              const doc = (f as HTMLIFrameElement).contentDocument;
+              if (!doc?.getElementById("fdl-siip")) continue;
+              const cur =
+                doc.getElementById("siip-count")?.textContent?.trim() ?? "";
+              return cur !== prev;
+            }
+            return false;
+          },
+          prevText,
+          { timeout: 10000 },
+        );
       };
 
       /** Switch between Grouped / Flat view. */
@@ -1838,7 +1896,22 @@ test.describe("CFD Login Tests", () => {
             return;
           }
         }, view);
-        await cfdPage.page.waitForLoadState("networkidle");
+        // View toggle is client-side; wait for the correct div to become visible
+        const divId = view === "flat" ? "siip-flat" : "siip-grouped";
+        await cfdPage.page.waitForFunction(
+          (id) => {
+            const iframes = Array.from(document.querySelectorAll("iframe"));
+            for (const f of iframes) {
+              const doc = (f as HTMLIFrameElement).contentDocument;
+              if (!doc?.getElementById("fdl-siip")) continue;
+              const el = doc.getElementById(id) as HTMLElement | null;
+              return el?.style?.display !== "none" && el !== null;
+            }
+            return false;
+          },
+          divId,
+          { timeout: 10000 },
+        );
       };
 
       /** Type into the Sites & IPs search field. */
@@ -1959,9 +2032,10 @@ test.describe("CFD Login Tests", () => {
         expect(pg.lastPage).toBe(expectedPages);
       });
 
-      test("Change pagination 20 shows 20 correct / total pages", async () => {
+      test("Change page size to 20 shows correct total pages", async () => {
         test.setTimeout(180000);
         await waitForSiip();
+        await changeSiipPageSize(20);
         const [pg, dbKPIs] = await Promise.all([
           getSiipPagination(),
           getCampaignDetailKPIs(CAMPAIGN_ID, daysAgo(7), yesterday()),
@@ -1969,7 +2043,7 @@ test.describe("CFD Login Tests", () => {
         const expectedPages = Math.ceil(dbKPIs.uniqueSites / 20);
 
         console.log(
-          `[SitesIPs] Pagination: "${pg.text}" total=${pg.total} lastPage=${pg.lastPage} DB.uniqueSites=${dbKPIs.uniqueSites} expectedPages=${expectedPages}`,
+          `[SitesIPs][PageSize=20] "${pg.text}" total=${pg.total} lastPage=${pg.lastPage} DB.uniqueSites=${dbKPIs.uniqueSites} expectedPages=${expectedPages}`,
         );
         expect(pg.total).toBe(dbKPIs.uniqueSites);
         expect(pg.lastPage).toBe(expectedPages);
