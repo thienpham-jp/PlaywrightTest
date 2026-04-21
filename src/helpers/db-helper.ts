@@ -536,3 +536,54 @@ export async function getCampaignDetailKPIs(
     uniqueSites: Number(row.uniqueSites),
   };
 }
+
+// ── Sites & IPs tab ──────────────────────────────────────────────────────────
+
+export interface CampaignSiteRow {
+  siteId: string;
+  publisherName: string;
+  detections: number;
+  totalClicks: number;
+  fraudPct: number;
+}
+
+/**
+ * Returns all fraud-detected sites for a campaign as a lookup map —
+ * used to verify each site row visible in the Sites & IPs tab.
+ */
+export async function getCampaignSitesPage1(
+  campaignId: string,
+  fromDate: string,
+  toDate: string,
+): Promise<CampaignSiteRow[]> {
+  const sql = `
+    SELECT
+      site_id::text                                                              AS "siteId",
+      MAX(publisher_name)                                                        AS "publisherName",
+      COUNT(*) FILTER (WHERE final_action_name != 'ALLOW')                      AS "detections",
+      COUNT(*)                                                                   AS "totalClicks",
+      ROUND(
+        COUNT(*) FILTER (WHERE final_action_name != 'ALLOW') * 100.0
+        / NULLIF(COUNT(*), 0)
+      )                                                                          AS "fraudPct"
+    FROM click_events
+    WHERE campaign_id::text = $1
+      AND DATE(request_date) BETWEEN $2 AND $3
+    GROUP BY site_id
+    HAVING COUNT(*) FILTER (WHERE final_action_name != 'ALLOW') > 0
+  `;
+  const rows = await query<{
+    siteId: string;
+    publisherName: string;
+    detections: string;
+    totalClicks: string;
+    fraudPct: string;
+  }>(sql, [campaignId, fromDate, toDate]);
+  return rows.map((r) => ({
+    siteId: r.siteId,
+    publisherName: r.publisherName,
+    detections: Number(r.detections),
+    totalClicks: Number(r.totalClicks),
+    fraudPct: Number(r.fraudPct),
+  }));
+}

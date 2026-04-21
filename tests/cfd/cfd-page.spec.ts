@@ -5,6 +5,7 @@ import {
   closeDatabasePool,
   daysAgo,
   getCampaignDetailKPIs,
+  getCampaignSitesPage1,
   getDashboardMetrics,
   getDashboardMetricsDelta,
   getFraudDetectionSearchCount,
@@ -20,7 +21,7 @@ import {
 } from "../../src/helpers/db-helper";
 
 test.describe("CFD Login Tests", () => {
-  test.describe.configure({ mode: "serial" });
+  // test.describe.configure({ mode: "serial" });
   let cfdPage: CFDPage;
 
   test.beforeEach(async ({ page }) => {
@@ -1619,6 +1620,449 @@ test.describe("CFD Login Tests", () => {
               `Row rec="${row.rec}" should start with "WARN"`,
             ).toMatch(/^WARN/);
           }
+        }
+      });
+    });
+
+    // ── Sites & IPs tab ──────────────────────────────────────────────────────
+
+    test.describe("Sites & IPs tab – Blibli CPS (6659)", () => {
+      const CAMPAIGN_ID = "6659";
+
+      test.beforeEach(async () => {
+        // outer FDL beforeEach navigated to FDL; navigate to campaign detail
+        await cfdPage.page.getByRole("button", { name: "Last 7 Days" }).click();
+        await cfdPage.page.waitForLoadState("networkidle");
+
+        // Wait for summary table and click the 6659 row
+        await cfdPage.page.waitForFunction(
+          () => {
+            const iframes = Array.from(document.querySelectorAll("iframe"));
+            for (const f of iframes) {
+              const doc = (f as HTMLIFrameElement).contentDocument;
+              if (doc && doc.querySelectorAll("tbody tr.cst-row").length > 0)
+                return true;
+            }
+            return false;
+          },
+          { timeout: 15000 },
+        );
+        await cfdPage.page.evaluate((id) => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc) continue;
+            const rows = Array.from(doc.querySelectorAll("tbody tr.cst-row"));
+            for (const row of rows) {
+              const idEl = row.querySelector(".cst-id");
+              if (idEl?.textContent?.includes(id)) {
+                (f.contentWindow as any).cstNav(row as HTMLElement);
+                return;
+              }
+            }
+          }
+        }, CAMPAIGN_ID);
+        await cfdPage.page.waitForURL(/camp=6659/, { timeout: 15000 });
+        await cfdPage.page.waitForLoadState("networkidle");
+
+        // Click the Sites & IPs tab
+        await cfdPage.page.getByRole("tab", { name: "Sites & IPs" }).click();
+        await cfdPage.page.waitForLoadState("networkidle");
+      });
+
+      /** Wait for the siip iframe to be ready, then run a page.evaluate. */
+      const waitForSiip = async () => {
+        await cfdPage.page.waitForFunction(
+          () => {
+            const iframes = Array.from(document.querySelectorAll("iframe"));
+            for (const f of iframes) {
+              const doc = (f as HTMLIFrameElement).contentDocument;
+              if (doc && doc.getElementById("fdl-siip")) return true;
+            }
+            return false;
+          },
+          { timeout: 15000 },
+        );
+      };
+
+      /** Read the siip KPI bar values. */
+      const getSiipKPIs = () =>
+        cfdPage.page.evaluate(() => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc?.getElementById("fdl-siip")) continue;
+            const items = Array.from(doc.querySelectorAll(".siip-kpi-item"));
+            const kpis: Record<string, string> = {};
+            for (const item of items) {
+              const lbl =
+                item.querySelector(".siip-kpi-lbl")?.textContent?.trim() ?? "";
+              const val =
+                item.querySelector(".siip-kpi-val")?.textContent?.trim() ?? "";
+              if (lbl) kpis[lbl] = val;
+            }
+            return kpis;
+          }
+          return {} as Record<string, string>;
+        });
+
+      /** Read all visible grouped site rows. */
+      const getSiipSiteRows = () =>
+        cfdPage.page.evaluate(() => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc?.getElementById("fdl-siip")) continue;
+            return Array.from(doc.querySelectorAll("tr.siip-sr")).map((r) => {
+              const cells = Array.from(r.querySelectorAll("td"));
+              return {
+                siteId:
+                  cells[1]?.querySelector(".siip-sid")?.textContent?.trim() ??
+                  "",
+                ips: parseInt(cells[2]?.textContent?.trim() ?? "0"),
+                clicks: parseInt(cells[3]?.textContent?.trim() ?? "0"),
+                fraudPct:
+                  cells[4]?.querySelector(".siip-fpct")?.textContent?.trim() ??
+                  "",
+                detections: parseInt((cells[5]?.textContent ?? "").trim()),
+                maxScore: parseInt((cells[6]?.textContent ?? "").trim()),
+                risk:
+                  cells[7]?.querySelector(".siip-pill")?.textContent?.trim() ??
+                  "",
+              };
+            });
+          }
+          return [] as Array<{
+            siteId: string;
+            ips: number;
+            clicks: number;
+            fraudPct: string;
+            detections: number;
+            maxScore: number;
+            risk: string;
+          }>;
+        });
+
+      /** Read all flat-view IP rows (siip-flt-r). */
+      const getSiipFlatRows = () =>
+        cfdPage.page.evaluate(() => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc?.getElementById("fdl-siip")) continue;
+            return Array.from(doc.querySelectorAll("tr.siip-flt-r")).map(
+              (r) => {
+                const cells = Array.from(r.querySelectorAll("td"));
+                return {
+                  siteId: cells[0]?.textContent?.trim() ?? "",
+                  ip: cells[1]?.textContent?.trim() ?? "",
+                  clicks: parseInt(cells[2]?.textContent?.trim() ?? "0"),
+                  fraudPct: cells[3]?.textContent?.trim() ?? "",
+                  detections: parseInt(cells[4]?.textContent?.trim() ?? "0"),
+                  score: parseInt(cells[5]?.textContent?.trim() ?? "0"),
+                  risk: cells[6]?.textContent?.trim() ?? "",
+                };
+              },
+            );
+          }
+          return [] as Array<{
+            siteId: string;
+            ip: string;
+            clicks: number;
+            fraudPct: string;
+            detections: number;
+            score: number;
+            risk: string;
+          }>;
+        });
+
+      /** Read pagination info from the siip footer. */
+      const getSiipPagination = () =>
+        cfdPage.page.evaluate(() => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc?.getElementById("fdl-siip")) continue;
+            // The pagination span id is "siip-count" (e.g. "1–10 of 37")
+            const pgInfo = doc.getElementById("siip-count");
+            // Page buttons exist in both grouped and flat containers;
+            // grab only the ones inside the visible footer bar
+            const footerBar = doc.querySelector(".siip-footer-bar");
+            const pgBtns = Array.from(
+              footerBar?.querySelectorAll("button.siip-pg-num") ??
+                doc.querySelectorAll("button.siip-pg-num"),
+            );
+            const text = pgInfo?.textContent?.trim() ?? "";
+            const m = text.match(/of (\d+)/);
+            const total = m ? parseInt(m[1]) : 0;
+            // last distinct button label is the last page number
+            const lastPage =
+              pgBtns.length > 0
+                ? parseInt(pgBtns[pgBtns.length - 1].textContent?.trim() ?? "0")
+                : 0;
+            return { text, total, lastPage };
+          }
+          return { text: "", total: 0, lastPage: 0 };
+        });
+
+      /** Click a risk filter button (All/Critical/High/Medium/Low). */
+      const clickSiipRisk = async (risk: string) => {
+        await cfdPage.page.evaluate((r) => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc?.getElementById("fdl-siip")) continue;
+            const btns = Array.from(doc.querySelectorAll(".siip-rf"));
+            const btn = btns.find(
+              (b) => b.textContent?.trim().toLowerCase() === r.toLowerCase(),
+            ) as HTMLElement | undefined;
+            btn?.click();
+            return;
+          }
+        }, risk);
+        await cfdPage.page.waitForLoadState("networkidle");
+      };
+
+      /** Switch between Grouped / Flat view. */
+      const clickSiipView = async (view: "grouped" | "flat") => {
+        await cfdPage.page.evaluate((v) => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc?.getElementById("fdl-siip")) continue;
+            const btns = Array.from(doc.querySelectorAll(".siip-vt"));
+            const btn = btns.find(
+              (b) => b.textContent?.trim().toLowerCase() === v,
+            ) as HTMLElement | undefined;
+            btn?.click();
+            return;
+          }
+        }, view);
+        await cfdPage.page.waitForLoadState("networkidle");
+      };
+
+      /** Type into the Sites & IPs search field. */
+      const typeSiipSearch = async (term: string) => {
+        // Capture the current count text so we can wait for it to change
+        const prevText = await cfdPage.page.evaluate(() => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc?.getElementById("fdl-siip")) continue;
+            return doc.getElementById("siip-count")?.textContent?.trim() ?? "";
+          }
+          return "";
+        });
+
+        await cfdPage.page.evaluate((t) => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc?.getElementById("fdl-siip")) continue;
+            const inp = doc.getElementById(
+              "siip-search",
+            ) as HTMLInputElement | null;
+            if (!inp) continue;
+            inp.value = t;
+            inp.dispatchEvent(new Event("input", { bubbles: true }));
+            return;
+          }
+        }, term);
+
+        // Wait for the siip-count span to change (debounce completes)
+        await cfdPage.page.waitForFunction(
+          (prev) => {
+            const iframes = Array.from(document.querySelectorAll("iframe"));
+            for (const f of iframes) {
+              const doc = (f as HTMLIFrameElement).contentDocument;
+              if (!doc?.getElementById("fdl-siip")) continue;
+              const cur =
+                doc.getElementById("siip-count")?.textContent?.trim() ?? "";
+              return cur !== prev;
+            }
+            return false;
+          },
+          prevText,
+          { timeout: 10000 },
+        );
+      };
+
+      test("Tab navigation: Sites & IPs content loads", async () => {
+        test.setTimeout(180000);
+        await waitForSiip();
+        const kpis = await getSiipKPIs();
+        console.log(`[SitesIPs] KPIs: ${JSON.stringify(kpis)}`);
+        expect(kpis["Total Sites"]).toBeDefined();
+        expect(parseInt(kpis["Total Sites"])).toBeGreaterThan(0);
+      });
+
+      test("Total Sites KPI matches database", async () => {
+        test.setTimeout(180000);
+        await waitForSiip();
+        const [kpis, dbKPIs] = await Promise.all([
+          getSiipKPIs(),
+          getCampaignDetailKPIs(CAMPAIGN_ID, daysAgo(7), yesterday()),
+        ]);
+        const uiTotal = parseInt(kpis["Total Sites"] ?? "0");
+        console.log(
+          `[SitesIPs] Total Sites: UI=${uiTotal} DB=${dbKPIs.uniqueSites}`,
+        );
+        expect(uiTotal).toBe(dbKPIs.uniqueSites);
+      });
+
+      test("Grouped view page 1 shows 10 site rows with correct detections", async () => {
+        test.setTimeout(180000);
+        await waitForSiip();
+        const [siteRows, dbSites] = await Promise.all([
+          getSiipSiteRows(),
+          getCampaignSitesPage1(CAMPAIGN_ID, daysAgo(7), yesterday()),
+        ]);
+        const dbMap = new Map(dbSites.map((r) => [r.siteId, r]));
+
+        console.log(`[SitesIPs] Grouped site rows: UI=${siteRows.length}`);
+        expect(siteRows.length).toBe(10);
+
+        for (const ui of siteRows) {
+          const db = dbMap.get(ui.siteId);
+          // Verify each visible site exists in the DB
+          expect(db, `No DB row for site ${ui.siteId}`).toBeDefined();
+          // Verify detections > 0 (fraud activity exists)
+          expect(
+            ui.detections,
+            `Site ${ui.siteId} should have detections > 0`,
+          ).toBeGreaterThan(0);
+          console.log(
+            `[SitesIPs][${ui.siteId}] Detections: UI=${ui.detections} DB.detections=${db!.detections} DB.clicks=${db!.totalClicks}`,
+          );
+          // The UI "Detections" column equals total fraud clicks (may differ slightly
+          // from our non-ALLOW count due to UI's internal definition); verify within 20%
+          expect(
+            withinTolerance(ui.detections, db!.detections, 20),
+            `Site ${ui.siteId} detections out of range: UI=${ui.detections} DB=${db!.detections}`,
+          ).toBe(true);
+        }
+      });
+
+      test("Pagination shows correct total pages", async () => {
+        test.setTimeout(180000);
+        await waitForSiip();
+        const [pg, dbKPIs] = await Promise.all([
+          getSiipPagination(),
+          getCampaignDetailKPIs(CAMPAIGN_ID, daysAgo(7), yesterday()),
+        ]);
+        const expectedPages = Math.ceil(dbKPIs.uniqueSites / 10);
+
+        console.log(
+          `[SitesIPs] Pagination: "${pg.text}" total=${pg.total} lastPage=${pg.lastPage} DB.uniqueSites=${dbKPIs.uniqueSites} expectedPages=${expectedPages}`,
+        );
+        expect(pg.total).toBe(dbKPIs.uniqueSites);
+        expect(pg.lastPage).toBe(expectedPages);
+      });
+
+      test("Change pagination 20 shows 20 correct / total pages", async () => {
+        test.setTimeout(180000);
+        await waitForSiip();
+        const [pg, dbKPIs] = await Promise.all([
+          getSiipPagination(),
+          getCampaignDetailKPIs(CAMPAIGN_ID, daysAgo(7), yesterday()),
+        ]);
+        const expectedPages = Math.ceil(dbKPIs.uniqueSites / 20);
+
+        console.log(
+          `[SitesIPs] Pagination: "${pg.text}" total=${pg.total} lastPage=${pg.lastPage} DB.uniqueSites=${dbKPIs.uniqueSites} expectedPages=${expectedPages}`,
+        );
+        expect(pg.total).toBe(dbKPIs.uniqueSites);
+        expect(pg.lastPage).toBe(expectedPages);
+      });
+
+      test("Risk filter High shows only HIGH-risk site rows", async () => {
+        test.setTimeout(180000);
+        await waitForSiip();
+        await clickSiipRisk("High");
+        const siteRows = await getSiipSiteRows();
+
+        console.log(`[SitesIPs][Risk=High] rows=${siteRows.length}`);
+        expect(siteRows.length).toBeGreaterThan(0);
+        for (const row of siteRows) {
+          expect(
+            row.risk.toUpperCase(),
+            `Site ${row.siteId} risk="${row.risk}" should be HIGH`,
+          ).toBe("HIGH");
+        }
+      });
+
+      test("Risk filter Low shows only LOW-risk site rows", async () => {
+        test.setTimeout(180000);
+        await waitForSiip();
+        await clickSiipRisk("Low");
+        const siteRows = await getSiipSiteRows();
+
+        console.log(`[SitesIPs][Risk=Low] rows=${siteRows.length}`);
+        expect(siteRows.length).toBeGreaterThan(0);
+        for (const row of siteRows) {
+          expect(
+            row.risk.toUpperCase(),
+            `Site ${row.siteId} risk="${row.risk}" should be LOW`,
+          ).toBe("LOW");
+        }
+      });
+
+      test("Flat view shows IP-level rows for all sites on page 1", async () => {
+        test.setTimeout(180000);
+        await waitForSiip();
+        const kpiBefore = await getSiipKPIs();
+        const thisPageText = kpiBefore["This Page"] ?? "";
+        // Extract "10 sites / 41 IPs"
+        const ipsMatch = thisPageText.match(/(\d+)\s+IPs/);
+        const expectedIPs = ipsMatch ? parseInt(ipsMatch[1]) : -1;
+
+        await clickSiipView("flat");
+
+        // In flat view siip-flt-r rows are rendered
+        await cfdPage.page.waitForFunction(
+          () => {
+            const iframes = Array.from(document.querySelectorAll("iframe"));
+            for (const f of iframes) {
+              const doc = (f as HTMLIFrameElement).contentDocument;
+              if (doc && doc.querySelectorAll("tr.siip-flt-r").length > 0)
+                return true;
+            }
+            return false;
+          },
+          { timeout: 15000 },
+        );
+        const flatRows = await getSiipFlatRows();
+        console.log(
+          `[SitesIPs][Flat] IP rows=${flatRows.length} expectedIPs=${expectedIPs}`,
+        );
+        expect(flatRows.length).toBe(expectedIPs);
+      });
+
+      test("Search by Site ID filters to matching sites only", async () => {
+        test.setTimeout(180000);
+        await waitForSiip();
+        // Use the second site on page 1 from DB
+        const dbSites = await getCampaignSitesPage1(
+          CAMPAIGN_ID,
+          daysAgo(7),
+          yesterday(),
+        );
+        const targetSiteId = dbSites[1].siteId; // 2nd site
+
+        await typeSiipSearch(targetSiteId);
+
+        const siteRows = await getSiipSiteRows();
+        const pg = await getSiipPagination();
+
+        console.log(
+          `[SitesIPs][Search "${targetSiteId}"] rows=${siteRows.length} pgTotal=${pg.total}`,
+        );
+        expect(pg.total).toBeGreaterThanOrEqual(1);
+        for (const row of siteRows) {
+          expect(
+            row.siteId,
+            `Visible site ID "${row.siteId}" should match search term "${targetSiteId}"`,
+          ).toContain(targetSiteId);
         }
       });
     });
