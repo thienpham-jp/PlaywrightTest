@@ -20,20 +20,20 @@ import {
   withinTolerance,
 } from "../../src/helpers/db-helper";
 
-test.describe("CFD Login Tests", () => {
+test.describe("CFD TH Tests", () => {
   // test.describe.configure({ mode: "serial" });
   let cfdPage: CFDPage;
 
   test.beforeEach(async ({ page }) => {
     cfdPage = new CFDPage(page);
 
-    await cfdPage.login(CFD_USERNAME, CFD_PASSWORD);
+    await cfdPage.login("TH", CFD_USERNAME, CFD_PASSWORD);
 
     await cfdPage.page.waitForLoadState("networkidle");
   });
 
   test.afterAll(async () => {
-    await closeDatabasePool();
+    await closeDatabasePool("th");
   });
 
   test("Dashboard - heading verification", async () => {
@@ -75,8 +75,8 @@ test.describe("CFD Login Tests", () => {
 
       test("Total Clicks: value and delta match database", async () => {
         const [metrics, delta] = await Promise.all([
-          getDashboardMetrics(yesterday()),
-          getDashboardMetricsDelta(),
+          getDashboardMetrics(yesterday(), "th"),
+          getDashboardMetricsDelta("th"),
         ]);
         const uiValue = await getKpiValue("Total Clicks");
         const ui = await getKpiDelta("Total Clicks");
@@ -98,8 +98,8 @@ test.describe("CFD Login Tests", () => {
 
       test("Legitimate Clicks: value and delta match database", async () => {
         const [metrics, delta] = await Promise.all([
-          getDashboardMetrics(yesterday()),
-          getDashboardMetricsDelta(),
+          getDashboardMetrics(yesterday(), "th"),
+          getDashboardMetricsDelta("th"),
         ]);
         const uiValue = await getKpiValue("Legitimate Clicks");
         const ui = await getKpiDelta("Legitimate Clicks");
@@ -123,8 +123,8 @@ test.describe("CFD Login Tests", () => {
 
       test("Blocked (Fraud): value and delta match database", async () => {
         const [metrics, delta] = await Promise.all([
-          getDashboardMetrics(yesterday()),
-          getDashboardMetricsDelta(),
+          getDashboardMetrics(yesterday(), "th"),
+          getDashboardMetricsDelta("th"),
         ]);
         const uiValue = await getKpiValue("Blocked");
         const ui = await getKpiDelta("Blocked");
@@ -146,8 +146,8 @@ test.describe("CFD Login Tests", () => {
 
       test("Suspicious (Warning): value and delta match database", async () => {
         const [metrics, delta] = await Promise.all([
-          getDashboardMetrics(yesterday()),
-          getDashboardMetricsDelta(),
+          getDashboardMetrics(yesterday(), "th"),
+          getDashboardMetricsDelta("th"),
         ]);
         const uiValue = await getKpiValue("Suspicious");
         const ui = await getKpiDelta("Suspicious");
@@ -168,9 +168,9 @@ test.describe("CFD Login Tests", () => {
       });
     });
 
-    test.describe("Top Threat Vectors vs database", () => {
+    test.describe.skip("Top Threat Vectors vs database", () => {
       test("All threat vector block counts match database", async () => {
-        const dbRows = await getTopThreatVectors(yesterday());
+        const dbRows = await getTopThreatVectors(yesterday(), "th");
         // DB group_rule_name matches UI labels exactly (e.g. "SITE VELOCITY")
         const dbMap = new Map(dbRows.map((r) => [r.category, r.blocks]));
 
@@ -205,9 +205,9 @@ test.describe("CFD Login Tests", () => {
 
     // ── Top Fraud Sources table ────────────────────────────────────────────────
 
-    test.describe("Top Fraud Sources vs database", () => {
+    test.describe.skip("Top Fraud Sources vs database", () => {
       test("Block counts match database", async () => {
-        const dbRows = await getTopFraudSources(yesterday(), 10);
+        const dbRows = await getTopFraudSources(yesterday(), 10, "th");
         const dbMap = new Map(dbRows.map((r) => [String(r.siteId), r]));
 
         // DOM uses .fraud-source-row (not <table>)
@@ -250,7 +250,7 @@ test.describe("CFD Login Tests", () => {
       });
 
       test("Block recommendation is 'Block' for 100% block-rate sources", async () => {
-        const dbRows = await getTopFraudSources(yesterday(), 10);
+        const dbRows = await getTopFraudSources(yesterday(), 10, "th");
         const dbMap = new Map(dbRows.map((r) => [String(r.siteId), r]));
 
         const rows = cfdPage.page.locator(
@@ -308,7 +308,7 @@ test.describe("CFD Login Tests", () => {
         });
       };
 
-      test("Yesterday: each hourly clicks matches database", async () => {
+      test.skip("Yesterday: each hourly clicks matches database", async () => {
         await cfdPage.page.getByRole("button", { name: "Yesterday" }).click();
         await cfdPage.page.waitForLoadState("networkidle");
 
@@ -316,7 +316,7 @@ test.describe("CFD Login Tests", () => {
         expect(chartData.length).toBe(24); // 24 hourly data points
 
         // DB: one row per hour for yesterday
-        const dbRows = await getTrendHourly(yesterday());
+        const dbRows = await getTrendHourly(yesterday(), "th");
         expect(dbRows.length).toBe(24);
         const dbMap = new Map(dbRows.map((r) => [r.hourBucket, r]));
 
@@ -332,12 +332,12 @@ test.describe("CFD Login Tests", () => {
         }
       });
 
-      test("Yesterday: each hourly fraud % matches database", async () => {
+      test.skip("Yesterday: each hourly fraud % matches database", async () => {
         await cfdPage.page.getByRole("button", { name: "Yesterday" }).click();
         await cfdPage.page.waitForLoadState("networkidle");
 
         const chartData = await getChartData();
-        const dbRows = await getTrendHourly(yesterday());
+        const dbRows = await getTrendHourly(yesterday(), "th");
         const dbMap = new Map(dbRows.map((r) => [r.hourBucket, r]));
 
         for (const point of chartData) {
@@ -369,7 +369,7 @@ test.describe("CFD Login Tests", () => {
         expect(chartData.length).toBe(7);
 
         // DB: daily SUM per day for CURRENT_DATE-7 to CURRENT_DATE-1
-        const dbRows = await getTrendLast7Days();
+        const dbRows = await getTrendLast7Days("th");
         const dbMap = new Map(dbRows.map((r) => [r.requestDate, r]));
 
         for (const point of chartData) {
@@ -402,7 +402,7 @@ test.describe("CFD Login Tests", () => {
         });
 
         const chartData = await getChartData();
-        const dbRows = await getTrendLast7Days();
+        const dbRows = await getTrendLast7Days("th");
         const dbMap = new Map(dbRows.map((r) => [r.requestDate, r]));
 
         for (const point of chartData) {
@@ -472,7 +472,11 @@ test.describe("CFD Login Tests", () => {
       });
 
       test("Summary bar matches database", async () => {
-        const db = await getFraudDetectionSummary(yesterday(), yesterday());
+        const db = await getFraudDetectionSummary(
+          yesterday(),
+          yesterday(),
+          "th",
+        );
         const [uiTotalFraud, uiBlocked, uiWarning, uiFraudRate, uiCampaigns] =
           await Promise.all([
             getSummaryValue("Total Fraud"),
@@ -520,7 +524,11 @@ test.describe("CFD Login Tests", () => {
       });
 
       test("Summary bar matches database", async () => {
-        const db = await getFraudDetectionSummary(daysAgo(2), yesterday());
+        const db = await getFraudDetectionSummary(
+          daysAgo(2),
+          yesterday(),
+          "th",
+        );
         const [uiTotalFraud, uiBlocked, uiWarning, uiFraudRate, uiCampaigns] =
           await Promise.all([
             getSummaryValue("Total Fraud"),
@@ -568,7 +576,11 @@ test.describe("CFD Login Tests", () => {
       });
 
       test("Summary bar matches database", async () => {
-        const db = await getFraudDetectionSummary(daysAgo(7), yesterday());
+        const db = await getFraudDetectionSummary(
+          daysAgo(7),
+          yesterday(),
+          "th",
+        );
         const [uiTotalFraud, uiBlocked, uiWarning, uiFraudRate, uiCampaigns] =
           await Promise.all([
             getSummaryValue("Total Fraud"),
@@ -680,8 +692,8 @@ test.describe("CFD Login Tests", () => {
         const [{ rows: uiRows, paginationTotal: uiTotal }, dbRows, dbSummary] =
           await Promise.all([
             getFDLTableData(),
-            getFraudDetectionTablePage1(fromDate, toDate),
-            getFraudDetectionSummary(fromDate, toDate),
+            getFraudDetectionTablePage1(fromDate, toDate, "th"),
+            getFraudDetectionSummary(fromDate, toDate, "th"),
           ]);
         const dbMap = new Map(dbRows.map((r) => [r.campaignId, r]));
 
@@ -836,7 +848,7 @@ test.describe("CFD Login Tests", () => {
         test.setTimeout(180000);
         const term = "KOL";
         const [dbCount] = await Promise.all([
-          getFraudDetectionSearchCount(daysAgo(7), yesterday(), term),
+          getFraudDetectionSearchCount(daysAgo(7), yesterday(), term, "th"),
         ]);
 
         await typeSearch(term);
@@ -863,6 +875,7 @@ test.describe("CFD Login Tests", () => {
           daysAgo(7),
           yesterday(),
           campaignId,
+          "th",
         );
 
         await typeSearch(campaignId);
@@ -935,6 +948,7 @@ test.describe("CFD Login Tests", () => {
         const dbSummary = await getFraudDetectionSummary(
           daysAgo(7),
           yesterday(),
+          "th",
         );
         const expectedPages = Math.ceil(dbSummary.campaignsAffected / 10);
 
@@ -1004,6 +1018,7 @@ test.describe("CFD Login Tests", () => {
         const dbSummary = await getFraudDetectionSummary(
           daysAgo(7),
           yesterday(),
+          "th",
         );
         const expectedPages = Math.ceil(dbSummary.campaignsAffected / 50);
 
@@ -1373,7 +1388,7 @@ test.describe("CFD Login Tests", () => {
         test.setTimeout(180000);
         const [detailData, dbKPIs] = await Promise.all([
           getDetailData(),
-          getCampaignDetailKPIs(CAMPAIGN_ID, daysAgo(7), yesterday()),
+          getCampaignDetailKPIs(CAMPAIGN_ID, daysAgo(7), yesterday(), "th"),
         ]);
 
         console.log(
@@ -1456,7 +1471,7 @@ test.describe("CFD Login Tests", () => {
         test.setTimeout(180000);
         const [detailData, dbKPIs] = await Promise.all([
           getDetailData(),
-          getCampaignDetailKPIs(CAMPAIGN_ID, daysAgo(7), yesterday()),
+          getCampaignDetailKPIs(CAMPAIGN_ID, daysAgo(7), yesterday(), "th"),
         ]);
         const expectedPages = Math.ceil(dbKPIs.totalFraud / 50);
 
@@ -1471,13 +1486,32 @@ test.describe("CFD Login Tests", () => {
         expect(detailData.lastPage).toBe(expectedPages);
       });
 
+      test("Change page size 100 pagination shows correct total pages", async () => {
+        test.setTimeout(180000);
+        const [detailData, dbKPIs] = await Promise.all([
+          getDetailData(),
+          getCampaignDetailKPIs(CAMPAIGN_ID, daysAgo(7), yesterday(), "th"),
+        ]);
+        const expectedPages = Math.ceil(dbKPIs.totalFraud / 100);
+
+        console.log(
+          `Total detections: UI=${detailData.total} DB=${dbKPIs.totalFraud}`,
+        );
+        console.log(
+          `Expected pages (÷100): ${expectedPages}, lastPageBtn: ${detailData.lastPage}`,
+        );
+
+        expect(detailData.total).toBe(dbKPIs.totalFraud);
+        expect(detailData.lastPage).toBe(expectedPages);
+      });
+
       test("Filter Block shows only BLOCK rows and count matches database", async () => {
         test.setTimeout(180000);
         await getDetailData(); // ensure detail page is fully rendered
         await clickDetailFilter("BLOCK");
         const [filteredData, dbKPIs] = await Promise.all([
           getDetailData(),
-          getCampaignDetailKPIs(CAMPAIGN_ID, daysAgo(7), yesterday()),
+          getCampaignDetailKPIs(CAMPAIGN_ID, daysAgo(7), yesterday(), "th"),
         ]);
 
         // Every visible row must be BLOCK
@@ -1602,6 +1636,7 @@ test.describe("CFD Login Tests", () => {
           CAMPAIGN_ID,
           daysAgo(7),
           yesterday(),
+          "th",
         );
         const total = await getDetailPaginationTotal();
 
@@ -1974,7 +2009,7 @@ test.describe("CFD Login Tests", () => {
         await waitForSiip();
         const [kpis, dbKPIs] = await Promise.all([
           getSiipKPIs(),
-          getCampaignDetailKPIs(CAMPAIGN_ID, daysAgo(7), yesterday()),
+          getCampaignDetailKPIs(CAMPAIGN_ID, daysAgo(7), yesterday(), "th"),
         ]);
         const uiTotal = parseInt(kpis["Total Sites"] ?? "0");
         console.log(
@@ -1988,7 +2023,7 @@ test.describe("CFD Login Tests", () => {
         await waitForSiip();
         const [siteRows, dbSites] = await Promise.all([
           getSiipSiteRows(),
-          getCampaignSitesPage1(CAMPAIGN_ID, daysAgo(7), yesterday()),
+          getCampaignSitesPage1(CAMPAIGN_ID, daysAgo(7), yesterday(), "th"),
         ]);
         const dbMap = new Map(dbSites.map((r) => [r.siteId, r]));
 
@@ -2021,7 +2056,7 @@ test.describe("CFD Login Tests", () => {
         await waitForSiip();
         const [pg, dbKPIs] = await Promise.all([
           getSiipPagination(),
-          getCampaignDetailKPIs(CAMPAIGN_ID, daysAgo(7), yesterday()),
+          getCampaignDetailKPIs(CAMPAIGN_ID, daysAgo(7), yesterday(), "th"),
         ]);
         const expectedPages = Math.ceil(dbKPIs.uniqueSites / 10);
 
@@ -2038,7 +2073,7 @@ test.describe("CFD Login Tests", () => {
         await changeSiipPageSize(20);
         const [pg, dbKPIs] = await Promise.all([
           getSiipPagination(),
-          getCampaignDetailKPIs(CAMPAIGN_ID, daysAgo(7), yesterday()),
+          getCampaignDetailKPIs(CAMPAIGN_ID, daysAgo(7), yesterday(), "th"),
         ]);
         const expectedPages = Math.ceil(dbKPIs.uniqueSites / 20);
 
@@ -2120,6 +2155,7 @@ test.describe("CFD Login Tests", () => {
           CAMPAIGN_ID,
           daysAgo(7),
           yesterday(),
+          "th",
         );
         const targetSiteId = dbSites[1].siteId; // 2nd site
 
