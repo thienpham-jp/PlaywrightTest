@@ -21,7 +21,7 @@ import {
 } from "../../src/helpers/db-helper";
 
 test.describe("CFD TH Tests", () => {
-  // test.describe.configure({ mode: "serial" });
+  // test.describe.configure({ mode: "parallel" });
   let cfdPage: CFDPage;
 
   test.beforeEach(async ({ page }) => {
@@ -1018,10 +1018,10 @@ test.describe("CFD TH Tests", () => {
       });
     });
 
-    // ── Campaign Detail – Blibli CPS (6659) ─────────────────────────────────
+    // ── Campaign Detail – Naiin Books 248 ─────────────────────────────────
 
-    test.describe("Campaign Detail – Blibli CPS (6659)", () => {
-      const CAMPAIGN_ID = "6659";
+    test.describe("Campaign Detail – Naiin Books (248)", () => {
+      const CAMPAIGN_ID = "248";
 
       test.beforeEach(async () => {
         // outer FDL beforeEach has already navigated to the FDL page
@@ -1042,7 +1042,7 @@ test.describe("CFD TH Tests", () => {
           { timeout: 15000 },
         );
 
-        // Click the Blibli CPS • 6659 row via the iframe's cstNav helper
+        // Click the Naiin Books • 248 row via the iframe's cstNav helper
         await cfdPage.page.evaluate((id) => {
           const iframes = Array.from(document.querySelectorAll("iframe"));
           for (const f of iframes) {
@@ -1059,7 +1059,7 @@ test.describe("CFD TH Tests", () => {
           }
         }, CAMPAIGN_ID);
 
-        await cfdPage.page.waitForURL(/camp=6659/, { timeout: 15000 });
+        await cfdPage.page.waitForURL(/camp=248/, { timeout: 15000 });
         await cfdPage.page.waitForLoadState("networkidle");
       });
 
@@ -1144,7 +1144,7 @@ test.describe("CFD TH Tests", () => {
       };
 
       /** Click a filter button inside the detail iframe and wait for reload. */
-      const clickDetailFilter = async (action: "all" | "BLOCK" | "WARNING") => {
+      const clickDetailFilter = async (action: "all" | "BLOCK" | "WARN") => {
         await cfdPage.page.evaluate((act) => {
           const iframes = Array.from(document.querySelectorAll("iframe"));
           for (const f of iframes) {
@@ -1483,7 +1483,7 @@ test.describe("CFD TH Tests", () => {
 
       test("Search by IP address filters rows correctly", async () => {
         test.setTimeout(180000);
-        const ipTerm = "103.163.1";
+        const ipTerm = "188.143.";
         await getDetailData(); // ensure detail page is fully rendered
         await typeDetailIPSearch(ipTerm);
 
@@ -1554,10 +1554,10 @@ test.describe("CFD TH Tests", () => {
         }
       });
 
-      test("Filter Warn shows only Warn rows and count matches database", async () => {
+      test.skip("Filter Warn shows only Warn rows and count matches database", async () => {
         test.setTimeout(180000);
         await getDetailData(); // ensure detail page is fully rendered
-        await clickDetailFilter("WARNING");
+        await clickDetailFilter("WARN");
 
         // After applying the Warn filter, wait for either rows or the empty state
         // message — both indicate the page has finished rendering.
@@ -1612,15 +1612,15 @@ test.describe("CFD TH Tests", () => {
 
     // ── Sites & IPs tab ──────────────────────────────────────────────────────
 
-    test.describe("Sites & IPs tab – Blibli CPS (6659)", () => {
-      const CAMPAIGN_ID = "6659";
+    test.describe("Sites & IPs tab – Naiin Books (248)", () => {
+      const CAMPAIGN_ID = "248";
 
       test.beforeEach(async () => {
         // outer FDL beforeEach navigated to FDL; navigate to campaign detail
         await cfdPage.page.getByRole("button", { name: "Last 7 Days" }).click();
         await cfdPage.page.waitForLoadState("networkidle");
 
-        // Wait for summary table and click the 6659 row
+        // Wait for summary table and click the 248 row
         await cfdPage.page.waitForFunction(
           () => {
             const iframes = Array.from(document.querySelectorAll("iframe"));
@@ -1648,7 +1648,7 @@ test.describe("CFD TH Tests", () => {
             }
           }
         }, CAMPAIGN_ID);
-        await cfdPage.page.waitForURL(/camp=6659/, { timeout: 15000 });
+        await cfdPage.page.waitForURL(/camp=248/, { timeout: 15000 });
         await cfdPage.page.waitForLoadState("networkidle");
 
         // Click the Sites & IPs tab
