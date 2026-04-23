@@ -190,7 +190,7 @@ test.describe("CFD TH Tests", () => {
       });
     });
 
-    test.describe.skip("Top Threat Vectors vs database", () => {
+    test.describe("Top Threat Vectors vs database", () => {
       test("All threat vector block counts match database", async () => {
         const dbRows = await getTopThreatVectors(yesterday(), "th");
         // DB group_rule_name matches UI labels exactly (e.g. "SITE VELOCITY")
@@ -227,8 +227,8 @@ test.describe("CFD TH Tests", () => {
 
     // ── Top Fraud Sources table ────────────────────────────────────────────────
 
-    test.describe.skip("Top Fraud Sources vs database", () => {
-      test("Block counts match database", async () => {
+    test.describe("Top Fraud Sources vs database", () => {
+      test("Block counts and recommendations match database", async () => {
         const dbRows = await getTopFraudSources(yesterday(), 10, "th");
         const dbMap = new Map(dbRows.map((r) => [String(r.siteId), r]));
 
@@ -251,58 +251,33 @@ test.describe("CFD TH Tests", () => {
             (await row.locator(".fs-pct").textContent())
               ?.trim()
               .replace("%", "") ?? "";
-
-          const dbRow = dbMap.get(siteId);
-          if (!dbRow) continue;
-
-          const uiBlocks = parseUINumber(blocksText);
-          const uiRate = parseFloat(blockRateText);
-
-          console.log(
-            `[${siteId}] Blocks UI=${uiBlocks} DB=${dbRow.blocks} | Rate UI=${uiRate}% DB=${dbRow.blockRate}%`,
-          );
-
-          expect(
-            withinTolerance(uiBlocks, dbRow.blocks),
-            `Fraud source "${siteId}" blocks: UI=${uiBlocks}, DB=${dbRow.blocks}`,
-          ).toBe(true);
-
-          expect(Math.abs(uiRate - dbRow.blockRate)).toBeLessThanOrEqual(1);
-        }
-      });
-
-      test("Block recommendation is 'Block' for 100% block-rate sources", async () => {
-        const dbRows = await getTopFraudSources(yesterday(), 10, "th");
-        const dbMap = new Map(dbRows.map((r) => [String(r.siteId), r]));
-
-        const rows = cfdPage.page.locator(
-          ".fraud-source-row:not(.fraud-source-header)",
-        );
-        await rows.first().waitFor({ state: "visible", timeout: 15000 });
-        const rowCount = await rows.count();
-
-        for (let i = 0; i < rowCount; i++) {
-          const row = rows.nth(i);
-          const rawSiteId =
-            (await row.locator(".site-id").textContent())?.trim() ?? "";
-          const siteId = rawSiteId.replace(/^[•\s]+/, "").trim();
-          const blockRateText =
-            (await row.locator(".fs-pct").textContent())
-              ?.trim()
-              .replace("%", "") ?? "";
           const recommendationText =
             (await row.locator(".fs-reco-label").textContent())?.trim() ?? "";
 
           const dbRow = dbMap.get(siteId);
           if (!dbRow) continue;
 
-          if (dbRow.blockRate === 100) {
-            expect(recommendationText).toBe("Block");
-          }
+          const uiBlocks = parseUINumber(blocksText);
+          const uiRate = parseFloat(blockRateText);
+          const pubName = dbRow.publisherName || "None";
 
           console.log(
-            `[${siteId}] blockRate=${blockRateText}% rec=${recommendationText}`,
+            `${pubName} [${siteId}] Blocks UI=${uiBlocks} DB=${dbRow.blocks} | Rate UI=${uiRate}% DB=${dbRow.blockRate}% | Rec=${recommendationText}`,
           );
+
+          expect(
+            withinTolerance(uiBlocks, dbRow.blocks),
+            `Fraud source "${pubName} [${siteId}]" blocks: UI=${uiBlocks}, DB=${dbRow.blocks}`,
+          ).toBe(true);
+
+          expect(Math.abs(uiRate - dbRow.blockRate)).toBeLessThanOrEqual(1);
+
+          if (dbRow.blockRate === 100) {
+            expect(
+              recommendationText,
+              `Site ${siteId} blockRate=100% should have rec="Block"`,
+            ).toBe("Block");
+          }
         }
       });
     });
@@ -330,54 +305,34 @@ test.describe("CFD TH Tests", () => {
         });
       };
 
-      test.skip("Yesterday: each hourly clicks matches database", async () => {
+      test("Yesterday: hourly clicks and fraud % match database", async () => {
         await cfdPage.page.getByRole("button", { name: "Yesterday" }).click();
         await cfdPage.page.waitForLoadState("networkidle");
 
         const chartData = await getChartData();
         expect(chartData.length).toBe(24); // 24 hourly data points
 
-        // DB: one row per hour for yesterday
         const dbRows = await getTrendHourly(yesterday(), "th");
         expect(dbRows.length).toBe(24);
         const dbMap = new Map(dbRows.map((r) => [r.hourBucket, r]));
 
         for (const point of chartData) {
-          // Chart x: "2026-04-19T00:00:00" — matches DB hourBucket format
           const dbRow = dbMap.get(point.hour);
           expect(dbRow, `No DB row for hour ${point.hour}`).toBeDefined();
 
           console.log(
-            `[Yesterday ${point.hour}] Chart clicks=${point.clicks} DB=${dbRow!.totalClicks}`,
+            `[Yesterday ${point.hour}] Chart clicks=${point.clicks} DB=${dbRow!.totalClicks} | Chart fraud%=${point.fraudPct} DB=${dbRow!.blockedRatePct}`,
           );
           expect(point.clicks).toBe(dbRow!.totalClicks);
-        }
-      });
-
-      test.skip("Yesterday: each hourly fraud % matches database", async () => {
-        await cfdPage.page.getByRole("button", { name: "Yesterday" }).click();
-        await cfdPage.page.waitForLoadState("networkidle");
-
-        const chartData = await getChartData();
-        const dbRows = await getTrendHourly(yesterday(), "th");
-        const dbMap = new Map(dbRows.map((r) => [r.hourBucket, r]));
-
-        for (const point of chartData) {
-          const dbRow = dbMap.get(point.hour);
-          if (!dbRow) continue;
-
-          console.log(
-            `[Yesterday ${point.hour}] Chart fraud%=${point.fraudPct} DB=${dbRow.blockedRatePct}`,
-          );
           // Allow ±2% tolerance for fraud rate comparison
           expect(
-            Math.abs(point.fraudPct - dbRow.blockedRatePct),
-            `Hour ${point.hour}: chart fraud%=${point.fraudPct}, DB=${dbRow.blockedRatePct}`,
+            Math.abs(point.fraudPct - dbRow!.blockedRatePct),
+            `Hour ${point.hour}: chart fraud%=${point.fraudPct}, DB=${dbRow!.blockedRatePct}`,
           ).toBeLessThanOrEqual(2);
         }
       });
 
-      test("Last 7 Days: each day's total clicks matches database", async () => {
+      test("Last 7 Days: daily clicks and fraud % match database", async () => {
         await cfdPage.page.getByRole("button", { name: "Last 7 Days" }).click();
         // Wait until Plotly re-renders with exactly 7 daily points
         await cfdPage.page.waitForFunction(() => {
@@ -390,7 +345,6 @@ test.describe("CFD TH Tests", () => {
         const chartData = await getChartData();
         expect(chartData.length).toBe(7);
 
-        // DB: daily SUM per day for CURRENT_DATE-7 to CURRENT_DATE-1
         const dbRows = await getTrendLast7Days("th");
         const dbMap = new Map(dbRows.map((r) => [r.requestDate, r]));
 
@@ -407,34 +361,9 @@ test.describe("CFD TH Tests", () => {
           }
 
           console.log(
-            `[Last7Days ${dateKey}] Chart=${point.clicks} DB=${dbRow.totalClicks}`,
+            `[Last7Days ${dateKey}] Chart clicks=${point.clicks} DB=${dbRow.totalClicks} | Chart fraud%=${point.fraudPct} DB=${dbRow.blockedRatePct}`,
           );
           expect(point.clicks).toBe(dbRow.totalClicks);
-        }
-      });
-
-      test("Last 7 Days: fraud % per day within expected range", async () => {
-        await cfdPage.page.getByRole("button", { name: "Last 7 Days" }).click();
-        // Wait until Plotly re-renders with exactly 7 daily points
-        await cfdPage.page.waitForFunction(() => {
-          const el = document.querySelector(
-            '[data-testid="stPlotlyChart"] .js-plotly-plot',
-          ) as HTMLElement & { data: Array<{ x: string[] }> };
-          return el?.data?.[0]?.x?.length === 7;
-        });
-
-        const chartData = await getChartData();
-        const dbRows = await getTrendLast7Days("th");
-        const dbMap = new Map(dbRows.map((r) => [r.requestDate, r]));
-
-        for (const point of chartData) {
-          const dateKey = point.hour.split("T")[0];
-          const dbRow = dbMap.get(dateKey);
-          if (!dbRow) continue;
-
-          console.log(
-            `[Last7Days ${dateKey}] Chart fraud%=${point.fraudPct} DB blocked_rate=${dbRow.blockedRatePct}`,
-          );
           // Allow ±2% tolerance for fraud rate comparison
           expect(
             Math.abs(point.fraudPct - dbRow.blockedRatePct),
