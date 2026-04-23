@@ -25,7 +25,7 @@ export default defineConfig({
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
   /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  workers: 1,
   /* Increase test timeout for complex forms */
   timeout: 120000,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
@@ -40,7 +40,7 @@ export default defineConfig({
     screenshot: "only-on-failure",
     video: "retain-on-failure",
     // Run local the same way as Debug (headed + fullscreen viewport).
-    headless: !!process.env.CI,
+    headless: true || !!process.env.CI,
     launchOptions: {
       args: [
         "--start-maximized",

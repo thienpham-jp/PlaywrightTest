@@ -1,32 +1,51 @@
 import { Pool, PoolClient } from "pg";
 import users from "./users.json";
 
-// ── Connection pool (lazy-initialised, shared across tests) ──────────────────
+// ── Country type ─────────────────────────────────────────────────────────────
 
-let pool: Pool | null = null;
+export type Country = "id" | "th";
 
-function getPool(): Pool {
-  if (!pool) {
-    const cfg = users.cfdDatabase;
-    pool = new Pool({
-      host: cfg.host,
-      port: cfg.port,
-      database: cfg.database,
-      user: cfg.user,
-      password: cfg.password,
-      max: 5,
-      idleTimeoutMillis: 30_000,
-      connectionTimeoutMillis: 10_000,
-    });
+const DB_KEY: Record<Country, "cfd-id-db" | "cfd-th-db"> = {
+  id: "cfd-id-db",
+  th: "cfd-th-db",
+};
+
+// ── Connection pools (lazy-initialised, one per country) ─────────────────────
+
+const pools = new Map<Country, Pool>();
+
+function getPool(country: Country = "id"): Pool {
+  if (!pools.has(country)) {
+    const shared = users["cfd-db"];
+    const { database } = users[DB_KEY[country]];
+    pools.set(
+      country,
+      new Pool({
+        host: shared.host,
+        port: shared.port,
+        database,
+        user: shared.user,
+        password: shared.password,
+        max: 5,
+        idleTimeoutMillis: 30_000,
+        connectionTimeoutMillis: 10_000,
+      }),
+    );
   }
-  return pool;
+  return pools.get(country)!;
 }
 
-/** Run after all tests to release connections. */
-export async function closeDatabasePool(): Promise<void> {
-  if (pool) {
-    await pool.end();
-    pool = null;
+/** Run after all tests to release connections for one or all countries. */
+export async function closeDatabasePool(country?: Country): Promise<void> {
+  if (country) {
+    const p = pools.get(country);
+    if (p) {
+      await p.end();
+      pools.delete(country);
+    }
+  } else {
+    await Promise.all([...pools.values()].map((p) => p.end()));
+    pools.clear();
   }
 }
 
@@ -34,8 +53,9 @@ export async function closeDatabasePool(): Promise<void> {
 export async function query<T extends object = Record<string, unknown>>(
   sql: string,
   params: unknown[] = [],
+  country: Country = "id",
 ): Promise<T[]> {
-  const client: PoolClient = await getPool().connect();
+  const client: PoolClient = await getPool(country).connect();
   try {
     const result = await client.query<T>(sql, params);
     return result.rows;
@@ -48,8 +68,9 @@ export async function query<T extends object = Record<string, unknown>>(
 export async function queryOne<T extends object = Record<string, unknown>>(
   sql: string,
   params: unknown[] = [],
+  country: Country = "id",
 ): Promise<T> {
-  const rows = await query<T>(sql, params);
+  const rows = await query<T>(sql, params, country);
   if (rows.length === 0)
     throw new Error(`Query returned no rows.\nSQL: ${sql}`);
   return rows[0];
@@ -85,6 +106,7 @@ export interface DashboardMetrics {
  */
 export async function getDashboardMetrics(
   date: string = yesterday(),
+  country: Country = "id",
 ): Promise<DashboardMetrics> {
   const sql = `
     SELECT
@@ -95,7 +117,7 @@ export async function getDashboardMetrics(
     FROM click_events
     WHERE DATE(request_date) = $1
   `;
-  const row = await queryOne<DashboardMetrics>(sql, [date]);
+  const row = await queryOne<DashboardMetrics>(sql, [date], country);
   return {
     totalClicks: Number(row.totalClicks),
     legitimateClicks: Number(row.legitimateClicks),
@@ -108,14 +130,16 @@ export async function getDashboardMetrics(
  * Calculates the % change of each KPI: (yesterday - dayBefore) / dayBefore * 100.
  * Returns null for a metric when dayBefore value is 0 (avoid division by zero).
  */
-export async function getDashboardMetricsDelta(): Promise<{
+export async function getDashboardMetricsDelta(
+  country: Country = "id",
+): Promise<{
   totalClicks: number | null;
   legitimateClicks: number | null;
   blockedFraud: number | null;
   suspicious: number | null;
 }> {
-  const yest = await getDashboardMetrics(yesterday());
-  const prev = await getDashboardMetrics(daysAgo(2));
+  const yest = await getDashboardMetrics(yesterday(), country);
+  const prev = await getDashboardMetrics(daysAgo(2), country);
 
   const pct = (cur: number, old: number): number | null => {
     if (old === 0) return null;
@@ -147,6 +171,7 @@ export interface FraudDetectionSummary {
 export async function getFraudDetectionSummary(
   fromDate: string,
   toDate: string,
+  country: Country = "id",
 ): Promise<FraudDetectionSummary> {
   const sql = `
     SELECT
@@ -169,7 +194,7 @@ export async function getFraudDetectionSummary(
     warning: string;
     fraudRate: string;
     campaignsAffected: string;
-  }>(sql, [fromDate, toDate]);
+  }>(sql, [fromDate, toDate], country);
   return {
     totalFraud: Number(row.totalFraud),
     blocked: Number(row.blocked),
@@ -191,6 +216,7 @@ export interface ThreatVectorRow {
  */
 export async function getTopThreatVectors(
   date: string = yesterday(),
+  country: Country = "id",
 ): Promise<ThreatVectorRow[]> {
   const sql = `
     SELECT
@@ -205,7 +231,11 @@ export async function getTopThreatVectors(
     GROUP BY group_rule_name
     ORDER BY "blocks" DESC
   `;
-  const rows = await query<{ category: string; blocks: string }>(sql, [date]);
+  const rows = await query<{ category: string; blocks: string }>(
+    sql,
+    [date],
+    country,
+  );
   return rows.map((r) => ({ category: r.category, blocks: Number(r.blocks) }));
 }
 
@@ -224,6 +254,7 @@ export interface FraudSourceRow {
 export async function getTopFraudSources(
   date: string = yesterday(),
   limit: number = 10,
+  country: Country = "id",
 ): Promise<FraudSourceRow[]> {
   const sql = `
     SELECT
@@ -245,7 +276,7 @@ export async function getTopFraudSources(
     publisherName: string;
     blocks: string;
     blockRate: string;
-  }>(sql, [date, limit]);
+  }>(sql, [date, limit], country);
   return rows.map((r) => ({
     siteId: r.siteId,
     publisherName: r.publisherName,
@@ -304,6 +335,7 @@ export interface TrendHourRow {
  */
 export async function getTrendHourly(
   date: string = yesterday(),
+  country: Country = "id",
 ): Promise<TrendHourRow[]> {
   const sql = `
     SELECT
@@ -323,7 +355,7 @@ export async function getTrendHourly(
     totalClicks: string;
     totalBlocked: string;
     blockedRatePct: string;
-  }>(sql, [date]);
+  }>(sql, [date], country);
   return rows.map((r) => ({
     hourBucket: r.hourBucket,
     totalClicks: Number(r.totalClicks),
@@ -346,6 +378,7 @@ export interface TrendDayRow {
 export async function getTrendData(
   fromDate: string = yesterday(),
   toDate: string = yesterday(),
+  country: Country = "id",
 ): Promise<TrendDayRow[]> {
   const sql = `
     SELECT
@@ -366,7 +399,7 @@ export async function getTrendData(
     totalClicks: string;
     totalBlocked: string;
     blockedRatePct: string;
-  }>(sql, [fromDate, toDate]);
+  }>(sql, [fromDate, toDate], country);
   return rows.map((r) => ({
     requestDate: r.requestDate,
     totalClicks: Number(r.totalClicks),
@@ -379,7 +412,9 @@ export async function getTrendData(
  * Returns daily totals for the last 7 days (CURRENT_DATE-7 to CURRENT_DATE-1).
  * Each Plotly point on the "Last 7 Days" chart is the daily SUM for that date.
  */
-export async function getTrendLast7Days(): Promise<TrendDayRow[]> {
+export async function getTrendLast7Days(
+  country: Country = "id",
+): Promise<TrendDayRow[]> {
   const sql = `
     SELECT
       request_date::text                                                          AS "requestDate",
@@ -399,7 +434,7 @@ export async function getTrendLast7Days(): Promise<TrendDayRow[]> {
     totalClicks: string;
     totalBlocked: string;
     blockedRatePct: string;
-  }>(sql);
+  }>(sql, [], country);
   return rows.map((r) => ({
     requestDate: r.requestDate,
     totalClicks: Number(r.totalClicks),
@@ -433,6 +468,7 @@ export interface FraudDetectionTableRow {
 export async function getFraudDetectionTablePage1(
   fromDate: string,
   toDate: string,
+  country: Country = "id",
 ): Promise<FraudDetectionTableRow[]> {
   const sql = `
     SELECT
@@ -459,7 +495,7 @@ export async function getFraudDetectionTablePage1(
     fraudDetections: string;
     totalClicks: string;
     fraudPct: string;
-  }>(sql, [fromDate, toDate]);
+  }>(sql, [fromDate, toDate], country);
   return rows.map((r) => ({
     campaignId: r.campaignId,
     campaignName: r.campaignName,
@@ -480,6 +516,7 @@ export async function getFraudDetectionSearchCount(
   fromDate: string,
   toDate: string,
   term: string,
+  country: Country = "id",
 ): Promise<number> {
   const sql = `
     SELECT COUNT(DISTINCT campaign_id) AS "count"
@@ -491,7 +528,11 @@ export async function getFraudDetectionSearchCount(
         OR campaign_id::text LIKE '%' || $3 || '%'
       )
   `;
-  const row = await queryOne<{ count: string }>(sql, [fromDate, toDate, term]);
+  const row = await queryOne<{ count: string }>(
+    sql,
+    [fromDate, toDate, term],
+    country,
+  );
   return Number(row.count);
 }
 
@@ -512,6 +553,7 @@ export async function getCampaignDetailKPIs(
   campaignId: string,
   fromDate: string,
   toDate: string,
+  country: Country = "id",
 ): Promise<CampaignDetailKPIs> {
   const sql = `
     SELECT
@@ -528,13 +570,227 @@ export async function getCampaignDetailKPIs(
     blocked: string;
     warned: string;
     uniqueSites: string;
-  }>(sql, [campaignId, fromDate, toDate]);
+  }>(sql, [campaignId, fromDate, toDate], country);
   return {
     totalFraud: Number(row.totalFraud),
     blocked: Number(row.blocked),
     warned: Number(row.warned),
     uniqueSites: Number(row.uniqueSites),
   };
+}
+
+// ── Action Fraud Log queries ─────────────────────────────────────────────────
+
+export interface AflSummary {
+  totalFraud: number;
+  blocked: number;
+  warning: number;
+  avgScore: number;
+}
+
+/**
+ * Returns the AFL summary bar KPIs for a given date range.
+ */
+export async function getAflSummary(
+  fromDate: string,
+  toDate: string,
+  country: Country = "id",
+): Promise<AflSummary> {
+  const sql = `
+    SELECT
+  COUNT(*) FILTER (WHERE final_action_name != 'ALLOW') AS "totalFraud",
+  COUNT(*) FILTER (WHERE final_action_name = 'BLOCK') AS "blocked",
+  COUNT(*) FILTER (WHERE final_action_name NOT IN ('ALLOW','BLOCK')) AS "warning",
+  COALESCE(ROUND(AVG(max_score * 100) FILTER (WHERE final_action_name != 'ALLOW'), 1), 0) AS "avgScore"
+  FROM click_events
+  WHERE request_date::date BETWEEN $1 AND $2;
+  `;
+  const row = await queryOne<{
+    totalFraud: string;
+    blocked: string;
+    warning: string;
+    avgScore: string;
+  }>(sql, [fromDate, toDate], country);
+  return {
+    totalFraud: Number(row.totalFraud),
+    blocked: Number(row.blocked),
+    warning: Number(row.warning),
+    avgScore: Number(row.avgScore),
+  };
+}
+
+export interface AflRow {
+  clickTime: string;
+  detectionId: string;
+  campaignName: string;
+  publisherSite: string;
+  score: number;
+  rules: string;
+  ip: string;
+  rec: string;
+}
+
+/**
+ * Returns the first page (50 rows) of AFL table ordered by click_time DESC.
+ */
+export async function getAflPage1(
+  fromDate: string,
+  toDate: string,
+  country: Country = "id",
+): Promise<AflRow[]> {
+  const sql = `
+    SELECT
+      to_char(request_date, 'YYYY-MM-DD HH24:MI:SS')  AS "clickTime",
+      optimizer_uuid                                    AS "detectionId",
+      campaign_name                                     AS "campaignName",
+      publisher_name || ' • ' || site_id               AS "publisherSite",
+      total_scores                                      AS score,
+      fraud_rules                                       AS "rules",
+      ip_address                                        AS "ip",
+      final_action_name                                 AS "rec"
+    FROM click_events
+    WHERE DATE(request_date) BETWEEN $1 AND $2
+      AND final_action_name != 'ALLOW'
+    ORDER BY request_date DESC
+    LIMIT 50
+  `;
+  const rows = await query<{
+    clickTime: string;
+    detectionId: string;
+    campaignName: string;
+    publisherSite: string;
+    score: string;
+    rules: string;
+    ip: string;
+    rec: string;
+  }>(sql, [fromDate, toDate], country);
+  return rows.map((r) => ({
+    clickTime: r.clickTime,
+    detectionId: r.detectionId,
+    campaignName: r.campaignName,
+    publisherSite: r.publisherSite,
+    score: Number(r.score),
+    rules: r.rules,
+    ip: r.ip,
+    rec: r.rec,
+  }));
+}
+
+/**
+ * Count AFL rows filtered by action (BLOCK or WARNING).
+ */
+export async function getAflCountByAction(
+  fromDate: string,
+  toDate: string,
+  action: "BLOCK" | "WARNING",
+  country: Country = "id",
+): Promise<number> {
+  const sql =
+    action === "BLOCK"
+      ? `SELECT COUNT(*) AS "count" FROM click_events WHERE DATE(request_date) BETWEEN $1 AND $2 AND final_action_name = 'BLOCK'`
+      : `SELECT COUNT(*) AS "count" FROM click_events WHERE DATE(request_date) BETWEEN $1 AND $2 AND final_action_name NOT IN ('ALLOW','BLOCK')`;
+  const row = await queryOne<{ count: string }>(
+    sql,
+    [fromDate, toDate],
+    country,
+  );
+  return Number(row.count);
+}
+
+/**
+ * Count AFL rows filtered by IP address substring.
+ */
+export async function getAflCountByIp(
+  fromDate: string,
+  toDate: string,
+  ipTerm: string,
+  country: Country = "id",
+): Promise<number> {
+  const sql = `
+    SELECT COUNT(*) AS "count"
+    FROM click_events
+    WHERE DATE(request_date) BETWEEN $1 AND $2
+      AND final_action_name != 'ALLOW'
+      AND ip_address LIKE '%' || $3 || '%'
+  `;
+  const row = await queryOne<{ count: string }>(
+    sql,
+    [fromDate, toDate, ipTerm],
+    country,
+  );
+  return Number(row.count);
+}
+
+/**
+ * Count AFL rows filtered by campaign_id.
+ */
+export async function getAflCountByCampaign(
+  fromDate: string,
+  toDate: string,
+  campaignId: string,
+  country: Country = "id",
+): Promise<number> {
+  const sql = `
+    SELECT COUNT(*) AS "count"
+    FROM click_events
+    WHERE DATE(request_date) BETWEEN $1 AND $2
+      AND final_action_name != 'ALLOW'
+      AND campaign_id::text = $3
+  `;
+  const row = await queryOne<{ count: string }>(
+    sql,
+    [fromDate, toDate, campaignId],
+    country,
+  );
+  return Number(row.count);
+}
+
+/**
+ * Count AFL rows filtered by site_id.
+ */
+export async function getAflCountBySite(
+  fromDate: string,
+  toDate: string,
+  siteId: string,
+  country: Country = "id",
+): Promise<number> {
+  const sql = `
+    SELECT COUNT(*) AS "count"
+    FROM click_events
+    WHERE DATE(request_date) BETWEEN $1 AND $2
+      AND final_action_name != 'ALLOW'
+      AND site_id::text = $3
+  `;
+  const row = await queryOne<{ count: string }>(
+    sql,
+    [fromDate, toDate, siteId],
+    country,
+  );
+  return Number(row.count);
+}
+
+/**
+ * Count AFL rows filtered by rule_id.
+ */
+export async function getAflCountByRule(
+  fromDate: string,
+  toDate: string,
+  ruleId: string,
+  country: Country = "id",
+): Promise<number> {
+  const sql = `
+    SELECT COUNT(*) AS "count"
+    FROM click_events
+    WHERE DATE(request_date) BETWEEN $1 AND $2
+      AND final_action_name != 'ALLOW'
+      AND fraud_rules LIKE '%R' || $3 || '%'
+  `;
+  const row = await queryOne<{ count: string }>(
+    sql,
+    [fromDate, toDate, ruleId],
+    country,
+  );
+  return Number(row.count);
 }
 
 // ── Sites & IPs tab ──────────────────────────────────────────────────────────
@@ -555,6 +811,7 @@ export async function getCampaignSitesPage1(
   campaignId: string,
   fromDate: string,
   toDate: string,
+  country: Country = "id",
 ): Promise<CampaignSiteRow[]> {
   const sql = `
     SELECT
@@ -578,7 +835,7 @@ export async function getCampaignSitesPage1(
     detections: string;
     totalClicks: string;
     fraudPct: string;
-  }>(sql, [campaignId, fromDate, toDate]);
+  }>(sql, [campaignId, fromDate, toDate], country);
   return rows.map((r) => ({
     siteId: r.siteId,
     publisherName: r.publisherName,
