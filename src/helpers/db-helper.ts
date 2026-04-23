@@ -579,6 +579,221 @@ export async function getCampaignDetailKPIs(
   };
 }
 
+// ── Action Fraud Log queries ─────────────────────────────────────────────────
+
+export interface AflSummary {
+  totalFraud: number;
+  blocked: number;
+  warning: number;
+  avgScore: number;
+}
+
+/**
+ * Returns the AFL summary bar KPIs for a given date range.
+ */
+export async function getAflSummary(
+  fromDate: string,
+  toDate: string,
+  country: Country = "id",
+): Promise<AflSummary> {
+  const sql = `
+    SELECT
+      COUNT(*) FILTER (WHERE final_action_name != 'ALLOW')                       AS "totalFraud",
+      COUNT(*) FILTER (WHERE final_action_name = 'BLOCK')                        AS "blocked",
+      COUNT(*) FILTER (WHERE final_action_name NOT IN ('ALLOW','BLOCK'))          AS "warning",
+      COALESCE(ROUND(AVG(total_scores) FILTER (WHERE final_action_name = 'BLOCK'), 1), 0) AS "avgScore"
+    FROM click_events
+    WHERE DATE(request_date) BETWEEN $1 AND $2
+      AND final_action_name != 'ALLOW'
+  `;
+  const row = await queryOne<{
+    totalFraud: string;
+    blocked: string;
+    warning: string;
+    avgScore: string;
+  }>(sql, [fromDate, toDate], country);
+  return {
+    totalFraud: Number(row.totalFraud),
+    blocked: Number(row.blocked),
+    warning: Number(row.warning),
+    avgScore: Number(row.avgScore),
+  };
+}
+
+export interface AflRow {
+  clickTime: string;
+  detectionId: string;
+  campaignName: string;
+  publisherSite: string;
+  score: number;
+  rules: string;
+  ip: string;
+  rec: string;
+}
+
+/**
+ * Returns the first page (50 rows) of AFL table ordered by click_time DESC.
+ */
+export async function getAflPage1(
+  fromDate: string,
+  toDate: string,
+  country: Country = "id",
+): Promise<AflRow[]> {
+  const sql = `
+    SELECT
+      to_char(request_date, 'YYYY-MM-DD HH24:MI:SS')  AS "clickTime",
+      optimizer_uuid                                    AS "detectionId",
+      campaign_name                                     AS "campaignName",
+      publisher_name || ' • ' || site_id               AS "publisherSite",
+      total_scores                                      AS score,
+      fraud_rules                                       AS "rules",
+      ip_address                                        AS "ip",
+      final_action_name                                 AS "rec"
+    FROM click_events
+    WHERE DATE(request_date) BETWEEN $1 AND $2
+      AND final_action_name != 'ALLOW'
+    ORDER BY request_date DESC
+    LIMIT 50
+  `;
+  const rows = await query<{
+    clickTime: string;
+    detectionId: string;
+    campaignName: string;
+    publisherSite: string;
+    score: string;
+    rules: string;
+    ip: string;
+    rec: string;
+  }>(sql, [fromDate, toDate], country);
+  return rows.map((r) => ({
+    clickTime: r.clickTime,
+    detectionId: r.detectionId,
+    campaignName: r.campaignName,
+    publisherSite: r.publisherSite,
+    score: Number(r.score),
+    rules: r.rules,
+    ip: r.ip,
+    rec: r.rec,
+  }));
+}
+
+/**
+ * Count AFL rows filtered by action (BLOCK or WARNING).
+ */
+export async function getAflCountByAction(
+  fromDate: string,
+  toDate: string,
+  action: "BLOCK" | "WARNING",
+  country: Country = "id",
+): Promise<number> {
+  const sql =
+    action === "BLOCK"
+      ? `SELECT COUNT(*) AS "count" FROM click_events WHERE DATE(request_date) BETWEEN $1 AND $2 AND final_action_name = 'BLOCK'`
+      : `SELECT COUNT(*) AS "count" FROM click_events WHERE DATE(request_date) BETWEEN $1 AND $2 AND final_action_name NOT IN ('ALLOW','BLOCK')`;
+  const row = await queryOne<{ count: string }>(
+    sql,
+    [fromDate, toDate],
+    country,
+  );
+  return Number(row.count);
+}
+
+/**
+ * Count AFL rows filtered by IP address substring.
+ */
+export async function getAflCountByIp(
+  fromDate: string,
+  toDate: string,
+  ipTerm: string,
+  country: Country = "id",
+): Promise<number> {
+  const sql = `
+    SELECT COUNT(*) AS "count"
+    FROM click_events
+    WHERE DATE(request_date) BETWEEN $1 AND $2
+      AND final_action_name != 'ALLOW'
+      AND ip_address LIKE '%' || $3 || '%'
+  `;
+  const row = await queryOne<{ count: string }>(
+    sql,
+    [fromDate, toDate, ipTerm],
+    country,
+  );
+  return Number(row.count);
+}
+
+/**
+ * Count AFL rows filtered by campaign_id.
+ */
+export async function getAflCountByCampaign(
+  fromDate: string,
+  toDate: string,
+  campaignId: string,
+  country: Country = "id",
+): Promise<number> {
+  const sql = `
+    SELECT COUNT(*) AS "count"
+    FROM click_events
+    WHERE DATE(request_date) BETWEEN $1 AND $2
+      AND final_action_name != 'ALLOW'
+      AND campaign_id::text = $3
+  `;
+  const row = await queryOne<{ count: string }>(
+    sql,
+    [fromDate, toDate, campaignId],
+    country,
+  );
+  return Number(row.count);
+}
+
+/**
+ * Count AFL rows filtered by site_id.
+ */
+export async function getAflCountBySite(
+  fromDate: string,
+  toDate: string,
+  siteId: string,
+  country: Country = "id",
+): Promise<number> {
+  const sql = `
+    SELECT COUNT(*) AS "count"
+    FROM click_events
+    WHERE DATE(request_date) BETWEEN $1 AND $2
+      AND final_action_name != 'ALLOW'
+      AND site_id::text = $3
+  `;
+  const row = await queryOne<{ count: string }>(
+    sql,
+    [fromDate, toDate, siteId],
+    country,
+  );
+  return Number(row.count);
+}
+
+/**
+ * Count AFL rows filtered by rule_id.
+ */
+export async function getAflCountByRule(
+  fromDate: string,
+  toDate: string,
+  ruleId: string,
+  country: Country = "id",
+): Promise<number> {
+  const sql = `
+    SELECT COUNT(*) AS "count"
+    FROM click_events
+    WHERE DATE(request_date) BETWEEN $1 AND $2
+      AND final_action_name != 'ALLOW'
+      AND fraud_rules LIKE '%R' || $3 || '%'
+  `;
+  const row = await queryOne<{ count: string }>(
+    sql,
+    [fromDate, toDate, ruleId],
+    country,
+  );
+  return Number(row.count);
+}
+
 // ── Sites & IPs tab ──────────────────────────────────────────────────────────
 
 export interface CampaignSiteRow {

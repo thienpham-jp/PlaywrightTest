@@ -40,7 +40,29 @@ test.describe("CFD ID Tests", () => {
     const heading = await cfdPage.page.getByRole("heading", {
       name: "Executive Dashboard",
     });
+    // Verify "Showing data for <yesterday>" subtitle is present
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    const monthNames = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+    const formatted = `${monthNames[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+
     await expect(heading).toBeVisible();
+    await expect(
+      cfdPage.page.getByText(`Showing data for ${formatted}`, { exact: false }),
+    ).toBeVisible();
   });
 
   test.describe("Executive Dashboard", () => {
