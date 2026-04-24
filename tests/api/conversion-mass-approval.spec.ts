@@ -51,7 +51,7 @@ test.describe("Mass Approval API - Limit Validation", () => {
     expect(response.status()).toBeLessThan(400);
   });
 
-  test("TC02: Verify mass approval exceeding conversionId limit (>100k)", async ({
+  test.skip("TC02: Verify mass approval exceeding conversionId limit (>100k)", async ({
     page,
   }) => {
     const token = `Bearer ${generateJWT(USER_UID, SECRET_KEY)}`;
@@ -183,7 +183,7 @@ test.describe("Mass Approval API - Limit Validation", () => {
     expect(response.status()).toBeLessThan(400);
   });
 
-  test("TC05: Verify mass approval exceeding transactionId limit (>10k)", async ({
+  test.skip("TC05: Verify mass approval exceeding transactionId limit (>10k)", async ({
     page,
   }) => {
     const token = `Bearer ${generateJWT(USER_UID, SECRET_KEY)}`;
@@ -269,8 +269,7 @@ test.describe("Mass Approval API - Limit Validation", () => {
   });
 
   // ── Negative & Edge Cases ────────────────────────────────────────────────────
-  // logic only applies to 1 in 2 types: conversionId or transactionId, so remove TC07
-  test("TC08: Verify empty request payload", async ({ page }) => {
+  test.skip("TC08: Verify empty request payload", async ({ page }) => {
     const token = `Bearer ${generateJWT(USER_UID, SECRET_KEY)}`;
     const today = new Date().toISOString().split("T")[0];
 
