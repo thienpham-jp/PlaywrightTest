@@ -26,18 +26,22 @@ test.describe("CFD ID Tests", () => {
   let cfdPage: CFDPage;
   /** true when yesterday has ≥1 click event in the DB */
   let hasYesterdayData = true;
+  /** true when last 2 days has ≥1 click event in the DB */
+  let hasLast2DaysData = true;
   /** true when the last 7 days has ≥1 click event in the DB */
   let hasRecentData = true;
 
   test.beforeAll(async () => {
-    const [yCount, recentCount] = await Promise.all([
+    const [yCount, last2Count, recentCount] = await Promise.all([
       getClickCountForRange(yesterday(), yesterday()),
+      getClickCountForRange(daysAgo(2), daysAgo(2)),
       getClickCountForRange(daysAgo(7), yesterday()),
     ]);
     hasYesterdayData = yCount > 0;
+    hasLast2DaysData = last2Count > 0;
     hasRecentData = recentCount > 0;
     console.log(
-      `[Data check] yesterday = ${yCount} clicks, last7days = ${recentCount} clicks`,
+      `[Data check] yesterday = ${yCount} clicks, last2days = ${last2Count} clicks, last7days = ${recentCount} clicks`,
     );
   });
 
@@ -491,8 +495,8 @@ test.describe("CFD ID Tests", () => {
     test.describe("Summary bar - Last 2 Days", () => {
       test.beforeEach(async () => {
         test.skip(
-          !hasRecentData,
-          `No data in last 7 days (${daysAgo(7)} – ${yesterday()})`,
+          !hasLast2DaysData,
+          `No data in last 2 days (${daysAgo(2)} – ${yesterday()})`,
         );
         await cfdPage.page.getByRole("button", { name: "Last 2 Days" }).click();
         await cfdPage.page.waitForLoadState("networkidle");
@@ -714,8 +718,8 @@ test.describe("CFD ID Tests", () => {
       test.describe("Last 2 Days", () => {
         test.beforeEach(async () => {
           test.skip(
-            !hasRecentData,
-            `No data in last 7 days (${daysAgo(7)} – ${yesterday()})`,
+            !hasLast2DaysData,
+            `No data in last 2 days (${daysAgo(2)} – ${yesterday()})`,
           );
           await cfdPage.page
             .getByRole("button", { name: "Last 2 Days" })
