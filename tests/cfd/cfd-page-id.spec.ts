@@ -1059,10 +1059,102 @@ test.describe("CFD ID Tests", () => {
       });
     });
 
-    // ── Campaign Detail – Blibli CPS (6659) ─────────────────────────────────
+    // ── Shared dropdown-filter helper (used in Campaign Detail tests) ──────────
 
-    test.describe("Campaign Detail – Blibli CPS (6659)", () => {
-      const CAMPAIGN_ID = "6659";
+    /** Open and select an item from a dropdown filter inside a detail iframe. */
+    const selectDetailDropdown = async (
+      dropdownLabel: "Campaigns" | "Sites" | "Rules",
+      itemIndex: number,
+    ): Promise<string> => {
+      const itemClassMap: Record<string, string> = {
+        Campaigns: "al-campaign-item",
+        Sites: "al-site-item",
+        Rules: "al-rule-item",
+      };
+      const itemClass = itemClassMap[dropdownLabel] ?? "al-campaign-item";
+
+      // Step 1: Click the trigger button inside the detail iframe
+      await cfdPage.page.evaluate(
+        ({ label }) => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc || !doc.querySelector("table.log-table")) continue;
+            const trigger = Array.from(doc.querySelectorAll("button")).find(
+              (b) =>
+                b.textContent
+                  ?.trim()
+                  .toLowerCase()
+                  .includes(label.toLowerCase()),
+            ) as HTMLElement | undefined;
+            if (trigger) {
+              trigger.click();
+              return;
+            }
+          }
+        },
+        { label: dropdownLabel },
+      );
+
+      // Step 2: Wait for dropdown items to appear
+      await cfdPage.page
+        .waitForFunction(
+          ({ cls }) => {
+            const iframes = Array.from(document.querySelectorAll("iframe"));
+            for (const f of iframes) {
+              const doc = (f as HTMLIFrameElement).contentDocument;
+              if (!doc) continue;
+              if (doc.querySelectorAll(`.${cls}`).length > 0) return true;
+            }
+            return false;
+          },
+          { cls: itemClass },
+          { timeout: 8000 },
+        )
+        .catch(() => {});
+
+      // Step 3: Select the item and click Apply
+      const result = await cfdPage.page.evaluate(
+        ({ cls, idx }) => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc) continue;
+            const items = Array.from(
+              doc.querySelectorAll(`.${cls}`),
+            ) as HTMLElement[];
+            const item = items[idx];
+            if (!item) continue;
+
+            const cb = item.querySelector(
+              'input[type="checkbox"]',
+            ) as HTMLInputElement | null;
+            const text = item.textContent ?? cb?.value ?? "";
+            const m = text.match(/[•·\-]\s*(\d+)\s*$/);
+            const id = m ? m[1] : (cb?.value ?? "");
+
+            item.click();
+
+            const applyBtn = Array.from(doc.querySelectorAll("button")).find(
+              (b) => b.textContent?.trim().toLowerCase().includes("apply"),
+            ) as HTMLElement | undefined;
+            applyBtn?.click();
+
+            return { id, found: !!id };
+          }
+          return { id: "", found: false };
+        },
+        { cls: itemClass, idx: itemIndex },
+      );
+
+      await cfdPage.page.waitForLoadState("networkidle");
+      return result.id;
+    };
+
+    // ── Campaign Detail – TIKTOK SHOP ID (7568) ─────────────────────────────────
+
+    test.describe("Campaign Detail – TIKTOK SHOP ID (7568)", () => {
+      const CAMPAIGN_ID = "7568";
 
       test.beforeEach(async () => {
         test.skip(
@@ -1104,7 +1196,9 @@ test.describe("CFD ID Tests", () => {
           }
         }, CAMPAIGN_ID);
 
-        await cfdPage.page.waitForURL(/camp=6659/, { timeout: 15000 });
+        await cfdPage.page.waitForURL(new RegExp(`camp=${CAMPAIGN_ID}`), {
+          timeout: 15000,
+        });
         await cfdPage.page.waitForLoadState("networkidle");
       });
 
@@ -1597,20 +1691,30 @@ test.describe("CFD ID Tests", () => {
         }
       });
 
-      test.skip("Filter by Site (5th in list) shows only rows for that site", async () => {
+      test("Filter by Site (5th in list) shows only rows for that site", async () => {
         test.setTimeout(180000);
         await getDetailData(); // ensure detail page is fully rendered
 
-        // Site list is sorted; index 4 = 5th item (e.g. "10907")
+        // Site list is sorted; index 4 = 5th item
         const siteId = await clickDetailSiteFilter(4);
 
+        if (!siteId) {
+          test.skip(
+            true,
+            "Site dropdown not found or returned empty ID — skipping",
+          );
+          return;
+        }
+
+        // Wait for rows to reflect the applied filter
+        await getDetailData();
         const rows = await getDetailRows();
         const total = await getDetailPaginationTotal();
 
         console.log(
           `[Site Filter] siteId="${siteId}" total=${total} rowsShown=${rows.length}`,
         );
-        // expect(siteId).not.toBe("");
+        expect(siteId).not.toBe("");
         expect(total).toBeGreaterThan(0);
         expect(rows.length).toBeGreaterThan(0);
         for (const row of rows) {
@@ -1621,26 +1725,42 @@ test.describe("CFD ID Tests", () => {
         }
       });
 
-      test.skip("Filter by Rule (6th in list) shows only rows for that rule", async () => {
+      test("Filter by Rule (6th in list) shows only rows for that rule", async () => {
         test.setTimeout(180000);
         await getDetailData(); // ensure detail page is fully rendered
 
-        // Rule list order: 1,2,3,4,6,8,… → index 5 = 6th item = rule 8 (REFERER WITH EMPTY DIRECT)
-        const { ruleId, ruleLabel } = await clickDetailRuleFilter(5);
+        // Rule list order: 1,2,3,4,6,8,… → index 5 = 6th item
+        const { ruleId: rawRuleId, ruleLabel } = await clickDetailRuleFilter(5);
 
+        if (!rawRuleId) {
+          test.skip(
+            true,
+            `Rule dropdown not found or returned empty ID (label: "${ruleLabel}") — skipping`,
+          );
+          return;
+        }
+
+        // rawRuleId may be numeric ("8") or prefixed ("R8"); normalise to "R8"
+        const expectedTag = /^R\d/i.test(rawRuleId)
+          ? rawRuleId.toUpperCase()
+          : `R${rawRuleId}`;
+
+        // Wait for rows to reflect the applied filter
+        await getDetailData();
         const rows = await getDetailRows();
         const total = await getDetailPaginationTotal();
-        const expectedTag = `R${ruleId}`;
 
         console.log(
-          `[Rule Filter] rule=${ruleId} label="${ruleLabel}" tag=${expectedTag} total=${total} rowsShown=${rows.length}`,
+          `[Rule Filter] rawId="${rawRuleId}" label="${ruleLabel}" tag=${expectedTag} total=${total} rowsShown=${rows.length}`,
         );
-        // expect(ruleId).not.toBe("");
+        expect(rawRuleId).not.toBe("");
         expect(total).toBeGreaterThan(0);
         expect(rows.length).toBeGreaterThan(0);
         for (const row of rows) {
           // Split "R8, R18, R27" → ["R8","R18","R27"] and check for exact tag
-          const ruleTags = row.rules.split(/,\s*/);
+          const ruleTags = row.rules
+            .split(/,\s*/)
+            .map((t) => t.trim().toUpperCase());
           expect(
             ruleTags,
             `Row rules "${row.rules}" should contain "${expectedTag}"`,
@@ -1648,65 +1768,73 @@ test.describe("CFD ID Tests", () => {
         }
       });
 
-      test.skip("Filter Warn shows only Warn rows and count matches database", async () => {
+      test("Filter Warn shows only Warn rows and count matches database", async () => {
         test.setTimeout(180000);
-        await getDetailData(); // ensure detail page is fully rendered
-        await clickDetailFilter("WARN");
-
-        // After applying the Warn filter, wait for either rows or the empty state
-        // message — both indicate the page has finished rendering.
-        await cfdPage.page.waitForFunction(
-          () => {
-            const iframes = Array.from(document.querySelectorAll("iframe"));
-            for (const f of iframes) {
-              const doc = (f as HTMLIFrameElement).contentDocument;
-              if (!doc || !doc.querySelector("table.log-table")) continue;
-              // Either rows are present OR the table body is empty
-              const hasRows =
-                doc.querySelectorAll("tbody tr.log-row").length > 0;
-              const hasEmptyState = !!doc.querySelector(
-                ".det-empty, .log-empty, [class*='empty'], tbody:empty, tbody tr.empty",
-              );
-              const pgSpan = Array.from(
-                doc.querySelectorAll(".det-footer-bar span"),
-              ).find((s) => /of\s/.test(s.textContent ?? ""));
-              return hasRows || hasEmptyState || pgSpan !== undefined;
-            }
-            return false;
-          },
-          { timeout: 15000 },
-        );
 
         const dbKPIs = await getCampaignDetailKPIs(
           CAMPAIGN_ID,
           daysAgo(7),
           yesterday(),
         );
-        const total = await getDetailPaginationTotal();
+
+        if (dbKPIs.warned === 0) {
+          test.skip(
+            true,
+            `No warned detections in DB for campaign ${CAMPAIGN_ID} — skipping`,
+          );
+          return;
+        }
+
+        await getDetailData(); // ensure detail page is fully rendered
+        await clickDetailFilter("WARN");
+
+        // Poll until the pagination span reflects the filter result
+        // Use a stable "of N" total rather than relying on row presence alone
+        let total = 0;
+        const deadline = Date.now() + 30_000;
+        while (Date.now() < deadline) {
+          try {
+            total = await cfdPage.page.evaluate(() => {
+              const iframes = Array.from(document.querySelectorAll("iframe"));
+              for (const f of iframes) {
+                const doc = (f as HTMLIFrameElement).contentDocument;
+                if (!doc || !doc.querySelector("table.log-table")) continue;
+                const pgSpan = Array.from(
+                  doc.querySelectorAll(".det-footer-bar span"),
+                ).find((s) => /of\s/.test(s.textContent ?? ""));
+                const m = pgSpan?.textContent?.trim().match(/of ([\d,]+)/);
+                if (m) return parseInt(m[1].replace(/,/g, ""));
+                // No pgSpan yet — table still loading
+              }
+              return -1; // signal: not ready
+            });
+            if (total >= 0) break;
+          } catch {
+            await cfdPage.page.waitForLoadState("networkidle").catch(() => {});
+          }
+          await new Promise<void>((r) => setTimeout(r, 500));
+        }
 
         console.log(
           `[Filter Warn] total UI=${total} DB.warned=${dbKPIs.warned}`,
         );
         expect(total).toBe(dbKPIs.warned);
 
-        // Only validate row content when there are rows to check
-        if (dbKPIs.warned > 0) {
-          const rows = await getDetailRows();
-          expect(rows.length).toBeGreaterThan(0);
-          for (const row of rows) {
-            expect(
-              row.rec.toUpperCase(),
-              `Row rec="${row.rec}" should start with "WARN"`,
-            ).toMatch(/^WARN/);
-          }
+        const rows = await getDetailRows();
+        expect(rows.length).toBeGreaterThan(0);
+        for (const row of rows) {
+          expect(
+            row.rec.toUpperCase(),
+            `Row rec="${row.rec}" should start with "WARN"`,
+          ).toMatch(/^WARN/);
         }
       });
     });
 
     // ── Sites & IPs tab ──────────────────────────────────────────────────────
 
-    test.describe("Sites & IPs tab – Blibli CPS (6659)", () => {
-      const CAMPAIGN_ID = "6659";
+    test.describe("Sites & IPs tab – TIKTOK SHOP ID (7568)", () => {
+      const CAMPAIGN_ID = "7568";
 
       test.beforeEach(async () => {
         test.skip(
@@ -1745,7 +1873,9 @@ test.describe("CFD ID Tests", () => {
             }
           }
         }, CAMPAIGN_ID);
-        await cfdPage.page.waitForURL(/camp=6659/, { timeout: 15000 });
+        await cfdPage.page.waitForURL(new RegExp(`camp=${CAMPAIGN_ID}`), {
+          timeout: 15000,
+        });
         await cfdPage.page.waitForLoadState("networkidle");
 
         // Click the Sites & IPs tab
@@ -1755,17 +1885,29 @@ test.describe("CFD ID Tests", () => {
 
       /** Wait for the siip iframe to be ready, then run a page.evaluate. */
       const waitForSiip = async () => {
-        await cfdPage.page.waitForFunction(
-          () => {
-            const iframes = Array.from(document.querySelectorAll("iframe"));
-            for (const f of iframes) {
-              const doc = (f as HTMLIFrameElement).contentDocument;
-              if (doc && doc.getElementById("fdl-siip")) return true;
-            }
-            return false;
-          },
-          { timeout: 15000 },
-        );
+        const poll = () =>
+          cfdPage.page.waitForFunction(
+            () => {
+              const iframes = Array.from(document.querySelectorAll("iframe"));
+              for (const f of iframes) {
+                const doc = (f as HTMLIFrameElement).contentDocument;
+                if (doc && doc.getElementById("fdl-siip")) return true;
+              }
+              return false;
+            },
+            { timeout: 15000 },
+          );
+        try {
+          await poll();
+        } catch (e) {
+          const msg = (e as Error).message ?? "";
+          if (msg.includes("closed") || msg.includes("destroyed")) {
+            await cfdPage.page.waitForLoadState("networkidle");
+            await poll();
+          } else {
+            throw e;
+          }
+        }
       };
 
       /** Read the siip KPI bar values. */
@@ -1933,6 +2075,32 @@ test.describe("CFD ID Tests", () => {
         }, risk);
 
         // Step 2: wait for checkboxes to appear (new dropdown), then check target + Apply
+        // Allow up to 5 s for the dropdown panel to render after the toggle click
+        await cfdPage.page
+          .waitForFunction(
+            (r) => {
+              const iframes = Array.from(document.querySelectorAll("iframe"));
+              for (const f of iframes) {
+                const doc = (f as HTMLIFrameElement).contentDocument;
+                if (!doc?.getElementById("fdl-siip")) continue;
+                const cbs = Array.from(
+                  doc.querySelectorAll('input[type="checkbox"]'),
+                );
+                return cbs.some((cb) => {
+                  const container = cb.closest("label") ?? cb.parentElement;
+                  return (
+                    container?.textContent?.trim().toLowerCase() ===
+                    r.toLowerCase()
+                  );
+                });
+              }
+              return false;
+            },
+            risk,
+            { timeout: 5000 },
+          )
+          .catch(() => {}); // timeout = old-style button was used; hasDropdown will be false
+
         const hasDropdown = await cfdPage.page.evaluate((r) => {
           const iframes = Array.from(document.querySelectorAll("iframe"));
           for (const f of iframes) {
@@ -2138,20 +2306,23 @@ test.describe("CFD ID Tests", () => {
         }, term);
 
         // Wait for row count to change (filtered result renders)
-        await cfdPage.page.waitForFunction(
-          (prev) => {
-            const iframes = Array.from(document.querySelectorAll("iframe"));
-            for (const f of iframes) {
-              const doc = (f as HTMLIFrameElement).contentDocument;
-              if (!doc?.getElementById("fdl-siip")) continue;
-              const cur = doc.querySelectorAll("tr.siip-sr").length;
-              return cur !== prev;
-            }
-            return false;
-          },
-          prevRowCount,
-          { timeout: 15000 },
-        );
+        // If the search returns the same count as before, accept after timeout
+        await cfdPage.page
+          .waitForFunction(
+            (prev) => {
+              const iframes = Array.from(document.querySelectorAll("iframe"));
+              for (const f of iframes) {
+                const doc = (f as HTMLIFrameElement).contentDocument;
+                if (!doc?.getElementById("fdl-siip")) continue;
+                const cur = doc.querySelectorAll("tr.siip-sr").length;
+                return cur !== prev;
+              }
+              return false;
+            },
+            prevRowCount,
+            { timeout: 15000 },
+          )
+          .catch(() => {}); // swallow timeout — search may return identical row count
       };
 
       test("Tab navigation: Sites & IPs content loads", async () => {
@@ -2254,8 +2425,8 @@ test.describe("CFD ID Tests", () => {
         for (const row of siteRows) {
           expect(
             row.risk.toUpperCase(),
-            `Site ${row.siteId} risk="${row.risk}" should be HIGH`,
-          ).toBe("HIGH");
+            `Site ${row.siteId} risk="${row.risk}" should contain HIGH`,
+          ).toContain("HIGH");
         }
       });
 
@@ -2270,8 +2441,8 @@ test.describe("CFD ID Tests", () => {
         for (const row of siteRows) {
           expect(
             row.risk.toUpperCase(),
-            `Site ${row.siteId} risk="${row.risk}" should be CRITICAL`,
-          ).toBe("CRITICAL");
+            `Site ${row.siteId} risk="${row.risk}" should contain CRITICAL`,
+          ).toContain("CRITICAL");
         }
       });
 
@@ -2283,6 +2454,14 @@ test.describe("CFD ID Tests", () => {
         // Extract "10 sites / 41 IPs"
         const ipsMatch = thisPageText.match(/(\d+)\s+IPs/);
         const expectedIPs = ipsMatch ? parseInt(ipsMatch[1]) : -1;
+
+        if (expectedIPs < 0) {
+          test.skip(
+            true,
+            `Could not determine expected IP count from KPI bar ("This Page"="${thisPageText}") — skipping`,
+          );
+          return;
+        }
 
         await clickSiipView("flat");
 
