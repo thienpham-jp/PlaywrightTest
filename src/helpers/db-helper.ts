@@ -450,6 +450,24 @@ export function daysAgo(n: number): string {
   return d.toISOString().split("T")[0];
 }
 
+/**
+ * Returns the number of click_events rows between two dates (inclusive).
+ * Used to decide whether to skip data-dependent tests when the DB is empty.
+ */
+export async function getClickCountForRange(
+  from: string,
+  to: string,
+  country: Country = "id",
+): Promise<number> {
+  const row = await queryOne<{ count: string }>(
+    `SELECT COUNT(*) AS count FROM click_events
+     WHERE DATE(request_date) BETWEEN $1 AND $2`,
+    [from, to],
+    country,
+  );
+  return Number(row.count);
+}
+
 // ── Fraud Detection Log — Campaign Summary table ──────────────────────────────
 
 export interface FraudDetectionTableRow {
@@ -553,9 +571,10 @@ export async function getCampaignDetailKPIs(
   campaignId: string,
   fromDate: string,
   toDate: string,
+  query: string = "default",
   country: Country = "id",
 ): Promise<CampaignDetailKPIs> {
-  const sql = `
+  const sql1 = `
     SELECT
       COUNT(*)                                                           FILTER (WHERE final_action_name != 'ALLOW')             AS "totalFraud",
       COUNT(*)                                                           FILTER (WHERE final_action_name = 'BLOCK')              AS "blocked",
@@ -565,6 +584,17 @@ export async function getCampaignDetailKPIs(
     WHERE campaign_id::text = $1
       AND DATE(request_date) BETWEEN $2 AND $3
   `;
+  const sql2 = `
+    SELECT
+      COUNT(*)                                                           FILTER (WHERE final_action_name != 'ALLOW')             AS "totalFraud",
+      COUNT(*)                                                           FILTER (WHERE final_action_name = 'BLOCK')              AS "blocked",
+      COUNT(*)                                                           FILTER (WHERE final_action_name NOT IN ('ALLOW','BLOCK')) AS "warned",
+      COUNT(DISTINCT site_id)                                                         AS "uniqueSites"
+    FROM click_events
+    WHERE campaign_id::text = $1
+      AND DATE(request_date) BETWEEN $2 AND $3
+  `;
+  const sql = query === "default" ? sql1 : sql2;
   const row = await queryOne<{
     totalFraud: string;
     blocked: string;
