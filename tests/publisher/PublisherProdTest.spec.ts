@@ -975,13 +975,12 @@ test.describe("Publisher Production Tests", () => {
       const campaignCount = await listCampaign.count();
 
       const randomIndex = Math.floor(Math.random() * campaignCount);
-      const selectedCampaign = listCampaign.nth(randomIndex);
-      await selectedCampaign.waitFor({ state: "visible", timeout: 10000 });
-      await selectedCampaign.scrollIntoViewIfNeeded();
 
       const [newPage] = await Promise.all([
         publisherPage.page.context().waitForEvent("page"),
-        selectedCampaign.click(),
+        // Re-evaluate nth() at click time to avoid stale DOM reference after Angular re-renders;
+        // click() also scrolls into view automatically
+        listCampaign.nth(randomIndex).click(),
       ]);
 
       try {
