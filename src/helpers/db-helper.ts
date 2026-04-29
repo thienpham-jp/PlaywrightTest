@@ -638,12 +638,19 @@ export async function getAflSummary(
 ): Promise<AflSummary> {
   const sql = `
     SELECT
-  COUNT(*) FILTER (WHERE final_action_name != 'ALLOW') AS "totalFraud",
-  COUNT(*) FILTER (WHERE final_action_name = 'BLOCK') AS "blocked",
-  COUNT(*) FILTER (WHERE final_action_name NOT IN ('ALLOW','BLOCK')) AS "warning",
-  COALESCE(ROUND(AVG(max_score * 100) FILTER (WHERE final_action_name != 'ALLOW'), 1), 0) AS "avgScore"
-  FROM click_events
-  WHERE request_date::date BETWEEN $1 AND $2;
+    SUM(total_violation_count) AS "totalFraud",
+    SUM(total_block_count) AS "blocked",
+    SUM(total_warning_count) AS "warning",
+    COALESCE(
+        ROUND(
+            SUM(total_violation_count) * 100.0
+            / NULLIF(SUM(total_clicks), 0),
+            1
+        ),
+        0
+    ) AS "avgScore"
+    FROM hourly_summary
+    WHERE request_date BETWEEN $1 AND $2
   `;
   const row = await queryOne<{
     totalFraud: string;
