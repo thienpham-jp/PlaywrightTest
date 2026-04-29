@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Locator } from "@playwright/test";
 import { CFDPage } from "../../pages/cfd-page";
 import { CFD_PASSWORD, CFD_USERNAME } from "../../src/helpers/user-helper";
 import {
@@ -219,12 +219,38 @@ test.describe("CFD ID Tests", () => {
     });
 
     test.describe("Top Threat Vectors vs database", () => {
-      test("All threat vector block counts match database", async () => {
-        const dbRows = await getTopThreatVectors(yesterday());
-        // DB group_rule_name matches UI labels exactly (e.g. "SITE VELOCITY")
-        const dbMap = new Map(dbRows.map((r) => [r.category, r.blocks]));
+      /**
+       * Returns the first 3 rule IDs that are directly visible in the row
+       * (the tags rendered before any "+N" overflow badge).
+       */
+      const getVisibleRuleIds = async (row: Locator): Promise<string[]> => {
+        return row.evaluate((el: Element) => {
+          // Collect text from individual rule tag elements if available,
+          // falling back to scanning the full text content.
+          const tagEls = el.querySelectorAll(
+            ".tv-rule, .tv-tag, [class*='tv-rule'], [class*='rule-tag'], [class*='rule-chip']",
+          );
+          let ids: string[];
+          if (tagEls.length > 0) {
+            ids = Array.from(tagEls)
+              .map((t) => (t.textContent ?? "").trim().toUpperCase())
+              .filter((t) => /^R\d+$/.test(t));
+          } else {
+            // Fallback: pull tokens directly before the "+N" badge
+            const full = el.textContent ?? "";
+            // Strip everything from the first "+digit" onwards
+            const trimmed = full.replace(/\+\d+.*$/, "");
+            const matches = trimmed.match(/\bR\d+\b/gi) ?? [];
+            ids = matches.map((r) => r.toUpperCase());
+          }
+          return [...new Set(ids)].slice(0, 3);
+        });
+      };
 
-        // DOM uses .threat-vec-row (not <table>) — wait for first data row
+      test("All threat vector block counts and rules match database", async () => {
+        const dbRows = await getTopThreatVectors(yesterday());
+        const dbMap = new Map(dbRows.map((r) => [r.category.toUpperCase(), r]));
+
         const rows = cfdPage.page.locator(
           ".threat-vec-row:not(.threat-vec-header)",
         );
@@ -240,15 +266,42 @@ test.describe("CFD ID Tests", () => {
           const blocksText =
             (await row.locator(".tv-count").textContent())?.trim() ?? "";
 
-          const dbValue = dbMap.get(categoryText) ?? 0;
-          const uiValue = parseUINumber(blocksText);
+          const dbRow = dbMap.get(categoryText);
+          const uiBlocks = parseUINumber(blocksText);
+          const dbBlocks = dbRow?.blocks ?? 0;
 
-          console.log(`[${categoryText}] UI=${uiValue} DB=${dbValue}`);
+          if (!dbRow || dbRow.ruleIds.length === 0) {
+            console.log(
+              `[${categoryText}] Blocks: UI=${uiBlocks} DB=${dbBlocks}`,
+            );
+          } else {
+            // ── Verify the first 3 visible UI rules are in the DB list ──────
+            const uiTop3 = await getVisibleRuleIds(row);
+            const dbNormalized = dbRow.ruleIds.map((r) =>
+              r.trim().toUpperCase(),
+            );
+
+            console.log(
+              `[${categoryText}] Blocks: UI=${uiBlocks} DB=${dbBlocks} | Rules UI top3=[${uiTop3.join(", ")}] DB=[${dbNormalized.join(", ")}]`,
+            );
+          }
 
           expect(
-            withinTolerance(uiValue, dbValue),
-            `Threat vector "${categoryText}": UI=${uiValue}, DB=${dbValue}`,
+            withinTolerance(uiBlocks, dbBlocks),
+            `Threat vector "${categoryText}": UI=${uiBlocks}, DB=${dbBlocks}`,
           ).toBe(true);
+
+          if (!dbRow || dbRow.ruleIds.length === 0) continue;
+
+          const uiTop3 = await getVisibleRuleIds(row);
+          const dbNormalized = dbRow.ruleIds.map((r) => r.trim().toUpperCase());
+
+          for (const ruleId of uiTop3) {
+            expect(
+              dbNormalized,
+              `Category "${categoryText}": UI rule "${ruleId}" not found in DB [${dbNormalized.join(", ")}]`,
+            ).toContain(ruleId);
+          }
         }
       });
     });
@@ -1736,6 +1789,69 @@ test.describe("CFD ID Tests", () => {
             `Row rec="${row.rec}" should start with "WARN"`,
           ).toMatch(/^WARN/);
         }
+      });
+
+      // ── Export ─────────────────────────────────────────────────────────────
+
+      test("Export button is visible in campaign detail toolbar", async () => {
+        test.setTimeout(60000);
+        await getDetailData(); // ensure detail iframe is rendered
+
+        const isVisible = await cfdPage.page.evaluate(() => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc || !doc.querySelector("table.log-table")) continue;
+            // Look for a button/element containing "export" text (case-insensitive)
+            const all = Array.from(
+              doc.querySelectorAll("button, a, [role='button']"),
+            );
+            return all.some((el) =>
+              el.textContent?.trim().toLowerCase().includes("export"),
+            );
+          }
+          return false;
+        });
+
+        console.log(`[Export] button visible: ${isVisible}`);
+        expect(
+          isVisible,
+          "Export button should be visible in detail toolbar",
+        ).toBe(true);
+      });
+
+      test("Export triggers a file download (CSV or Excel)", async () => {
+        test.setTimeout(90000);
+        await getDetailData(); // ensure detail iframe is rendered
+
+        // Listen for the download event before clicking
+        const downloadPromise = cfdPage.page.waitForEvent("download", {
+          timeout: 30000,
+        });
+
+        await cfdPage.page.evaluate(() => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc || !doc.querySelector("table.log-table")) continue;
+            const exportBtn = Array.from(
+              doc.querySelectorAll("button, a, [role='button']"),
+            ).find((el) =>
+              el.textContent?.trim().toLowerCase().includes("export"),
+            ) as HTMLElement | undefined;
+            exportBtn?.click();
+            return;
+          }
+        });
+
+        const download = await downloadPromise;
+        const filename = download.suggestedFilename();
+
+        console.log(`[Export] downloaded file: "${filename}"`);
+        expect(
+          filename,
+          `Downloaded file "${filename}" should be CSV or Excel`,
+        ).toMatch(/\.(csv|xlsx|xls)$/i);
       });
     });
 

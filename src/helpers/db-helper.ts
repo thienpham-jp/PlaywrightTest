@@ -175,20 +175,21 @@ export async function getFraudDetectionSummary(
 ): Promise<FraudDetectionSummary> {
   const sql = `
     SELECT
-      COUNT(*) FILTER (WHERE final_action_name != 'ALLOW')                       AS "totalFraud",
-      COUNT(*) FILTER (WHERE final_action_name = 'BLOCK')                        AS "blocked",
-      COUNT(*) FILTER (WHERE final_action_name != 'ALLOW'
-                         AND final_action_name != 'BLOCK')                       AS "warning",
+      SUM(total_violation_count)                                                  AS "totalFraud",
+      SUM(total_block_count)                                                      AS "blocked",
+      SUM(total_warning_count)                                                    AS "warning",
       ROUND(
-        (COUNT(*) FILTER (WHERE final_action_name = 'BLOCK')
-         + COUNT(*) FILTER (WHERE final_action_name != 'ALLOW'
-                              AND final_action_name != 'BLOCK')) * 100.0
-        / NULLIF(COUNT(*), 0),
-        1
+        SUM(total_violation_count) * 100.0 / NULLIF(SUM(total_clicks), 0),
+        2
       )                                                                           AS "fraudRate",
-      COUNT(DISTINCT campaign_id) FILTER (WHERE final_action_name != 'ALLOW')    AS "campaignsAffected"
-    FROM click_events
-    WHERE DATE(request_date) BETWEEN $1 AND $2
+      (
+        SELECT COUNT(DISTINCT campaign_id)
+        FROM click_events
+        WHERE DATE(request_date) BETWEEN $1 AND $2
+          AND final_action_name != 'ALLOW'
+      )                                                                           AS "campaignsAffected"
+    FROM hourly_summary
+    WHERE request_date BETWEEN $1 AND $2
   `;
   const row = await queryOne<{
     totalFraud: string;
