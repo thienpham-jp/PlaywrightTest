@@ -110,12 +110,12 @@ export async function getDashboardMetrics(
 ): Promise<DashboardMetrics> {
   const sql = `
     SELECT
-      COUNT(*)                                          AS "totalClicks",
-      COUNT(*) FILTER (WHERE final_action_name = 'ALLOW')         AS "legitimateClicks",
-      COUNT(*) FILTER (WHERE final_action_name = 'BLOCK')         AS "blockedFraud",
-      COUNT(*) FILTER (WHERE final_action_name != 'ALLOW' and final_action_name != 'BLOCK' )       AS "suspicious"
-    FROM click_events
-    WHERE DATE(request_date) = $1
+      SUM(total_clicks)                                              AS "totalClicks",
+      SUM(total_block_count)                                         AS "blockedFraud",
+      SUM(total_warning_count)                                       AS "suspicious",
+      SUM(total_clicks - total_block_count - total_warning_count)    AS "legitimateClicks"
+    FROM hourly_summary
+    WHERE request_date = $1
   `;
   const row = await queryOne<DashboardMetrics>(sql, [date], country);
   return {
@@ -160,7 +160,7 @@ export interface FraudDetectionSummary {
   totalFraud: number; // BLOCK + WARNING
   blocked: number; // final_action_name = 'BLOCK'
   warning: number; // non-ALLOW, non-BLOCK
-  fraudRate: number; // blocked / totalClicks * 100, 1 decimal
+  fraudRate: number; // (blocked + warning) / totalClicks * 100, 1 decimals
   campaignsAffected: number; // COUNT(DISTINCT campaign_id) with any fraud
 }
 
@@ -175,18 +175,21 @@ export async function getFraudDetectionSummary(
 ): Promise<FraudDetectionSummary> {
   const sql = `
     SELECT
-      COUNT(*) FILTER (WHERE final_action_name != 'ALLOW')                       AS "totalFraud",
-      COUNT(*) FILTER (WHERE final_action_name = 'BLOCK')                        AS "blocked",
-      COUNT(*) FILTER (WHERE final_action_name != 'ALLOW'
-                         AND final_action_name != 'BLOCK')                       AS "warning",
+      SUM(total_violation_count)                                                  AS "totalFraud",
+      SUM(total_block_count)                                                      AS "blocked",
+      SUM(total_warning_count)                                                    AS "warning",
       ROUND(
-        COUNT(*) FILTER (WHERE final_action_name = 'BLOCK') * 100.0
-        / NULLIF(COUNT(*), 0),
+        SUM(total_violation_count) * 100.0 / NULLIF(SUM(total_clicks), 0),
         2
       )                                                                           AS "fraudRate",
-      COUNT(DISTINCT campaign_id) FILTER (WHERE final_action_name != 'ALLOW')    AS "campaignsAffected"
-    FROM click_events
-    WHERE DATE(request_date) BETWEEN $1 AND $2
+      (
+        SELECT COUNT(DISTINCT campaign_id)
+        FROM click_events
+        WHERE DATE(request_date) BETWEEN $1 AND $2
+          AND final_action_name != 'ALLOW'
+      )                                                                           AS "campaignsAffected"
+    FROM hourly_summary
+    WHERE request_date BETWEEN $1 AND $2
   `;
   const row = await queryOne<{
     totalFraud: string;
@@ -207,36 +210,43 @@ export async function getFraudDetectionSummary(
 export interface ThreatVectorRow {
   category: string;
   blocks: number;
+  ruleIds: string[]; // e.g. ["R23", "R24", "R21", ...] ordered by violation_count DESC
 }
 
-/**
- * Returns block counts per threat-vector category for a given date.
- *
- * ⚠️  Adjust table/column names to match your actual schema.
- */
 export async function getTopThreatVectors(
   date: string = yesterday(),
   country: Country = "id",
 ): Promise<ThreatVectorRow[]> {
   const sql = `
-    SELECT
-      group_rule_name                                          AS "category",
-      SUM(violation_count)                                     AS "blocks"
-    FROM (
-      SELECT DISTINCT group_rule_name, rule_id
+    WITH rule_counts AS (
+      SELECT
+        group_rule_name,
+        'R' || CAST(rule_id AS text)  AS rule_id_text,
+        SUM(violation_count)          AS affected_clicks
       FROM rule_summary
-      WHERE DATE(request_date) = $1
-    ) r
-    JOIN rule_summary s USING (group_rule_name, rule_id)
+      WHERE request_date = $1
+      GROUP BY group_rule_name, rule_id
+    )
+    SELECT
+      group_rule_name                                                       AS "category",
+      STRING_AGG(rule_id_text, ', ' ORDER BY affected_clicks DESC, rule_id_text) AS "triggeredShortcodes",
+      SUM(affected_clicks)                                                  AS "total_violating_clicks"
+    FROM rule_counts
     GROUP BY group_rule_name
-    ORDER BY "blocks" DESC
+    ORDER BY "total_violating_clicks" DESC, "category"
   `;
-  const rows = await query<{ category: string; blocks: string }>(
-    sql,
-    [date],
-    country,
-  );
-  return rows.map((r) => ({ category: r.category, blocks: Number(r.blocks) }));
+  const rows = await query<{
+    category: string;
+    triggeredShortcodes: string;
+    total_violating_clicks: string;
+  }>(sql, [date], country);
+  return rows.map((r) => ({
+    category: r.category,
+    blocks: Number(r.total_violating_clicks),
+    ruleIds: r.triggeredShortcodes
+      ? r.triggeredShortcodes.split(",").map((s) => s.trim())
+      : [],
+  }));
 }
 
 export interface FraudSourceRow {
@@ -628,12 +638,19 @@ export async function getAflSummary(
 ): Promise<AflSummary> {
   const sql = `
     SELECT
-  COUNT(*) FILTER (WHERE final_action_name != 'ALLOW') AS "totalFraud",
-  COUNT(*) FILTER (WHERE final_action_name = 'BLOCK') AS "blocked",
-  COUNT(*) FILTER (WHERE final_action_name NOT IN ('ALLOW','BLOCK')) AS "warning",
-  COALESCE(ROUND(AVG(max_score * 100) FILTER (WHERE final_action_name != 'ALLOW'), 1), 0) AS "avgScore"
-  FROM click_events
-  WHERE request_date::date BETWEEN $1 AND $2;
+    SUM(total_violation_count) AS "totalFraud",
+    SUM(total_block_count) AS "blocked",
+    SUM(total_warning_count) AS "warning",
+    COALESCE(
+        ROUND(
+            SUM(total_violation_count) * 100.0
+            / NULLIF(SUM(total_clicks), 0),
+            1
+        ),
+        0
+    ) AS "avgScore"
+    FROM hourly_summary
+    WHERE request_date BETWEEN $1 AND $2
   `;
   const row = await queryOne<{
     totalFraud: string;

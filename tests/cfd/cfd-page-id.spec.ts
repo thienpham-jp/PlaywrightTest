@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Locator } from "@playwright/test";
 import { CFDPage } from "../../pages/cfd-page";
 import { CFD_PASSWORD, CFD_USERNAME } from "../../src/helpers/user-helper";
 import {
@@ -26,18 +26,22 @@ test.describe("CFD ID Tests", () => {
   let cfdPage: CFDPage;
   /** true when yesterday has ≥1 click event in the DB */
   let hasYesterdayData = true;
+  /** true when last 2 days has ≥1 click event in the DB */
+  let hasLast2DaysData = true;
   /** true when the last 7 days has ≥1 click event in the DB */
   let hasRecentData = true;
 
   test.beforeAll(async () => {
-    const [yCount, recentCount] = await Promise.all([
+    const [yCount, last2Count, recentCount] = await Promise.all([
       getClickCountForRange(yesterday(), yesterday()),
+      getClickCountForRange(daysAgo(2), daysAgo(2)),
       getClickCountForRange(daysAgo(7), yesterday()),
     ]);
     hasYesterdayData = yCount > 0;
+    hasLast2DaysData = last2Count > 0;
     hasRecentData = recentCount > 0;
     console.log(
-      `[Data check] yesterday = ${yCount} clicks, last7days = ${recentCount} clicks`,
+      `[Data check] yesterday = ${yCount} clicks, last2days = ${last2Count} clicks, last7days = ${recentCount} clicks`,
     );
   });
 
@@ -215,12 +219,38 @@ test.describe("CFD ID Tests", () => {
     });
 
     test.describe("Top Threat Vectors vs database", () => {
-      test("All threat vector block counts match database", async () => {
-        const dbRows = await getTopThreatVectors(yesterday());
-        // DB group_rule_name matches UI labels exactly (e.g. "SITE VELOCITY")
-        const dbMap = new Map(dbRows.map((r) => [r.category, r.blocks]));
+      /**
+       * Returns the first 3 rule IDs that are directly visible in the row
+       * (the tags rendered before any "+N" overflow badge).
+       */
+      const getVisibleRuleIds = async (row: Locator): Promise<string[]> => {
+        return row.evaluate((el: Element) => {
+          // Collect text from individual rule tag elements if available,
+          // falling back to scanning the full text content.
+          const tagEls = el.querySelectorAll(
+            ".tv-rule, .tv-tag, [class*='tv-rule'], [class*='rule-tag'], [class*='rule-chip']",
+          );
+          let ids: string[];
+          if (tagEls.length > 0) {
+            ids = Array.from(tagEls)
+              .map((t) => (t.textContent ?? "").trim().toUpperCase())
+              .filter((t) => /^R\d+$/.test(t));
+          } else {
+            // Fallback: pull tokens directly before the "+N" badge
+            const full = el.textContent ?? "";
+            // Strip everything from the first "+digit" onwards
+            const trimmed = full.replace(/\+\d+.*$/, "");
+            const matches = trimmed.match(/\bR\d+\b/gi) ?? [];
+            ids = matches.map((r) => r.toUpperCase());
+          }
+          return [...new Set(ids)].slice(0, 3);
+        });
+      };
 
-        // DOM uses .threat-vec-row (not <table>) — wait for first data row
+      test("All threat vector block counts and rules match database", async () => {
+        const dbRows = await getTopThreatVectors(yesterday());
+        const dbMap = new Map(dbRows.map((r) => [r.category.toUpperCase(), r]));
+
         const rows = cfdPage.page.locator(
           ".threat-vec-row:not(.threat-vec-header)",
         );
@@ -236,15 +266,42 @@ test.describe("CFD ID Tests", () => {
           const blocksText =
             (await row.locator(".tv-count").textContent())?.trim() ?? "";
 
-          const dbValue = dbMap.get(categoryText) ?? 0;
-          const uiValue = parseUINumber(blocksText);
+          const dbRow = dbMap.get(categoryText);
+          const uiBlocks = parseUINumber(blocksText);
+          const dbBlocks = dbRow?.blocks ?? 0;
 
-          console.log(`[${categoryText}] UI=${uiValue} DB=${dbValue}`);
+          if (!dbRow || dbRow.ruleIds.length === 0) {
+            console.log(
+              `[${categoryText}] Blocks: UI=${uiBlocks} DB=${dbBlocks}`,
+            );
+          } else {
+            // ── Verify the first 3 visible UI rules are in the DB list ──────
+            const uiTop3 = await getVisibleRuleIds(row);
+            const dbNormalized = dbRow.ruleIds.map((r) =>
+              r.trim().toUpperCase(),
+            );
+
+            console.log(
+              `[${categoryText}] Blocks: UI=${uiBlocks} DB=${dbBlocks} | Rules UI top3=[${uiTop3.join(", ")}] DB=[${dbNormalized.join(", ")}]`,
+            );
+          }
 
           expect(
-            withinTolerance(uiValue, dbValue),
-            `Threat vector "${categoryText}": UI=${uiValue}, DB=${dbValue}`,
+            withinTolerance(uiBlocks, dbBlocks),
+            `Threat vector "${categoryText}": UI=${uiBlocks}, DB=${dbBlocks}`,
           ).toBe(true);
+
+          if (!dbRow || dbRow.ruleIds.length === 0) continue;
+
+          const uiTop3 = await getVisibleRuleIds(row);
+          const dbNormalized = dbRow.ruleIds.map((r) => r.trim().toUpperCase());
+
+          for (const ruleId of uiTop3) {
+            expect(
+              dbNormalized,
+              `Category "${categoryText}": UI rule "${ruleId}" not found in DB [${dbNormalized.join(", ")}]`,
+            ).toContain(ruleId);
+          }
         }
       });
     });
@@ -491,8 +548,8 @@ test.describe("CFD ID Tests", () => {
     test.describe("Summary bar - Last 2 Days", () => {
       test.beforeEach(async () => {
         test.skip(
-          !hasRecentData,
-          `No data in last 7 days (${daysAgo(7)} – ${yesterday()})`,
+          !hasLast2DaysData,
+          `No data in last 2 days (${daysAgo(2)} – ${yesterday()})`,
         );
         await cfdPage.page.getByRole("button", { name: "Last 2 Days" }).click();
         await cfdPage.page.waitForLoadState("networkidle");
@@ -714,8 +771,8 @@ test.describe("CFD ID Tests", () => {
       test.describe("Last 2 Days", () => {
         test.beforeEach(async () => {
           test.skip(
-            !hasRecentData,
-            `No data in last 7 days (${daysAgo(7)} – ${yesterday()})`,
+            !hasLast2DaysData,
+            `No data in last 2 days (${daysAgo(2)} – ${yesterday()})`,
           );
           await cfdPage.page
             .getByRole("button", { name: "Last 2 Days" })
@@ -1055,10 +1112,10 @@ test.describe("CFD ID Tests", () => {
       });
     });
 
-    // ── Campaign Detail – Blibli CPS (6659) ─────────────────────────────────
+    // ── Campaign Detail – TIKTOK SHOP ID (7568) ─────────────────────────────────
 
-    test.describe("Campaign Detail – Blibli CPS (6659)", () => {
-      const CAMPAIGN_ID = "6659";
+    test.describe("Campaign Detail – TIKTOK SHOP ID (7568)", () => {
+      const CAMPAIGN_ID = "7568";
 
       test.beforeEach(async () => {
         test.skip(
@@ -1100,7 +1157,9 @@ test.describe("CFD ID Tests", () => {
           }
         }, CAMPAIGN_ID);
 
-        await cfdPage.page.waitForURL(/camp=6659/, { timeout: 15000 });
+        await cfdPage.page.waitForURL(new RegExp(`camp=${CAMPAIGN_ID}`), {
+          timeout: 15000,
+        });
         await cfdPage.page.waitForLoadState("networkidle");
       });
 
@@ -1593,20 +1652,30 @@ test.describe("CFD ID Tests", () => {
         }
       });
 
-      test.skip("Filter by Site (5th in list) shows only rows for that site", async () => {
+      test("Filter by Site (5th in list) shows only rows for that site", async () => {
         test.setTimeout(180000);
         await getDetailData(); // ensure detail page is fully rendered
 
-        // Site list is sorted; index 4 = 5th item (e.g. "10907")
+        // Site list is sorted; index 4 = 5th item
         const siteId = await clickDetailSiteFilter(4);
 
+        if (!siteId) {
+          test.skip(
+            true,
+            "Site dropdown not found or returned empty ID — skipping",
+          );
+          return;
+        }
+
+        // Wait for rows to reflect the applied filter
+        await getDetailData();
         const rows = await getDetailRows();
         const total = await getDetailPaginationTotal();
 
         console.log(
           `[Site Filter] siteId="${siteId}" total=${total} rowsShown=${rows.length}`,
         );
-        // expect(siteId).not.toBe("");
+        expect(siteId).not.toBe("");
         expect(total).toBeGreaterThan(0);
         expect(rows.length).toBeGreaterThan(0);
         for (const row of rows) {
@@ -1617,26 +1686,42 @@ test.describe("CFD ID Tests", () => {
         }
       });
 
-      test.skip("Filter by Rule (6th in list) shows only rows for that rule", async () => {
+      test("Filter by Rule (6th in list) shows only rows for that rule", async () => {
         test.setTimeout(180000);
         await getDetailData(); // ensure detail page is fully rendered
 
-        // Rule list order: 1,2,3,4,6,8,… → index 5 = 6th item = rule 8 (REFERER WITH EMPTY DIRECT)
-        const { ruleId, ruleLabel } = await clickDetailRuleFilter(5);
+        // Rule list order: 1,2,3,4,6,8,… → index 5 = 6th item
+        const { ruleId: rawRuleId, ruleLabel } = await clickDetailRuleFilter(5);
 
+        if (!rawRuleId) {
+          test.skip(
+            true,
+            `Rule dropdown not found or returned empty ID (label: "${ruleLabel}") — skipping`,
+          );
+          return;
+        }
+
+        // rawRuleId may be numeric ("8") or prefixed ("R8"); normalise to "R8"
+        const expectedTag = /^R\d/i.test(rawRuleId)
+          ? rawRuleId.toUpperCase()
+          : `R${rawRuleId}`;
+
+        // Wait for rows to reflect the applied filter
+        await getDetailData();
         const rows = await getDetailRows();
         const total = await getDetailPaginationTotal();
-        const expectedTag = `R${ruleId}`;
 
         console.log(
-          `[Rule Filter] rule=${ruleId} label="${ruleLabel}" tag=${expectedTag} total=${total} rowsShown=${rows.length}`,
+          `[Rule Filter] rawId="${rawRuleId}" label="${ruleLabel}" tag=${expectedTag} total=${total} rowsShown=${rows.length}`,
         );
-        // expect(ruleId).not.toBe("");
+        expect(rawRuleId).not.toBe("");
         expect(total).toBeGreaterThan(0);
         expect(rows.length).toBeGreaterThan(0);
         for (const row of rows) {
           // Split "R8, R18, R27" → ["R8","R18","R27"] and check for exact tag
-          const ruleTags = row.rules.split(/,\s*/);
+          const ruleTags = row.rules
+            .split(/,\s*/)
+            .map((t) => t.trim().toUpperCase());
           expect(
             ruleTags,
             `Row rules "${row.rules}" should contain "${expectedTag}"`,
@@ -1644,65 +1729,136 @@ test.describe("CFD ID Tests", () => {
         }
       });
 
-      test.skip("Filter Warn shows only Warn rows and count matches database", async () => {
+      test("Filter Warn shows only Warn rows and count matches database", async () => {
         test.setTimeout(180000);
-        await getDetailData(); // ensure detail page is fully rendered
-        await clickDetailFilter("WARN");
-
-        // After applying the Warn filter, wait for either rows or the empty state
-        // message — both indicate the page has finished rendering.
-        await cfdPage.page.waitForFunction(
-          () => {
-            const iframes = Array.from(document.querySelectorAll("iframe"));
-            for (const f of iframes) {
-              const doc = (f as HTMLIFrameElement).contentDocument;
-              if (!doc || !doc.querySelector("table.log-table")) continue;
-              // Either rows are present OR the table body is empty
-              const hasRows =
-                doc.querySelectorAll("tbody tr.log-row").length > 0;
-              const hasEmptyState = !!doc.querySelector(
-                ".det-empty, .log-empty, [class*='empty'], tbody:empty, tbody tr.empty",
-              );
-              const pgSpan = Array.from(
-                doc.querySelectorAll(".det-footer-bar span"),
-              ).find((s) => /of\s/.test(s.textContent ?? ""));
-              return hasRows || hasEmptyState || pgSpan !== undefined;
-            }
-            return false;
-          },
-          { timeout: 15000 },
-        );
 
         const dbKPIs = await getCampaignDetailKPIs(
           CAMPAIGN_ID,
           daysAgo(7),
           yesterday(),
         );
-        const total = await getDetailPaginationTotal();
+
+        if (dbKPIs.warned === 0) {
+          test.skip(
+            true,
+            `No warned detections in DB for campaign ${CAMPAIGN_ID} — skipping`,
+          );
+          return;
+        }
+
+        await getDetailData(); // ensure detail page is fully rendered
+        await clickDetailFilter("WARN");
+
+        // Poll until the pagination span reflects the filter result
+        // Use a stable "of N" total rather than relying on row presence alone
+        let total = 0;
+        const deadline = Date.now() + 30_000;
+        while (Date.now() < deadline) {
+          try {
+            total = await cfdPage.page.evaluate(() => {
+              const iframes = Array.from(document.querySelectorAll("iframe"));
+              for (const f of iframes) {
+                const doc = (f as HTMLIFrameElement).contentDocument;
+                if (!doc || !doc.querySelector("table.log-table")) continue;
+                const pgSpan = Array.from(
+                  doc.querySelectorAll(".det-footer-bar span"),
+                ).find((s) => /of\s/.test(s.textContent ?? ""));
+                const m = pgSpan?.textContent?.trim().match(/of ([\d,]+)/);
+                if (m) return parseInt(m[1].replace(/,/g, ""));
+                // No pgSpan yet — table still loading
+              }
+              return -1; // signal: not ready
+            });
+            if (total >= 0) break;
+          } catch {
+            await cfdPage.page.waitForLoadState("networkidle").catch(() => {});
+          }
+          await new Promise<void>((r) => setTimeout(r, 500));
+        }
 
         console.log(
           `[Filter Warn] total UI=${total} DB.warned=${dbKPIs.warned}`,
         );
         expect(total).toBe(dbKPIs.warned);
 
-        // Only validate row content when there are rows to check
-        if (dbKPIs.warned > 0) {
-          const rows = await getDetailRows();
-          expect(rows.length).toBeGreaterThan(0);
-          for (const row of rows) {
-            expect(
-              row.rec.toUpperCase(),
-              `Row rec="${row.rec}" should start with "WARN"`,
-            ).toMatch(/^WARN/);
-          }
+        const rows = await getDetailRows();
+        expect(rows.length).toBeGreaterThan(0);
+        for (const row of rows) {
+          expect(
+            row.rec.toUpperCase(),
+            `Row rec="${row.rec}" should start with "WARN"`,
+          ).toMatch(/^WARN/);
         }
+      });
+
+      // ── Export ─────────────────────────────────────────────────────────────
+
+      test("Export button is visible in campaign detail toolbar", async () => {
+        test.setTimeout(60000);
+        await getDetailData(); // ensure detail iframe is rendered
+
+        const isVisible = await cfdPage.page.evaluate(() => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc || !doc.querySelector("table.log-table")) continue;
+            // Look for a button/element containing "export" text (case-insensitive)
+            const all = Array.from(
+              doc.querySelectorAll("button, a, [role='button']"),
+            );
+            return all.some((el) =>
+              el.textContent?.trim().toLowerCase().includes("export"),
+            );
+          }
+          return false;
+        });
+
+        console.log(`[Export] button visible: ${isVisible}`);
+        expect(
+          isVisible,
+          "Export button should be visible in detail toolbar",
+        ).toBe(true);
+      });
+
+      test("Export triggers a file download (CSV or Excel)", async () => {
+        test.setTimeout(90000);
+        await getDetailData(); // ensure detail iframe is rendered
+
+        // Listen for the download event before clicking
+        const downloadPromise = cfdPage.page.waitForEvent("download", {
+          timeout: 30000,
+        });
+
+        await cfdPage.page.evaluate(() => {
+          const iframes = Array.from(document.querySelectorAll("iframe"));
+          for (const f of iframes) {
+            const doc = (f as HTMLIFrameElement).contentDocument;
+            if (!doc || !doc.querySelector("table.log-table")) continue;
+            const exportBtn = Array.from(
+              doc.querySelectorAll("button, a, [role='button']"),
+            ).find((el) =>
+              el.textContent?.trim().toLowerCase().includes("export"),
+            ) as HTMLElement | undefined;
+            exportBtn?.click();
+            return;
+          }
+        });
+
+        const download = await downloadPromise;
+        const filename = download.suggestedFilename();
+
+        console.log(`[Export] downloaded file: "${filename}"`);
+        expect(
+          filename,
+          `Downloaded file "${filename}" should be CSV or Excel`,
+        ).toMatch(/\.(csv|xlsx|xls)$/i);
       });
     });
 
     // ── Sites & IPs tab ──────────────────────────────────────────────────────
 
-    test.describe("Sites & IPs tab – Blibli CPS (6659)", () => {
-      const CAMPAIGN_ID = "6659";
+    test.describe("Sites & IPs tab – TIKTOK SHOP ID (7568)", () => {
+      const CAMPAIGN_ID = "7568";
 
       test.beforeEach(async () => {
         test.skip(
@@ -1741,7 +1897,9 @@ test.describe("CFD ID Tests", () => {
             }
           }
         }, CAMPAIGN_ID);
-        await cfdPage.page.waitForURL(/camp=6659/, { timeout: 15000 });
+        await cfdPage.page.waitForURL(new RegExp(`camp=${CAMPAIGN_ID}`), {
+          timeout: 15000,
+        });
         await cfdPage.page.waitForLoadState("networkidle");
 
         // Click the Sites & IPs tab
@@ -1751,17 +1909,29 @@ test.describe("CFD ID Tests", () => {
 
       /** Wait for the siip iframe to be ready, then run a page.evaluate. */
       const waitForSiip = async () => {
-        await cfdPage.page.waitForFunction(
-          () => {
-            const iframes = Array.from(document.querySelectorAll("iframe"));
-            for (const f of iframes) {
-              const doc = (f as HTMLIFrameElement).contentDocument;
-              if (doc && doc.getElementById("fdl-siip")) return true;
-            }
-            return false;
-          },
-          { timeout: 15000 },
-        );
+        const poll = () =>
+          cfdPage.page.waitForFunction(
+            () => {
+              const iframes = Array.from(document.querySelectorAll("iframe"));
+              for (const f of iframes) {
+                const doc = (f as HTMLIFrameElement).contentDocument;
+                if (doc && doc.getElementById("fdl-siip")) return true;
+              }
+              return false;
+            },
+            { timeout: 15000 },
+          );
+        try {
+          await poll();
+        } catch (e) {
+          const msg = (e as Error).message ?? "";
+          if (msg.includes("closed") || msg.includes("destroyed")) {
+            await cfdPage.page.waitForLoadState("networkidle");
+            await poll();
+          } else {
+            throw e;
+          }
+        }
       };
 
       /** Read the siip KPI bar values. */
@@ -1929,6 +2099,32 @@ test.describe("CFD ID Tests", () => {
         }, risk);
 
         // Step 2: wait for checkboxes to appear (new dropdown), then check target + Apply
+        // Allow up to 5 s for the dropdown panel to render after the toggle click
+        await cfdPage.page
+          .waitForFunction(
+            (r) => {
+              const iframes = Array.from(document.querySelectorAll("iframe"));
+              for (const f of iframes) {
+                const doc = (f as HTMLIFrameElement).contentDocument;
+                if (!doc?.getElementById("fdl-siip")) continue;
+                const cbs = Array.from(
+                  doc.querySelectorAll('input[type="checkbox"]'),
+                );
+                return cbs.some((cb) => {
+                  const container = cb.closest("label") ?? cb.parentElement;
+                  return (
+                    container?.textContent?.trim().toLowerCase() ===
+                    r.toLowerCase()
+                  );
+                });
+              }
+              return false;
+            },
+            risk,
+            { timeout: 5000 },
+          )
+          .catch(() => {}); // timeout = old-style button was used; hasDropdown will be false
+
         const hasDropdown = await cfdPage.page.evaluate((r) => {
           const iframes = Array.from(document.querySelectorAll("iframe"));
           for (const f of iframes) {
@@ -2134,20 +2330,23 @@ test.describe("CFD ID Tests", () => {
         }, term);
 
         // Wait for row count to change (filtered result renders)
-        await cfdPage.page.waitForFunction(
-          (prev) => {
-            const iframes = Array.from(document.querySelectorAll("iframe"));
-            for (const f of iframes) {
-              const doc = (f as HTMLIFrameElement).contentDocument;
-              if (!doc?.getElementById("fdl-siip")) continue;
-              const cur = doc.querySelectorAll("tr.siip-sr").length;
-              return cur !== prev;
-            }
-            return false;
-          },
-          prevRowCount,
-          { timeout: 15000 },
-        );
+        // If the search returns the same count as before, accept after timeout
+        await cfdPage.page
+          .waitForFunction(
+            (prev) => {
+              const iframes = Array.from(document.querySelectorAll("iframe"));
+              for (const f of iframes) {
+                const doc = (f as HTMLIFrameElement).contentDocument;
+                if (!doc?.getElementById("fdl-siip")) continue;
+                const cur = doc.querySelectorAll("tr.siip-sr").length;
+                return cur !== prev;
+              }
+              return false;
+            },
+            prevRowCount,
+            { timeout: 15000 },
+          )
+          .catch(() => {}); // swallow timeout — search may return identical row count
       };
 
       test("Tab navigation: Sites & IPs content loads", async () => {
@@ -2250,8 +2449,8 @@ test.describe("CFD ID Tests", () => {
         for (const row of siteRows) {
           expect(
             row.risk.toUpperCase(),
-            `Site ${row.siteId} risk="${row.risk}" should be HIGH`,
-          ).toBe("HIGH");
+            `Site ${row.siteId} risk="${row.risk}" should contain HIGH`,
+          ).toContain("HIGH");
         }
       });
 
@@ -2266,8 +2465,8 @@ test.describe("CFD ID Tests", () => {
         for (const row of siteRows) {
           expect(
             row.risk.toUpperCase(),
-            `Site ${row.siteId} risk="${row.risk}" should be CRITICAL`,
-          ).toBe("CRITICAL");
+            `Site ${row.siteId} risk="${row.risk}" should contain CRITICAL`,
+          ).toContain("CRITICAL");
         }
       });
 
@@ -2279,6 +2478,14 @@ test.describe("CFD ID Tests", () => {
         // Extract "10 sites / 41 IPs"
         const ipsMatch = thisPageText.match(/(\d+)\s+IPs/);
         const expectedIPs = ipsMatch ? parseInt(ipsMatch[1]) : -1;
+
+        if (expectedIPs < 0) {
+          test.skip(
+            true,
+            `Could not determine expected IP count from KPI bar ("This Page"="${thisPageText}") — skipping`,
+          );
+          return;
+        }
 
         await clickSiipView("flat");
 

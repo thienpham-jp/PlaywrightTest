@@ -11,7 +11,6 @@ import {
   getAflCountBySite,
   getAflSummary,
   getClickCountForRange,
-  queryOne,
   yesterday,
   withinTolerance,
 } from "../../src/helpers/db-helper";
@@ -27,23 +26,6 @@ const getAflSummaryBar = async (
   warning: number;
   avgScore: number;
 }> => {
-  // KPI bar is rendered directly in the main Streamlit document (not inside an iframe).
-  // Each item is a container where one child has the label text ("Total Fraud", etc.)
-  // and another child has the value — either as aria-label (full number) or text (abbreviated).
-  // Build a list of docs to search: main document first, then any accessible iframes.
-  const getDocsToSearch = () => {
-    const docs: Document[] = [document];
-    document.querySelectorAll("iframe").forEach((f) => {
-      try {
-        const d =
-          (f as HTMLIFrameElement).contentDocument ||
-          (f as HTMLIFrameElement).contentWindow?.document;
-        if (d && d !== document) docs.push(d);
-      } catch {}
-    });
-    return docs;
-  };
-
   // Wait until Total Fraud value is non-zero (up to 60 s — Streamlit DB queries can be slow)
   // Also bail early if Streamlit shows an error alert (server-side DB timeout)
   await page
@@ -449,18 +431,22 @@ test.describe("CFD ID - Action Fraud Log", () => {
   let cfdPage: CFDPage;
   /** true when yesterday has ≥1 click event in the DB */
   let hasYesterdayData = true;
+  /** true when last 2 days has ≥1 click event in the DB */
+  let hasLast2DaysData = true;
   /** true when the last 7 days has ≥1 click event in the DB */
   let hasRecentData = true;
 
   test.beforeAll(async () => {
-    const [yCount, recentCount] = await Promise.all([
+    const [yCount, last2Count, recentCount] = await Promise.all([
       getClickCountForRange(yesterday(), yesterday()),
+      getClickCountForRange(daysAgo(2), daysAgo(2)),
       getClickCountForRange(daysAgo(7), yesterday()),
     ]);
     hasYesterdayData = yCount > 0;
+    hasLast2DaysData = last2Count > 0;
     hasRecentData = recentCount > 0;
     console.log(
-      `[Data check] yesterday = ${yCount} clicks, last7days = ${recentCount} clicks`,
+      `[Data check] yesterday=${yCount} clicks, last2days=${last2Count} clicks, last7days=${recentCount} clicks`,
     );
   });
 
@@ -599,6 +585,10 @@ test.describe("CFD ID - Action Fraud Log", () => {
 
     test.describe("Last 2 Days", () => {
       test.beforeEach(async () => {
+        test.skip(
+          !hasLast2DaysData,
+          `No data in last 2 days (${daysAgo(2)} – ${yesterday()})`,
+        );
         await cfdPage.page.getByRole("button", { name: "Last 2 Days" }).click();
         await cfdPage.page.waitForLoadState("networkidle");
       });
@@ -1000,6 +990,10 @@ test.describe("CFD ID - Action Fraud Log", () => {
 
     test("Last 2 Days - Total Fraud matches DB", async () => {
       test.setTimeout(150000);
+      test.skip(
+        !hasLast2DaysData,
+        `No data in last 2 days (${daysAgo(2)} – ${yesterday()})`,
+      );
       await cfdPage.page.getByRole("button", { name: "Last 2 Days" }).click();
       await cfdPage.page.waitForLoadState("networkidle");
       const ui = await getAflSummaryBar(cfdPage.page);
