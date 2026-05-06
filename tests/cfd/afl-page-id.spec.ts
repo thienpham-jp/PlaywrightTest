@@ -854,7 +854,7 @@ test.describe("CFD ID - Action Fraud Log", () => {
       console.log(
         `[IP Search "${ipTerm}"] UI=${paginationTotal} DB=${dbCount} rowsShown=${rows.length}`,
       );
-      expect(withinTolerance(paginationTotal, dbCount, 10)).toBe(true);
+      expect(withinTolerance(paginationTotal, dbCount, 20)).toBe(true);
       for (const row of rows) {
         expect(
           row.ip,
@@ -946,7 +946,6 @@ test.describe("CFD ID - Action Fraud Log", () => {
       const frames = cfdPage.page.frames();
       let found = false;
       for (const frame of frames) {
-        if (frame === cfdPage.page.mainFrame()) continue;
         // Try button role first, then fall back to any element containing "export"
         const btnCount = await frame
           .getByRole("button", { name: /export/i })

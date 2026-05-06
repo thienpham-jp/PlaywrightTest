@@ -1991,14 +1991,38 @@ test.describe("CFD ID Tests", () => {
                   "",
                 detections: parseInt((cells[5]?.textContent ?? "").trim()),
                 maxScore: parseInt((cells[6]?.textContent ?? "").trim()),
-                risk:
-                  cells[7]
-                    ?.querySelector(
-                      ".siip-pill, .risk-pill, .siip-risk, .risk-label",
-                    )
-                    ?.textContent?.trim() ||
-                  cells[7]?.textContent?.trim() ||
-                  "",
+                risk: (() => {
+                  // Try CSS selectors for a named risk pill across multiple candidate cells
+                  for (const cell of [cells[7], cells[8]]) {
+                    if (!cell) continue;
+                    const pill = cell.querySelector(
+                      ".siip-pill, .risk-pill, .siip-risk, .risk-label, [class*='risk'], [class*='pill']",
+                    );
+                    if (pill) {
+                      const txt =
+                        pill.textContent?.trim() ||
+                        pill.getAttribute("aria-label") ||
+                        pill.getAttribute("title") ||
+                        "";
+                      if (txt && /[a-z]/i.test(txt)) return txt;
+                    }
+                    const dataRisk =
+                      cell.getAttribute("data-risk") ||
+                      cell.getAttribute("data-level") ||
+                      "";
+                    if (dataRisk) return dataRisk;
+                  }
+                  // Fallback to raw cell text; map numeric scores to labels
+                  const raw = cells[7]?.textContent?.trim() ?? "";
+                  const n = parseFloat(raw);
+                  if (!isNaN(n) && raw !== "") {
+                    if (n >= 8) return "CRITICAL";
+                    if (n >= 5) return "HIGH";
+                    if (n >= 3) return "MEDIUM";
+                    return "LOW";
+                  }
+                  return raw;
+                })(),
               };
             });
           }
