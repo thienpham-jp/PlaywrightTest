@@ -14,6 +14,7 @@ import {
   randomFullName,
   randomAddress,
   randomUUID,
+  randomCapcha,
 } from "../../src/helpers/function-helper";
 
 test.describe("function-helper", () => {
@@ -256,6 +257,16 @@ test.describe("function-helper", () => {
       const uuids = Array.from({ length: 20 }, () => randomUUID());
 
       expect(new Set(uuids).size).toBe(20);
+    });
+  });
+
+  test.describe("randomCapcha", () => {
+    test("Return string of correct length", () => {
+      const capcha = randomCapcha();
+
+      console.log("Generated capcha:", capcha);
+
+      expect(capcha.length).toBe(7);
     });
   });
 });

@@ -183,3 +183,13 @@ export function randomURL(): string {
 
   return `https://${domain}`;
 }
+
+export function randomCapcha(): string {
+  const letters = "abcdef";
+  const digits = "123456789";
+  const L = () => letters.charAt(cryptoRandomInt(0, letters.length));
+  const D = () => digits.charAt(cryptoRandomInt(0, digits.length));
+
+  // pattern: chữ-số-chữ-số-số-số-chữ  (e.g. "e3f747b")
+  return [L(), D(), L(), D(), D(), D(), L()].join("");
+}
