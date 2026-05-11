@@ -548,9 +548,8 @@ export async function getFraudDetectionSearchCount(
 ): Promise<number> {
   const sql = `
     SELECT COUNT(DISTINCT campaign_id) AS "count"
-    FROM click_events
+    FROM campaign_summary
     WHERE DATE(request_date) BETWEEN $1 AND $2
-      AND final_action_name != 'ALLOW'
       AND (
         LOWER(campaign_name) LIKE '%' || LOWER($3) || '%'
         OR campaign_id::text LIKE '%' || $3 || '%'
@@ -890,4 +889,182 @@ export async function getCampaignSitesPage1(
     totalClicks: Number(r.totalClicks),
     fraudPct: Number(r.fraudPct),
   }));
+}
+
+// ── System Settings — Rules queries ──────────────────────────────────────────
+// Uses config.rules + config.group_rules tables (actual DB schema).
+//
+// Field mappings:
+//   ruleId   → config.rules.id
+//   ruleName → config.rules.name  (DB-style, e.g. "UA Missing Or Empty")
+//   dataKey  → snake_case(name)   (derived; matches data_key shown in the UI)
+//   category → group_rules.name mapped to UI label
+//   action   → "UNKNOWN" (cannot reliably decode from actions bitmask)
+//   isActive → config.rules.is_active
+//   threshold→ null (no threshold column in config.rules)
+
+const GROUP_RULE_CATEGORY: Record<number, string> = {
+  1: "USER AGENT DETECTION",
+  2: "REFERRER VALIDATION",
+  3: "IP INTELLIGENCE",
+  4: "IP VELOCITY",
+  5: "SITE VELOCITY",
+  6: "DEVICE VELOCITY",
+  7: "CAMPAIGN VELOCITY",
+  8: "DEVICE ANALYSIS",
+  9: "TEMPORAL ANOMALY",
+};
+
+/** Convert a DB rule name like "UA Missing Or Empty" to snake_case data_key. */
+function toDataKey(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[\s/-]+/g, "_")
+    .replace(/[^a-z0-9_]/g, "");
+}
+
+function mapRuleRow(r: {
+  ruleId: string;
+  ruleName: string;
+  groupRuleId: string;
+  description: string;
+  isActive: boolean;
+}): SystemRule {
+  const gid = Number(r.groupRuleId);
+  return {
+    ruleId: Number(r.ruleId),
+    ruleName: r.ruleName,
+    dataKey: toDataKey(r.ruleName),
+    category: GROUP_RULE_CATEGORY[gid] ?? `Group ${gid}`,
+    description: r.description,
+    action: null,
+    isActive: r.isActive,
+    threshold: null,
+  };
+}
+
+export interface SystemRule {
+  ruleId: number;
+  ruleName: string;
+  dataKey: string;
+  category: string;
+  description: string;
+  action: string | null;
+  isActive: boolean;
+  threshold: number | null;
+}
+
+/** Returns all rules from config.rules. */
+export async function getSystemRules(
+  country: Country = "id",
+): Promise<SystemRule[]> {
+  const sql = `
+    SELECT
+      r.id            AS "ruleId",
+      r.name          AS "ruleName",
+      r.group_rule_id AS "groupRuleId",
+      r.description   AS "description",
+      r.is_active     AS "isActive"
+    FROM config.rules r
+    ORDER BY r.id ASC
+  `;
+  const rows = await query<{
+    ruleId: string;
+    ruleName: string;
+    groupRuleId: string;
+    description: string;
+    isActive: boolean;
+  }>(sql, [], country);
+  return rows.map(mapRuleRow);
+}
+
+/** Total rule count in config.rules. */
+export async function getSystemRuleCount(
+  country: Country = "id",
+): Promise<number> {
+  const row = await queryOne<{ count: string }>(
+    `SELECT COUNT(*) AS count FROM config.rules`,
+    [],
+    country,
+  );
+  return Number(row.count);
+}
+
+/**
+ * Count of rules by action type.
+ * NOTE: The actions bitmask in config.rules cannot be reliably decoded to
+ * BLOCK/WARNING without additional lookup tables. Returns 0.
+ */
+export async function getSystemRuleCountByAction(
+  _action: "BLOCK" | "WARNING",
+  _country: Country = "id",
+): Promise<number> {
+  return 0;
+}
+
+/** Count of rules for a given UI category label (maps to group_rules.name). */
+export async function getSystemRuleCountByCategory(
+  category: string,
+  country: Country = "id",
+): Promise<number> {
+  // Find the group_rule_id that matches this category label
+  const gid = Object.entries(GROUP_RULE_CATEGORY).find(
+    ([, label]) => label.toLowerCase() === category.toLowerCase(),
+  )?.[0];
+  if (!gid) return 0;
+  const row = await queryOne<{ count: string }>(
+    `SELECT COUNT(*) AS count FROM config.rules WHERE group_rule_id = $1`,
+    [Number(gid)],
+    country,
+  );
+  return Number(row.count);
+}
+
+/** Fetch a single rule by its DB name (case-insensitive). */
+export async function getSystemRuleByName(
+  name: string,
+  country: Country = "id",
+): Promise<SystemRule | null> {
+  const rows = await query<{
+    ruleId: string;
+    ruleName: string;
+    groupRuleId: string;
+    description: string;
+    isActive: boolean;
+  }>(
+    `SELECT id AS "ruleId", name AS "ruleName", group_rule_id AS "groupRuleId",
+            description, is_active AS "isActive"
+     FROM config.rules
+     WHERE LOWER(name) = LOWER($1)
+     LIMIT 1`,
+    [name],
+    country,
+  );
+  if (rows.length === 0) return null;
+  return mapRuleRow(rows[0]);
+}
+
+/** Fetch a single rule by its derived data_key (snake_case of name). */
+export async function getSystemRuleByDataKey(
+  dataKey: string,
+  country: Country = "id",
+): Promise<SystemRule | null> {
+  // data_key is derived as snake_case of the rule name
+  const rows = await query<{
+    ruleId: string;
+    ruleName: string;
+    groupRuleId: string;
+    description: string;
+    isActive: boolean;
+  }>(
+    `SELECT id AS "ruleId", name AS "ruleName", group_rule_id AS "groupRuleId",
+            description, is_active AS "isActive"
+     FROM config.rules
+     ORDER BY id ASC`,
+    [],
+    country,
+  );
+  const match = rows.find((r) => toDataKey(r.ruleName) === dataKey);
+  if (!match) return null;
+  return mapRuleRow(match);
 }
