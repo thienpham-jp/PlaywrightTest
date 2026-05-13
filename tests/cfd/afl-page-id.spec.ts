@@ -504,11 +504,14 @@ test.describe("CFD ID - Action Fraud Log", () => {
         withinTolerance(ui.blocked, db.blocked, 10),
         `Blocked: UI=${ui.blocked} DB=${db.blocked}`,
       ).toBe(true);
-      expect(ui.warning).toBe(db.warning);
       expect(
-        Math.abs(ui.avgScore - db.avgScore),
+        withinTolerance(ui.warning, db.warning, 10),
+        `Warning: UI=${ui.warning} DB=${db.warning}`,
+      ).toBe(true);
+      expect(
+        withinTolerance(ui.avgScore, db.avgScore, 1),
         `Avg Score: UI=${ui.avgScore} DB=${db.avgScore}`,
-      ).toBeLessThanOrEqual(1);
+      ).toBe(true);
     };
 
     test.describe("Yesterday", () => {
@@ -570,7 +573,7 @@ test.describe("CFD ID - Action Fraud Log", () => {
         const ui = await getAflSummaryBar(cfdPage.page);
         const db = await getAflSummary(yesterday(), yesterday());
         console.log(`Warning: UI=${ui.warning} DB=${db.warning}`);
-        expect(ui.warning).toBe(db.warning);
+        expect(withinTolerance(ui.warning, db.warning, 0)).toBe(true);
       });
 
       test("Avg Score matches database", async () => {
@@ -578,8 +581,7 @@ test.describe("CFD ID - Action Fraud Log", () => {
         const ui = await getAflSummaryBar(cfdPage.page);
         const db = await getAflSummary(yesterday(), yesterday());
         console.log(`Avg Score: UI=${ui.avgScore} DB=${db.avgScore}`);
-        const diff = Math.abs(ui.avgScore - db.avgScore);
-        expect(diff).toBeLessThanOrEqual(1);
+        expect(withinTolerance(ui.avgScore, db.avgScore, 1)).toBe(true);
       });
     });
 

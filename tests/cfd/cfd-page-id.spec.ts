@@ -1204,33 +1204,58 @@ test.describe("CFD ID Tests", () => {
 
       /** Read KPIs, rows, total count, and last page button from the detail iframe. */
       const getDetailData = async () => {
-        const waitForTable = () =>
-          cfdPage.page.waitForFunction(
-            () => {
-              const iframes = Array.from(document.querySelectorAll("iframe"));
-              for (const f of iframes) {
-                const doc = (f as HTMLIFrameElement).contentDocument;
-                if (doc && doc.querySelector("table.log-table")) return true;
+        // Streamlit may trigger a re-render/reload that invalidates the JS
+        // execution context. Retry up to 3 times, waiting for networkidle
+        // between each attempt.
+        const waitForTable = async () => {
+          const maxAttempts = 5;
+          for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            try {
+              await cfdPage.page.waitForFunction(
+                () => {
+                  const iframes = Array.from(
+                    document.querySelectorAll("iframe"),
+                  );
+                  for (const f of iframes) {
+                    const doc = (f as HTMLIFrameElement).contentDocument;
+                    if (doc && doc.querySelector("table.log-table"))
+                      return true;
+                  }
+                  return false;
+                },
+                { timeout: 15000 },
+              );
+              return;
+            } catch (e) {
+              const msg = (e as Error).message ?? "";
+              if (
+                (msg.includes("closed") || msg.includes("destroyed")) &&
+                attempt < maxAttempts - 1
+              ) {
+                // Streamlit may be mid-reload; wait for the page to settle
+                // before retrying. waitForLoadState can also throw if the
+                // context is still transitioning, so guard it too.
+                try {
+                  await cfdPage.page.waitForLoadState("networkidle", {
+                    timeout: 20000,
+                  });
+                } catch {
+                  // ignore — the next waitForFunction attempt will reveal
+                  // whether the page has recovered
+                }
+                // Additional fixed delay so Streamlit fully stabilises
+                // before the next waitForFunction call. Using setTimeout
+                // avoids depending on the page object which may still be
+                // closing/recreating.
+                await new Promise((resolve) => setTimeout(resolve, 3000));
+              } else {
+                throw e;
               }
-              return false;
-            },
-            { timeout: 15000 },
-          );
-
-        try {
-          await waitForTable();
-        } catch (e) {
-          // Streamlit may trigger a re-render/reload between beforeEach and the
-          // test body, invalidating the JS execution context. Recover by waiting
-          // for the page to settle and then retrying.
-          const msg = (e as Error).message ?? "";
-          if (msg.includes("closed") || msg.includes("destroyed")) {
-            await cfdPage.page.waitForLoadState("networkidle");
-            await waitForTable();
-          } else {
-            throw e;
+            }
           }
-        }
+        };
+
+        await waitForTable();
 
         return cfdPage.page.evaluate(() => {
           const iframes = Array.from(document.querySelectorAll("iframe"));
