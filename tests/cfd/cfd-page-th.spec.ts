@@ -57,7 +57,8 @@ test.describe("CFD TH Tests", () => {
       "Nov",
       "Dec",
     ];
-    const formatted = `${monthNames[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+    const day = String(d.getDate()).padStart(2, "0");
+    const formatted = `${monthNames[d.getMonth()]} ${day}, ${d.getFullYear()}`;
 
     await expect(heading).toBeVisible();
     await expect(
