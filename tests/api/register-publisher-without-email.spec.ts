@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, APIResponse } from "@playwright/test";
 
 const API_URL =
   "https://gurkha-staging.accesstrade.vn/v2/publishers/register-without-email";
@@ -9,6 +9,12 @@ const getAuthHeaders = () => ({
 });
 
 const uniqueSuffix = () => Date.now();
+
+const logResponse = async (res: APIResponse) => {
+  const body = await res.json();
+  console.log(`[${res.status()}]`, JSON.stringify(body, null, 2));
+  return body;
+};
 
 const validPayload = () => ({
   loginName: `testuser_${uniqueSuffix()}`,
@@ -32,37 +38,45 @@ test.describe("Internal Publisher Registration Without Email API V2 Specificatio
     request,
   }) => {
     const payload = { ...validPayload(), loginName: null };
-    const res = await request.post(API_URL, { data: payload,
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
     });
     expect(res.status()).toBe(400);
-    const body = await res.json();
+    const body = await logResponse(res);
     expect(JSON.stringify(body)).toMatch(/loginName|login_name/i);
   });
 
   test("TC02 - Verify exception when password is null", async ({ request }) => {
     const payload = { ...validPayload(), password: null };
-    const res = await request.post(API_URL, { data: payload,
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
     });
     expect(res.status()).toBe(400);
-    const body = await res.json();
+    const body = await logResponse(res);
     expect(JSON.stringify(body)).toMatch(/password/i);
   });
 
   test("TC03 - Verify exception when siteName is null", async ({ request }) => {
     const payload = { ...validPayload(), siteName: null };
-    const res = await request.post(API_URL, { data: payload,
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
     });
     expect(res.status()).toBe(400);
-    const body = await res.json();
+    const body = await logResponse(res);
     expect(JSON.stringify(body)).toMatch(/siteName|site_name/i);
   });
 
   test("TC04 - Verify exception when siteUrl is null", async ({ request }) => {
     const payload = { ...validPayload(), siteUrl: null };
-    const res = await request.post(API_URL, { data: payload,
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
     });
     expect(res.status()).toBe(400);
-    const body = await res.json();
+    const body = await logResponse(res);
     expect(JSON.stringify(body)).toMatch(/siteUrl|site_url/i);
   });
 
@@ -70,10 +84,12 @@ test.describe("Internal Publisher Registration Without Email API V2 Specificatio
     request,
   }) => {
     const payload = { ...validPayload(), accountType: null };
-    const res = await request.post(API_URL, { data: payload,
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
     });
     expect(res.status()).toBe(400);
-    const body = await res.json();
+    const body = await logResponse(res);
     expect(JSON.stringify(body)).toMatch(/accountType|account_type/i);
   });
 
@@ -81,10 +97,12 @@ test.describe("Internal Publisher Registration Without Email API V2 Specificatio
     request,
   }) => {
     const payload = validPayload();
-    await request.post(API_URL, { data: payload });
-    const res = await request.post(API_URL, { data: { ...validPayload(), siteUrl: payload.siteUrl },
+    await request.post(API_URL, { headers: getAuthHeaders(), data: payload });
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: { ...validPayload(), siteUrl: payload.siteUrl },
     });
-    const body = await res.json();
+    const body = await logResponse(res);
     expect(JSON.stringify(body)).toMatch(
       /duplicate|already.*exist|siteUrl|site_url/i,
     );
@@ -94,10 +112,12 @@ test.describe("Internal Publisher Registration Without Email API V2 Specificatio
     request,
   }) => {
     const payload = validPayload();
-    await request.post(API_URL, { data: payload });
-    const res = await request.post(API_URL, { data: { ...validPayload(), loginName: payload.loginName },
+    await request.post(API_URL, { headers: getAuthHeaders(), data: payload });
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: { ...validPayload(), loginName: payload.loginName },
     });
-    const body = await res.json();
+    const body = await logResponse(res);
     expect(JSON.stringify(body)).toMatch(
       /duplicate|already.*exist|loginName|login_name/i,
     );
@@ -106,10 +126,9 @@ test.describe("Internal Publisher Registration Without Email API V2 Specificatio
   test("TC08 - Verify successful registration without email", async ({
     request,
   }) => {
-    const res = await request.post(API_URL, { data: validPayload(),
-    });
+    const res = await request.post(API_URL, { data: validPayload() });
     expect(res.status()).toBe(200);
-    const body = await res.json();
+    const body = await logResponse(res);
     expect(body).toHaveProperty("statusCode", 200);
   });
 
@@ -121,10 +140,12 @@ test.describe("Internal Publisher Registration Without Email API V2 Specificatio
       email: `testuser_${uniqueSuffix()}@example.com`,
       phoneNumber: "08123456789",
     };
-    const res = await request.post(API_URL, { data: payload,
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
     });
     expect(res.status()).toBe(200);
-    const body = await res.json();
+    const body = await logResponse(res);
     expect(body).toHaveProperty("statusCode", 200);
   });
 
@@ -132,11 +153,15 @@ test.describe("Internal Publisher Registration Without Email API V2 Specificatio
     request,
   }) => {
     const email = `testdup_${uniqueSuffix()}@example.com`;
-    await request.post(API_URL, { data: { ...validPayload(), email },
+    await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: { ...validPayload(), email },
     });
-    const res = await request.post(API_URL, { data: { ...validPayload(), email },
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: { ...validPayload(), email },
     });
-    const body = await res.json();
+    const body = await logResponse(res);
     expect(JSON.stringify(body)).toMatch(/duplicate|already.*exist|email/i);
   });
 
@@ -144,10 +169,12 @@ test.describe("Internal Publisher Registration Without Email API V2 Specificatio
     request,
   }) => {
     const payload = { ...validPayload(), loginName: "ab" };
-    const res = await request.post(API_URL, { data: payload,
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
     });
     expect(res.status()).toBe(400);
-    const body = await res.json();
+    const body = await logResponse(res);
     expect(JSON.stringify(body)).toMatch(
       /loginName|login_name|min.*length|too.*short/i,
     );
@@ -378,4 +405,3 @@ Unauthorized external access is rejected
 
 
 */
-
