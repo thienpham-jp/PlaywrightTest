@@ -63,7 +63,7 @@ export function randomBoolean(): boolean {
   return cryptoRandomInt(0, 2) === 1;
 }
 
-export function randomEmail(domain: string = "example.com"): string {
+export function randomEmail(domain: string = "yopmail.com"): string {
   const localPart = randomString(8).toLowerCase();
   return `${localPart}@${domain}`;
 }

@@ -18,5 +18,21 @@
   "secretKey": {
     "user": "llt5mq1tpa05vap4ta91aqaaaalx9440",
     "key": "511ec2zzzzbz0ezs1jz40czjs0bxls22"
+  },
+  "cfdUser": {
+    "username": "cfd_admin",
+    "password": "CFD-Dash#2026!secure"
+  },
+  "cfd-db": {
+    "host": "172.31.80.162",
+    "port": 31721,
+    "user": "cfd_user_id",
+    "password": "CFD@12345678"
+  },
+  "cfd-id-db": {
+    "database": "cfd-id"
+  },
+  "cfd-th-db": {
+    "database": "cfd-th"
   }
 }
