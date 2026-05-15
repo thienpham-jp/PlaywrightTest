@@ -27,7 +27,6 @@ const logResponse = async (res: APIResponse) => {
 const FRESH_PUBLISHER_ID_1 = 6820267;
 const FRESH_PUBLISHER_ID_2 = 6820263;
 const LINKED_PUBLISHER_ID = 6820269;
-const HUSSAR_MISSING_PUBLISHER_ID = 0;
 const EXISTING_EMAIL = "nguyenvana3@example.com";
 
 const validPayload = () => ({
@@ -36,11 +35,12 @@ const validPayload = () => ({
   publisherId: FRESH_PUBLISHER_ID_1,
 });
 
-test.describe("Internal Publisher Update Email API V2", () => {
+test.describe("Publisher Update Email API V2", () => {
   test.describe.configure({ mode: "parallel" });
 
+  // TODO: Change message errors
   test("TC01 - Verify email is null or empty", async ({ request }) => {
-    const payload = { ...validPayload(), email: "" };
+    const payload = { ...validPayload(), email: null };
     const res = await request.post(API_URL, {
       headers: getAuthHeaders(),
       data: payload,
@@ -100,6 +100,7 @@ test.describe("Internal Publisher Update Email API V2", () => {
     expect(JSON.stringify(body)).toMatch(/Account already has an email/i);
   });
 
+  // ! Verify status code and response body
   test("TC06 - Verify successful case - only change email", async ({
     request,
   }) => {
@@ -113,6 +114,7 @@ test.describe("Internal Publisher Update Email API V2", () => {
     expect(text.trim()).toBe("");
   });
 
+  // TODO: Change message errors
   test("TC07 - Verify invalid email regex format", async ({ request }) => {
     const payload = { ...validPayload(), email: "not-a-valid-email" };
     const res = await request.post(API_URL, {
@@ -124,6 +126,7 @@ test.describe("Internal Publisher Update Email API V2", () => {
     expect(JSON.stringify(body)).toMatch(/Invalid Email format/i);
   });
 
+  // ! Verify status code and response body
   test("TC08 - Verify success with email and phoneNumber", async ({
     request,
   }) => {
@@ -144,7 +147,7 @@ test.describe("Internal Publisher Update Email API V2", () => {
   }) => {
     const payload = {
       ...validPayload(),
-      publisherId: HUSSAR_MISSING_PUBLISHER_ID,
+      publisherId: -1,
     };
     const res = await request.post(API_URL, {
       headers: getAuthHeaders(),
