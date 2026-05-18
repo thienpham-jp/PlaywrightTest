@@ -41,6 +41,14 @@ export function randomString(length: number): string {
   return result;
 }
 
+export function randomSentence(wordCount: number = 5): string {
+  const words = [];
+  for (let i = 0; i < wordCount; i++) {
+    words.push(randomString(randomInt(3, 10)));
+  }
+  return words.join(" ");
+}
+
 /** Số nguyên ngẫu nhiên trong [min, max] (inclusive) */
 export function randomInt(min: number, max: number): number {
   return cryptoRandomInt(min, max + 1);

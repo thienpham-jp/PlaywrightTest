@@ -7,7 +7,7 @@ import {
 } from "../../src/helpers/function-helper";
 import { urlStagingAPI } from "../../src/helpers/base-url-helper";
 
-const baseURL = urlStagingAPI("ID");
+const baseURL = urlStagingAPI("VN");
 
 const API_URL = `${baseURL}/v2/publishers/register-without-email`;
 
