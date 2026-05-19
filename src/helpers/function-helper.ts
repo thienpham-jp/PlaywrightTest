@@ -89,6 +89,12 @@ export function randomDate(
 ): Date {
   const startMs = start.getTime();
   const endMs = end.getTime();
+  if (startMs > endMs) {
+    throw new RangeError(
+      `randomDate: start (${start.toISOString()}) must be before or equal to end (${end.toISOString()})`,
+    );
+  }
+  if (startMs === endMs) return new Date(startMs);
   return new Date(cryptoRandomInt(startMs, endMs + 1));
 }
 
@@ -190,6 +196,20 @@ export function randomURL(): string {
     randomArrayElement(["com", "net", "org", "io", "dev"]);
 
   return `https://${domain}`;
+}
+
+/** Tạo chuỗi base64 ảnh ngẫu nhiên theo format: "<mimeType>,<base64>"
+ *  Tương đương Java: mimeType + "," + Base64.getEncoder().encodeToString(bytes)
+ */
+export function randomImageBase64(
+  mimeType: string = "image/png",
+  sizeBytes: number = 64,
+): string {
+  const bytes = new Uint8Array(sizeBytes);
+  for (let i = 0; i < sizeBytes; i++) {
+    bytes[i] = cryptoRandomInt(0, 256);
+  }
+  return `${mimeType},${Buffer.from(bytes).toString("base64")}`;
 }
 
 export function randomCapcha(): string {

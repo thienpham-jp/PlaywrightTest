@@ -43,25 +43,46 @@ const logResponse = async (res: APIResponse) => {
   return body;
 };
 
-// inputMode=0: resultId random 0–50, customerTypeName random string
-let validPayloadMode0 = () => ({
+// resultIdGroup format: "{resultId}-{resultName}-{rewardType}" — sourced from RESULT_TARGET_MASTER table
+// Entries with rewardType 0–2 (no rewardTypeCPA required)
+const VALID_RESULT_GROUPS = [
+  "0-Click-0",
+  "1-Fixed-1",
+  "2-Sales-2",
+  "4-Pay per call-1",
+];
+// Entries with rewardType=9 (rewardTypeCPA required)
+const REWARD_TYPE_9_GROUPS = [
+  "3-Individual purchase product-9",
+  "5-Apply credit card-9",
+  "6-Issue credit card-9",
+  "7-Apply cashing-9",
+  "8-Sign cashing-9",
+  "9-Apply loan-9",
+];
+const randomResultIdGroup = () =>
+  VALID_RESULT_GROUPS[randomInt(0, VALID_RESULT_GROUPS.length - 1)];
+const randomRewardType9Group = () =>
+  REWARD_TYPE_9_GROUPS[randomInt(0, REWARD_TYPE_9_GROUPS.length - 1)];
+
+// inputMode=0: resultIdGroup required, format "{resultId}-{resultName}-{rewardType}", resultId 0–50
+const validPayloadMode0 = () => ({
   inputMode: 0,
-  resultIdGroup: null,
-  resultId: `${randomInt(0, 50)}`,
-  customerType: "new",
+  resultIdGroup: randomResultIdGroup(),
+  customerType: randomString(3).toLowerCase(),
   customerTypeName: randomString(8),
 });
 
-// inputMode=1: resultId random 100–9999, rewardType random 0–2
-let validPayloadMode1 = () => ({
+// inputMode=1: custom resultId > 99, rewardType 0–2
+const validPayloadMode1 = () => ({
   inputMode: 1,
   resultIdGroup: null,
   resultId: `${randomInt(100, 9999)}`,
   resultName: "Fixed Sale",
   rewardType: randomInt(0, 2),
   rewardTypeCPA: null,
-  customerType: "new",
-  customerTypeName: "New Customer",
+  customerType: randomString(3).toLowerCase(),
+  customerTypeName: randomString(8),
 });
 
 const validPayload = validPayloadMode1;
@@ -91,7 +112,8 @@ test.describe("Create Result Target Settings API", () => {
 | TC16   | Verify inputMode=1 with null rewardType                           | Return `400` with required field validation error                                      | N/A                                      | ☐ Pending    |
 | TC17   | Verify customerTypeName is required when customerType is provided | Return `400` with message `"customerTypeName is required when customerType is set"`    | N/A                                      | ☐ Pending    |
 | TC18   | Verify customerType is stored in lowercase                        | Return `200`; DB stores lowercase value                                                | DB stores `"new"` correctly              | ☐ Pending    |
-| TC19   | Verify duplicate base setting prevention                          | Return `409` with duplicate setting error                                              | N/A                                      | ☐ Pending    |
+| TC19   | Verify duplicate — (campaignId, resultId, empty customerType) already exists                          | Return `409` with duplicate setting error                                              | N/A                                      | ☐ Pending    |
+| TC19.1 | Verify duplicate base setting prevention returns 409 | Return `409` with error indicating duplicate or empty customer type                     | N/A                                      | ✅ Done       |
 | TC20   | Verify successful insertion with inputMode=1                      | Return `200`; record inserted with `INPUT_TYPE=1`                                      | DB stores correct values                 | ☐ Pending    |
 | TC21   | Verify successful insertion with inputMode=0                      | Return `200`; record inserted with `INPUT_TYPE=0`                                      | `repeatFlag=false`                       | ☐ Pending    |
 | TC22   | Verify Result Target Masters search API                           | Return valid master list from `RESULT_TARGET_MASTER` table                             | N/A                                      | ☐ Suggestion |
@@ -204,7 +226,7 @@ test.describe("Create Result Target Settings API", () => {
     const payload = {
       ...validPayload(),
       inputMode: 0,
-      resultIdGroup: "999-9999", // valid format, non-existing entry
+      resultIdGroup: "999-NonExisting-9", // valid format, non-existing entry in master list
     };
     const res = await request.post(
       getApiUrl(
@@ -225,7 +247,7 @@ test.describe("Create Result Target Settings API", () => {
     const payload = {
       ...validPayload(),
       inputMode: 0,
-      resultIdGroup: null, // TODO: replace with a valid group whose master rewardType=9
+      resultIdGroup: randomRewardType9Group(),
       rewardTypeCPA: null,
     };
     const res = await request.post(getApiUrl(randomCampaignId()), {
@@ -244,7 +266,7 @@ test.describe("Create Result Target Settings API", () => {
     const payload = {
       ...validPayload(),
       inputMode: 0,
-      resultIdGroup: "901-9001", // TODO: replace with a valid group whose master rewardType=9
+      resultIdGroup: randomRewardType9Group(),
       rewardTypeCPA: 1,
     };
     const res = await request.post(getApiUrl(randomCampaignId()), {
@@ -263,7 +285,7 @@ test.describe("Create Result Target Settings API", () => {
     const payload = {
       ...validPayload(),
       inputMode: 0,
-      resultIdGroup: "901-9001", // TODO: replace with a valid group whose master rewardType=9
+      resultIdGroup: randomRewardType9Group(),
       rewardTypeCPA: 2,
     };
     const res = await request.post(getApiUrl(randomCampaignId()), {
@@ -282,7 +304,7 @@ test.describe("Create Result Target Settings API", () => {
     const payload = {
       ...validPayload(),
       inputMode: 0,
-      resultIdGroup: "100-1001", // TODO: replace with a real group that exists in master list
+      resultIdGroup: randomResultIdGroup(),
       rewardTypeCPA: null,
     };
     const res = await request.post(getApiUrl(randomCampaignId()), {
@@ -426,7 +448,29 @@ test.describe("Create Result Target Settings API", () => {
   });
 
   // ─── TC19 ───────────────────────────────────────────────────────────────────
-  test("TC19 - Verify duplicate base setting prevention returns 409", async ({
+  test("TC19 - Verify duplicate — (campaignId, resultId, empty customerType) already exists", async ({
+    request,
+  }) => {
+    // First insertion
+    const campaignId = 3746;
+    const payload = {
+      inputMode: 1,
+      resultId: "1027",
+      resultName: "Fixed Sale",
+      rewardType: 2,
+    };
+    const res = await request.post(getApiUrl(campaignId), {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(409);
+    expect(JSON.stringify(body)).toMatch(
+      /target already|(empty customer type)/i,
+    );
+  });
+
+  test("TC19.1 - Verify duplicate base setting prevention returns 409", async ({
     request,
   }) => {
     // First insertion
@@ -443,7 +487,7 @@ test.describe("Create Result Target Settings API", () => {
     });
     const body = await logResponse(res);
     expect(res.status()).toBe(409);
-    expect(JSON.stringify(body)).toMatch(/duplicate|already exist/i);
+    expect(JSON.stringify(body)).toMatch(/already exist/i);
   });
 
   // ─── TC20 ───────────────────────────────────────────────────────────────────
@@ -469,10 +513,7 @@ test.describe("Create Result Target Settings API", () => {
   test("TC21 - Verify successful insertion with inputMode=0 returns 200", async ({
     request,
   }) => {
-    const payload = {
-      ...validPayloadMode0(),
-      resultIdGroup: 100, // TODO: replace with a valid group whose master rewardType=9
-    };
+    const payload = validPayloadMode0(); // resultIdGroup picked randomly from VALID_RESULT_GROUPS
     const res = await request.post(getApiUrl(randomCampaignId()), {
       headers: getAuthHeaders(),
       data: payload,
@@ -486,7 +527,7 @@ test.describe("Create Result Target Settings API", () => {
   test.skip("TC22 - Verify Result Target Masters search API returns master list", async ({
     request,
   }) => {
-    const masterListUrl = `${baseURL}/v1/staff/campaigns/${randomCampaignId()}/result-target-masters`;
+    const masterListUrl = `${baseURL}/v1/staff/campaigns/result-target-master`;
     const res = await request.get(masterListUrl, { headers: getAuthHeaders() });
     const body = await logResponse(res);
     expect(res.status()).toBe(200);
@@ -552,7 +593,7 @@ test.describe("Create Result Target Settings API", () => {
       const payload = {
         ...validPayload(),
         inputMode: 0,
-        resultIdGroup: "901-9001", // group with master rewardType=9
+        resultIdGroup: randomRewardType9Group(),
         rewardTypeCPA: invalidValue,
       };
       const res = await request.post(getApiUrl(randomCampaignId()), {
@@ -562,23 +603,6 @@ test.describe("Create Result Target Settings API", () => {
       const body = await logResponse(res);
       expect(res.status()).toBe(400);
       expect(JSON.stringify(body)).toMatch(/rewardTypeCPA/i);
-    }
-  });
-
-  // ─── TC26 (Suggestion) ──────────────────────────────────────────────────────
-  test.skip("TC26 - Verify staff with data_access:all_countries can access campaigns from any country", async ({
-    request,
-  }) => {
-    // Use campaign IDs from different countries (e.g., TH, SG) and verify no 404 Access Denied
-    const crossCountryCampaignIds = [...VALID_CAMPAIGN_IDS]; // TODO: add campaign IDs from other countries
-    for (const campaignId of crossCountryCampaignIds) {
-      const res = await request.post(getApiUrl(campaignId), {
-        headers: getAuthHeaders(),
-        data: validPayload(),
-      });
-      const body = await logResponse(res);
-      expect(res.status()).not.toBe(404);
-      expect(JSON.stringify(body)).not.toMatch(/Access Denied/i);
     }
   });
 });
