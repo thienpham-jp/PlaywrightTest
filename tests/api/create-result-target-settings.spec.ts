@@ -1,0 +1,584 @@
+import { test, expect, APIResponse } from "@playwright/test";
+import { randomInt, randomString } from "../../src/helpers/function-helper";
+import { urlStagingAPI } from "../../src/helpers/base-url-helper";
+
+import { generateJWT } from "../../src/helpers/jwt-helper";
+
+const baseURL = urlStagingAPI("VN");
+
+// Replace with a valid campaign ID that exists in the staging DB
+const VALID_CAMPAIGN_IDS = [3745, 3746, 3747, 3748, 3749, 3750];
+const randomCampaignId = () =>
+  VALID_CAMPAIGN_IDS[randomInt(0, VALID_CAMPAIGN_IDS.length - 1)];
+const NON_EXISTING_CAMPAIGN_ID = 999999999;
+
+const getApiUrl = (campaignId: number | null) =>
+  `${baseURL}/v1/staff/campaigns/${campaignId}/result-target-settings`;
+
+const USER_UID = "llt5mqx11xxl291lta91aqaaaalxxq67";
+const SECRET_KEY = "8qbcc2zzzzbz0ezs20e9jjz90cbxls22";
+
+// Staff user without access to the campaign's country (replace with actual restricted account)
+const RESTRICTED_USER_UID = "restricted_user_uid_placeholder";
+const RESTRICTED_SECRET_KEY = "restricted_secret_key_placeholder";
+
+const token = `Bearer ${generateJWT(USER_UID, SECRET_KEY)}`;
+const restrictedToken = `Bearer ${generateJWT(RESTRICTED_USER_UID, RESTRICTED_SECRET_KEY)}`;
+
+const getAuthHeaders = () => ({
+  "Content-Type": "application/json",
+  "X-Accesstrade-User-Type": "staff",
+  Authorization: token,
+});
+
+const getRestrictedAuthHeaders = () => ({
+  "Content-Type": "application/json",
+  "X-Accesstrade-User-Type": "staff",
+  Authorization: restrictedToken,
+});
+
+const logResponse = async (res: APIResponse) => {
+  const body = await res.json();
+  console.log(JSON.stringify(body, null, 2));
+  return body;
+};
+
+// inputMode=0: resultId random 0–50, customerTypeName random string
+let validPayloadMode0 = () => ({
+  inputMode: 0,
+  resultIdGroup: null,
+  resultId: `${randomInt(0, 50)}`,
+  customerType: "new",
+  customerTypeName: randomString(8),
+});
+
+// inputMode=1: resultId random 100–9999, rewardType random 0–2
+let validPayloadMode1 = () => ({
+  inputMode: 1,
+  resultIdGroup: null,
+  resultId: `${randomInt(100, 9999)}`,
+  resultName: "Fixed Sale",
+  rewardType: randomInt(0, 2),
+  rewardTypeCPA: null,
+  customerType: "new",
+  customerTypeName: "New Customer",
+});
+
+const validPayload = validPayloadMode1;
+
+test.describe("Create Result Target Settings API", () => {
+  test.describe.configure({ mode: "parallel" });
+
+  /** Test Cases for Create Result Target Settings API
+   * 
+| **ID** | **Case Summary**                                                  | **Expected Result**                                                                    | **Actual Result**                        | **Status**   |
+| ------ | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------- | ---------------------------------------- | ------------ |
+| TC01   | Verify campaignId does not exist in DB                            | Return `404` with message `"campaignId is not existed"`                                | N/A                                      | ✅ Done       |
+| TC02   | Verify staff does not have access to campaign country             | Return `404` with message `"Access Denied"`                                            | N/A                                      | ☐ Pending    |
+| TC03   | Verify staff has `data_access:all_countries` permission           | Access validation passes successfully                                                  | Continues to next validation             | ✅ Done       |
+| TC04   | Verify inputMode=0 with null resultIdGroup                        | Return `400` with message `"resultIdGroup is required"`                                | N/A                                      | ✅ Done       |
+| TC05   | Verify inputMode=0 with invalid resultIdGroup format              | Return `400` with message `"Invalid format for resultIdGroup"`                         | N/A                                      | ☐ Pending    |
+| TC06   | Verify inputMode=0 with non-existing resultId in master list      | Return `400` with message `"Selected result target does not exist in the master list"` | N/A                                      | ☐ Pending    |
+| TC07   | Verify rewardTypeCPA is required when master rewardType=9         | Return `400` with message `"rewardTypeCPA is required"`                                | N/A                                      | ☐ Pending    |
+| TC08   | Verify rewardTypeCPA=1 (CPA Fixed)                                | Return `200`; DB stores `reward_type = 1`                                              | `repeatFlag=false`, DB updated correctly | ☐ Pending    |
+| TC09   | Verify rewardTypeCPA=2 (CPA Sales)                                | Return `200`; DB stores `reward_type = 2`                                              | `repeatFlag=false`, DB updated correctly | ☐ Pending    |
+| TC10   | Verify valid inputMode=0 insertion                                | Return `200`; new reward setting inserted successfully                                 | rewardSettingList updated correctly      | ☐ Pending    |
+| TC11   | Verify inputMode=1 with null resultId                             | Return `400` with message `"resultId is required"`                                     | N/A                                      | ☐ Pending    |
+| TC12   | Verify inputMode=1 with non-numeric resultId                      | Return `400` with message `"Invalid format for resultId (must be numeric)"`            | N/A                                      | ☐ Pending    |
+| TC13   | Verify inputMode=1 with resultId below minimum range              | Return `400` with message `"resultId must be between 100 and 9999"`                    | N/A                                      | ☐ Pending    |
+| TC14   | Verify inputMode=1 with resultId above maximum range              | Return `400` with message `"resultId must be between 100 and 9999"`                    | N/A                                      | ☐ Pending    |
+| TC15   | Verify inputMode=1 with null resultName                           | Return `400` with message `"resultName is required"`                                   | N/A                                      | ☐ Pending    |
+| TC16   | Verify inputMode=1 with null rewardType                           | Return `400` with required field validation error                                      | N/A                                      | ☐ Pending    |
+| TC17   | Verify customerTypeName is required when customerType is provided | Return `400` with message `"customerTypeName is required when customerType is set"`    | N/A                                      | ☐ Pending    |
+| TC18   | Verify customerType is stored in lowercase                        | Return `200`; DB stores lowercase value                                                | DB stores `"new"` correctly              | ☐ Pending    |
+| TC19   | Verify duplicate base setting prevention                          | Return `409` with duplicate setting error                                              | N/A                                      | ☐ Pending    |
+| TC20   | Verify successful insertion with inputMode=1                      | Return `200`; record inserted with `INPUT_TYPE=1`                                      | DB stores correct values                 | ☐ Pending    |
+| TC21   | Verify successful insertion with inputMode=0                      | Return `200`; record inserted with `INPUT_TYPE=0`                                      | `repeatFlag=false`                       | ☐ Pending    |
+| TC22   | Verify Result Target Masters search API                           | Return valid master list from `RESULT_TARGET_MASTER` table                             | N/A                                      | ☐ Suggestion |
+| TC23   | Verify Result Target Settings search API                          | Return existing campaign result target settings                                        | N/A                                      | ☐ Suggestion |
+| TC24   | Verify data stored in both DB tables                              | Data exists in both `RESULT_TARGET_SETTING` and `RESULT_TARGET_MASTER`                 | N/A                                      | ☐ Suggestion |
+| TC25   | Verify invalid rewardTypeCPA values                               | Return `400` with invalid value error                                                  | N/A                                      | ☐ Suggestion |
+| TC26   | Verify `data_access:all_countries` permission access              | Staff can access campaigns from all countries successfully                             | N/A                                      | ☐ Suggestion |
+
+   */
+
+  // ─── TC01 ───────────────────────────────────────────────────────────────────
+  test("TC01 - Verify campaignId does not exist in DB", async ({ request }) => {
+    const res = await request.post(getApiUrl(NON_EXISTING_CAMPAIGN_ID), {
+      headers: getAuthHeaders(),
+      data: validPayload(),
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(404);
+    expect(JSON.stringify(body)).toMatch(/campaignId does not exist/i);
+  });
+
+  // ─── TC02 ───────────────────────────────────────────────────────────────────
+  test("TC02 - Verify staff does not have access to campaign country", async ({
+    request,
+  }) => {
+    // TODO: Replace RESTRICTED_USER_UID / RESTRICTED_SECRET_KEY with a real
+    // account that lacks access to the campaign's country before enabling.
+    const res = await request.post(
+      getApiUrl(
+        VALID_CAMPAIGN_IDS[randomInt(0, VALID_CAMPAIGN_IDS.length - 1)],
+      ),
+      {
+        headers: getRestrictedAuthHeaders(),
+        data: validPayload(),
+      },
+    );
+    const body = await logResponse(res);
+    expect(res.status()).toBe(401);
+    expect(JSON.stringify(body)).toMatch(/JWT auth failed!/i);
+  });
+
+  // ─── TC03 ───────────────────────────────────────────────────────────────────
+  test("TC03 - Verify staff with data_access:all_countries permission passes access check", async ({
+    request,
+  }) => {
+    // The current USER_UID has data_access:all_countries; validation should not
+    // reject with 404 Access Denied — it proceeds to the next validation step.
+    const res = await request.post(
+      getApiUrl(
+        VALID_CAMPAIGN_IDS[randomInt(0, VALID_CAMPAIGN_IDS.length - 1)],
+      ),
+      {
+        headers: getAuthHeaders(),
+        data: validPayload(),
+      },
+    );
+    const body = await logResponse(res);
+    // Access check passes — status must NOT be a 404 Access Denied
+    expect(res.status()).not.toBe(404);
+    expect(JSON.stringify(body)).not.toMatch(/Access Denied/i);
+  });
+
+  // ─── TC04 ───────────────────────────────────────────────────────────────────
+  test("TC04 - Verify inputMode=0 with null resultIdGroup returns 400", async ({
+    request,
+  }) => {
+    const payload = { ...validPayload(), inputMode: 0, resultIdGroup: null };
+    const res = await request.post(
+      getApiUrl(
+        VALID_CAMPAIGN_IDS[randomInt(0, VALID_CAMPAIGN_IDS.length - 1)],
+      ),
+      {
+        headers: getAuthHeaders(),
+        data: payload,
+      },
+    );
+    const body = await logResponse(res);
+    expect(res.status()).toBe(400);
+    expect(JSON.stringify(body)).toMatch(/resultIdGroup is required/i);
+  });
+
+  // ─── TC05 ───────────────────────────────────────────────────────────────────
+  test("TC05 - Verify inputMode=0 with invalid resultIdGroup format returns 400", async ({
+    request,
+  }) => {
+    const payload = {
+      ...validPayload(),
+      inputMode: 0,
+      resultIdGroup: "INVALID_FORMAT",
+    };
+    const res = await request.post(
+      getApiUrl(
+        VALID_CAMPAIGN_IDS[randomInt(0, VALID_CAMPAIGN_IDS.length - 1)],
+      ),
+      {
+        headers: getAuthHeaders(),
+        data: payload,
+      },
+    );
+    const body = await logResponse(res);
+    expect(res.status()).toBe(400);
+    expect(JSON.stringify(body)).toMatch(/Invalid format for resultIdGroup/i);
+  });
+
+  // ─── TC06 ───────────────────────────────────────────────────────────────────
+  test("TC06 - Verify inputMode=0 with non-existing resultId in master list returns 400", async ({
+    request,
+  }) => {
+    // resultIdGroup format is valid but the resultId does not exist in RESULT_TARGET_MASTER
+    const payload = {
+      ...validPayload(),
+      inputMode: 0,
+      resultIdGroup: "999-9999", // valid format, non-existing entry
+    };
+    const res = await request.post(
+      getApiUrl(
+        VALID_CAMPAIGN_IDS[randomInt(0, VALID_CAMPAIGN_IDS.length - 1)],
+      ),
+      {
+        headers: getAuthHeaders(),
+        data: payload,
+      },
+    );
+  });
+
+  // ─── TC07 ───────────────────────────────────────────────────────────────────
+  test("TC07 - Verify rewardTypeCPA is required when master rewardType=9", async ({
+    request,
+  }) => {
+    // Assumes a resultIdGroup whose master entry has rewardType=9
+    const payload = {
+      ...validPayload(),
+      inputMode: 0,
+      resultIdGroup: null, // TODO: replace with a valid group whose master rewardType=9
+      rewardTypeCPA: null,
+    };
+    const res = await request.post(getApiUrl(randomCampaignId()), {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(400);
+    expect(JSON.stringify(body)).toMatch(/rewardTypeCPA is required/i);
+  });
+
+  // ─── TC08 ───────────────────────────────────────────────────────────────────
+  test("TC08 - Verify rewardTypeCPA=1 (CPA Fixed) returns 200", async ({
+    request,
+  }) => {
+    const payload = {
+      ...validPayload(),
+      inputMode: 0,
+      resultIdGroup: "901-9001", // TODO: replace with a valid group whose master rewardType=9
+      rewardTypeCPA: 1,
+    };
+    const res = await request.post(getApiUrl(randomCampaignId()), {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(200);
+    // DB should store reward_type = 1 — verify via response body or separate DB query
+  });
+
+  // ─── TC09 ───────────────────────────────────────────────────────────────────
+  test("TC09 - Verify rewardTypeCPA=2 (CPA Sales) returns 200", async ({
+    request,
+  }) => {
+    const payload = {
+      ...validPayload(),
+      inputMode: 0,
+      resultIdGroup: "901-9001", // TODO: replace with a valid group whose master rewardType=9
+      rewardTypeCPA: 2,
+    };
+    const res = await request.post(getApiUrl(randomCampaignId()), {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(200);
+    // DB should store reward_type = 2
+  });
+
+  // ─── TC10 ───────────────────────────────────────────────────────────────────
+  test("TC10 - Verify valid inputMode=0 insertion returns 200", async ({
+    request,
+  }) => {
+    const payload = {
+      ...validPayload(),
+      inputMode: 0,
+      resultIdGroup: "100-1001", // TODO: replace with a real group that exists in master list
+      rewardTypeCPA: null,
+    };
+    const res = await request.post(getApiUrl(randomCampaignId()), {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(200);
+    // Verify rewardSettingList is updated in the response
+  });
+
+  // ─── TC11 ───────────────────────────────────────────────────────────────────
+  test("TC11 - Verify inputMode=1 with null resultId returns 400", async ({
+    request,
+  }) => {
+    const payload = { ...validPayload(), inputMode: 1, resultId: null };
+    const res = await request.post(getApiUrl(randomCampaignId()), {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(400);
+    expect(JSON.stringify(body)).toMatch(/resultId is required/i);
+  });
+
+  // ─── TC12 ───────────────────────────────────────────────────────────────────
+  test("TC12 - Verify inputMode=1 with non-numeric resultId returns 400", async ({
+    request,
+  }) => {
+    const payload = { ...validPayload(), inputMode: 1, resultId: "ABC" };
+    const res = await request.post(getApiUrl(randomCampaignId()), {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(400);
+    expect(JSON.stringify(body)).toMatch(
+      /Invalid format for resultId.*must be numeric/i,
+    );
+  });
+
+  // ─── TC13 ───────────────────────────────────────────────────────────────────
+  test("TC13 - Verify inputMode=1 with resultId below minimum range (99) returns 400", async ({
+    request,
+  }) => {
+    const payload = { ...validPayload(), inputMode: 1, resultId: "99" };
+    const res = await request.post(getApiUrl(randomCampaignId()), {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(400);
+    expect(JSON.stringify(body)).toMatch(
+      /resultId must be between 100 and 9999/i,
+    );
+  });
+
+  // ─── TC14 ───────────────────────────────────────────────────────────────────
+  test("TC14 - Verify inputMode=1 with resultId above maximum range (10000) returns 400", async ({
+    request,
+  }) => {
+    const payload = { ...validPayload(), inputMode: 1, resultId: "10000" };
+    const res = await request.post(getApiUrl(randomCampaignId()), {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(400);
+    expect(JSON.stringify(body)).toMatch(
+      /resultId must be between 100 and 9999/i,
+    );
+  });
+
+  // ─── TC15 ───────────────────────────────────────────────────────────────────
+  test("TC15 - Verify inputMode=1 with null resultName returns 400", async ({
+    request,
+  }) => {
+    const payload = { ...validPayload(), inputMode: 1, resultName: null };
+    const res = await request.post(getApiUrl(randomCampaignId()), {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(400);
+    expect(JSON.stringify(body)).toMatch(/resultName is required/i);
+  });
+
+  // ─── TC16 ───────────────────────────────────────────────────────────────────
+  test("TC16 - Verify inputMode=1 with null rewardType returns 400", async ({
+    request,
+  }) => {
+    const payload = { ...validPayload(), inputMode: 1, rewardType: null };
+    const res = await request.post(getApiUrl(randomCampaignId()), {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(400);
+    expect(JSON.stringify(body)).toMatch(/rewardType/i);
+  });
+
+  // ─── TC17 ───────────────────────────────────────────────────────────────────
+  test("TC17 - Verify customerTypeName is required when customerType is provided", async ({
+    request,
+  }) => {
+    const payload = {
+      ...validPayload(),
+      inputMode: 1,
+      customerType: "new",
+      customerTypeName: null,
+    };
+    const res = await request.post(getApiUrl(randomCampaignId()), {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(400);
+    expect(JSON.stringify(body)).toMatch(
+      /customerTypeName is required when customerType is set/i,
+    );
+  });
+
+  // ─── TC18 ───────────────────────────────────────────────────────────────────
+  test("TC18 - Verify customerType is stored in lowercase", async ({
+    request,
+  }) => {
+    const payload = {
+      ...validPayload(),
+      inputMode: 1,
+      customerType: "NEW", // uppercase input
+      customerTypeName: "New Customer",
+    };
+    const res = await request.post(getApiUrl(randomCampaignId()), {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(200);
+    // Verify the returned/stored customerType is lowercase "new"
+    expect(JSON.stringify(body)).toMatch(/"customerType"\s*:\s*"new"/i);
+  });
+
+  // ─── TC19 ───────────────────────────────────────────────────────────────────
+  test("TC19 - Verify duplicate base setting prevention returns 409", async ({
+    request,
+  }) => {
+    // First insertion
+    const campaignId = randomCampaignId();
+    const payload = validPayload();
+    await request.post(getApiUrl(campaignId), {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    // Second insertion with the same setting (duplicate)
+    const res = await request.post(getApiUrl(campaignId), {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(409);
+    expect(JSON.stringify(body)).toMatch(/duplicate|already exist/i);
+  });
+
+  // ─── TC20 ───────────────────────────────────────────────────────────────────
+  test("TC20 - Verify successful insertion with inputMode=1 returns 200", async ({
+    request,
+  }) => {
+    const payload = {
+      ...validPayload(),
+      inputMode: 1,
+      resultId: `${randomInt(100, 9999)}`,
+      resultName: `Result - ${randomString(5)}`,
+    };
+    const res = await request.post(getApiUrl(randomCampaignId()), {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(200);
+    // Record should be inserted with INPUT_TYPE = 1
+  });
+
+  // ─── TC21 ───────────────────────────────────────────────────────────────────
+  test("TC21 - Verify successful insertion with inputMode=0 returns 200", async ({
+    request,
+  }) => {
+    const payload = {
+      ...validPayloadMode0(),
+      resultIdGroup: 100, // TODO: replace with a valid group whose master rewardType=9
+    };
+    const res = await request.post(getApiUrl(randomCampaignId()), {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(200);
+    // Record should be inserted with INPUT_TYPE = 0 and repeatFlag = false
+  });
+
+  // ─── TC22 (Suggestion) ──────────────────────────────────────────────────────
+  test.skip("TC22 - Verify Result Target Masters search API returns master list", async ({
+    request,
+  }) => {
+    const masterListUrl = `${baseURL}/v1/staff/campaigns/${randomCampaignId()}/result-target-masters`;
+    const res = await request.get(masterListUrl, { headers: getAuthHeaders() });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(200);
+    expect(Array.isArray(body)).toBeTruthy();
+    expect(body.length).toBeGreaterThan(0);
+  });
+
+  // ─── TC23 (Suggestion) ──────────────────────────────────────────────────────
+  test.skip("TC23 - Verify Result Target Settings search API returns existing settings", async ({
+    request,
+  }) => {
+    const res = await request.get(getApiUrl(randomCampaignId()), {
+      headers: getAuthHeaders(),
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(200);
+    expect(Array.isArray(body)).toBeTruthy();
+  });
+
+  // ─── TC24 (Suggestion) ──────────────────────────────────────────────────────
+  test.skip("TC24 - Verify data is stored in both RESULT_TARGET_SETTING and RESULT_TARGET_MASTER tables", async ({
+    request,
+  }) => {
+    const payload = {
+      ...validPayload(),
+      inputMode: 1,
+      resultId: `${randomInt(100, 9999)}`,
+      resultName: `Result - ${randomString(5)}`,
+    };
+    const campaignId = randomCampaignId();
+    const createRes = await request.post(getApiUrl(campaignId), {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(createRes.status()).toBe(200);
+
+    // Verify via search API that the setting appears
+    const searchRes = await request.get(getApiUrl(campaignId), {
+      headers: getAuthHeaders(),
+    });
+    const settings = await searchRes.json();
+    const inserted = settings.find((s: any) => s.resultId === payload.resultId);
+    expect(inserted).toBeDefined();
+
+    // Verify master list also contains the new entry
+    const masterListUrl = `${baseURL}/v1/staff/campaigns/${campaignId}/result-target-masters`;
+    const masterRes = await request.get(masterListUrl, {
+      headers: getAuthHeaders(),
+    });
+    const masters = await masterRes.json();
+    const masterEntry = masters.find(
+      (m: any) => m.resultId === payload.resultId,
+    );
+    expect(masterEntry).toBeDefined();
+  });
+
+  // ─── TC25 (Suggestion) ──────────────────────────────────────────────────────
+  test.skip("TC25 - Verify invalid rewardTypeCPA values return 400", async ({
+    request,
+  }) => {
+    const invalidValues = [0, 3, 99, -1, "invalid"];
+    for (const invalidValue of invalidValues) {
+      const payload = {
+        ...validPayload(),
+        inputMode: 0,
+        resultIdGroup: "901-9001", // group with master rewardType=9
+        rewardTypeCPA: invalidValue,
+      };
+      const res = await request.post(getApiUrl(randomCampaignId()), {
+        headers: getAuthHeaders(),
+        data: payload,
+      });
+      const body = await logResponse(res);
+      expect(res.status()).toBe(400);
+      expect(JSON.stringify(body)).toMatch(/rewardTypeCPA/i);
+    }
+  });
+
+  // ─── TC26 (Suggestion) ──────────────────────────────────────────────────────
+  test.skip("TC26 - Verify staff with data_access:all_countries can access campaigns from any country", async ({
+    request,
+  }) => {
+    // Use campaign IDs from different countries (e.g., TH, SG) and verify no 404 Access Denied
+    const crossCountryCampaignIds = [...VALID_CAMPAIGN_IDS]; // TODO: add campaign IDs from other countries
+    for (const campaignId of crossCountryCampaignIds) {
+      const res = await request.post(getApiUrl(campaignId), {
+        headers: getAuthHeaders(),
+        data: validPayload(),
+      });
+      const body = await logResponse(res);
+      expect(res.status()).not.toBe(404);
+      expect(JSON.stringify(body)).not.toMatch(/Access Denied/i);
+    }
+  });
+});

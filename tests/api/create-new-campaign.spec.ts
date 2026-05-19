@@ -1,6 +1,7 @@
 import { test, expect, APIResponse } from "@playwright/test";
 import {
   randomDateString,
+  randomImageBase64,
   randomInt,
   randomSentence,
   randomString,
@@ -39,7 +40,57 @@ const sDate = randomDateString(
   "ISO",
 );
 
-const eDate = randomDateString(new Date(), new Date(2026, 9, 30), "ISO");
+const eDate = randomDateString(
+  new Date(),
+  new Date(Date.now() + 120 * 24 * 60 * 60 * 1000),
+  "ISO",
+);
+
+const basicPayload = () => ({
+  insertCampaignDetails: {
+    merchantId: randomInt(1760, 2300),
+    campaignStatus: "RUNNING",
+    category1: 1,
+    category2: 2,
+    category3: 3,
+    campaignName: `Campaign Test - ${randomString(5)} ${randomInt(1000, 9999)}`,
+    campaignType: campaignTypes[randomInt(0, campaignTypes.length - 1)],
+    url: randomURL(),
+    deviceTypes: "PC,Android,iPhone,Android Tablet,iPad",
+    getParameterFlag: "SOCKET",
+    pointbackPermission: 1,
+    selfConversionFlag: 1,
+    hiddenFlag: 0,
+    offerCode: "OFFER123",
+    campaignStartDate: sDate,
+    campaignEndDate: eDate,
+    // startDate: sDate,
+    // endDate: eDate,
+    currency: "VND",
+    hideClickReferrer: 0,
+    adPlatformId: 0,
+    createdBy: "staff_user",
+    integratedCampaignId: null,
+    integratedCountryCode: null,
+    isRewardsByCategoriesVisible: true,
+    customerCountries: "VNM",
+    campaignApplication: "WEB_AND_MOBILE_APP", // WEB_ONLY(1), MOBILE_APP_ONLY(2), WEB_AND_MOBILE_APP(3);
+    imageUrl:
+      "https://s3-ap-southeast-1.amazonaws.com/images.accesstrade.vn/1c67df9e0a5cfefa030b853983324004/logo_20230614032335.png",
+    isAlternativeLinkUsed: 0,
+    ogDescription: "OG description",
+    ogImage: `${randomURL()}.png`,
+  },
+  categoryIds: [1, 2, 3],
+  insertCampaignSettingDetails: {
+    cvOnlyOnceFlag: 1,
+    cookieExpirationDateView: 30,
+    verifyCutFlag: 0,
+    verifyCutTarget: 0,
+    verifyCutCondition: 0,
+  },
+  campaignLogoImageBase64: randomImageBase64(),
+});
 
 const validPayload = () => ({
   insertCampaignDetails: {
@@ -65,8 +116,8 @@ const validPayload = () => ({
     offerCode: "OFFER123",
     campaignStartDate: sDate,
     campaignEndDate: eDate,
-    startDate: sDate,
-    endDate: eDate,
+    // startDate: sDate,
+    // endDate: eDate,
     currency: "VND",
     hideClickReferrer: 0,
     adPlatformId: 0,
@@ -95,7 +146,7 @@ const validPayload = () => ({
     verifyCutTarget: 0,
     verifyCutCondition: 0,
   },
-  campaignLogoImageBase64: "",
+  campaignLogoImageBase64: randomImageBase64(),
 });
 
 test.describe("Create New Campaign API", () => {
@@ -169,11 +220,12 @@ test.describe("Create New Campaign API", () => {
   });
 
   test("TC02.1 - Verify merchantId does not exist", async ({ request }) => {
+    const merchantId = 6555545; // Giả sử ID này không tồn tại trong hệ thống
     const payload = {
       ...validPayload(),
       insertCampaignDetails: {
         ...validPayload().insertCampaignDetails,
-        merchantId: 0,
+        merchantId: merchantId,
       },
     };
     const res = await request.post(API_URL, {
@@ -182,15 +234,17 @@ test.describe("Create New Campaign API", () => {
     });
     expect(res.status()).toBe(400);
     const body = await logResponse(res);
-    expect(JSON.stringify(body)).toMatch(/merchantId does not exist/i);
+    expect(JSON.stringify(body)).toMatch(
+      new RegExp(`Merchant \\[${merchantId}\\] does not exist.`, "i"),
+    );
   });
 
-  test.skip("TC02.2 - Verify merchantId is negative", async ({ request }) => {
+  test("TC02.2 - Verify merchantId = 0 or is negative", async ({ request }) => {
     const payload = {
       ...validPayload(),
       insertCampaignDetails: {
         ...validPayload().insertCampaignDetails,
-        merchantId: -1,
+        merchantId: 0,
       },
     };
     const res = await request.post(API_URL, {
@@ -355,7 +409,7 @@ test.describe("Create New Campaign API", () => {
   }) => {
     const res = await request.post(API_URL, {
       headers: getAuthHeaders(),
-      data: validPayload(),
+      data: basicPayload(),
     });
     const body = await logResponse(res);
     expect(res.status()).toBe(200);
@@ -402,7 +456,7 @@ test.describe("Create New Campaign API", () => {
     );
   });
 
-  test.skip("TC15 - Verify invalid URL format", async ({ request }) => {
+  test("TC15 - Verify invalid URL format", async ({ request }) => {
     const payload = {
       ...validPayload(),
       insertCampaignDetails: {
@@ -416,7 +470,7 @@ test.describe("Create New Campaign API", () => {
     });
     const body = await logResponse(res);
     expect(res.status()).toBe(400);
-    expect(JSON.stringify(body)).toMatch(/invalid URL format/i);
+    expect(JSON.stringify(body)).toMatch(/url must be a valid URL/i);
   });
 
   test("TC16 - Verify invalid flag values (outside allowed range 0/1)", async ({
@@ -464,7 +518,7 @@ test.describe("Create New Campaign API", () => {
     );
   });
 
-  test.skip("TC18 - Verify logical constraint for auto action duration (negative value)", async ({
+  test("TC18 - Verify logical constraint for auto action duration (negative value)", async ({
     request,
   }) => {
     const payload = {
