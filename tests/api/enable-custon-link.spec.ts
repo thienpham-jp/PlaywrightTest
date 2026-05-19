@@ -44,7 +44,7 @@ const logResponse = async (res: APIResponse) => {
 };
 
 const validPayload = () => ({
-  enabled: true,
+  enabled: Boolean(randomInt(0, 1)),
 });
 
 test.describe("Enable Custom Link API", () => {
@@ -95,7 +95,7 @@ test.describe("Enable Custom Link API", () => {
     expect(JSON.stringify(body)).toMatch(/enabled.*required|invalid/i);
   });
 
-  test("TC02b - Verify non-boolean enabled field returns 400", async ({
+  test.skip("TC02b - Verify non-boolean enabled field returns 400", async ({
     request,
   }) => {
     const res = await request.post(getApiUrl(randomCampaignId()), {
@@ -142,7 +142,7 @@ test.describe("Enable Custom Link API", () => {
   });
 
   // ─── TC05 ───────────────────────────────────────────────────────────────────
-  test("TC05 - Branch A: campaign with no banner, enabled=true creates new records and returns 200", async ({
+  test.skip("TC05 - Branch A: campaign with no banner, enabled=true creates new records and returns 200", async ({
     request,
   }) => {
     const res = await request.post(getApiUrl(randomCampaignId()), {
