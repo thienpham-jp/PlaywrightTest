@@ -42,7 +42,6 @@ const validPayload = () => ({
 test.describe("Internal Publisher Registration Without Email API V2", () => {
   test.describe.configure({ mode: "parallel" });
 
-  // TODO: Change message errors
   test("TC01 - Verify exception when loginName is null", async ({
     request,
   }) => {
@@ -54,11 +53,10 @@ test.describe("Internal Publisher Registration Without Email API V2", () => {
     expect(res.status()).toBe(400);
     const body = await logResponse(res);
     expect(JSON.stringify(body)).toMatch(
-      /Status and site Url and site status are invalid or site name is not between 1-300 chars or password is not between 6-16 chars or login name is not between 6-64 chars or corporate name is not empty when type is non-company type./i,
+      /loginName must not be null or empty/i,
     );
   });
 
-  // TODO: Change message errors
   test("TC02 - Verify exception when password is null", async ({ request }) => {
     const payload = { ...validPayload(), password: null };
     const res = await request.post(API_URL, {
@@ -68,7 +66,7 @@ test.describe("Internal Publisher Registration Without Email API V2", () => {
     expect(res.status()).toBe(400);
     const body = await logResponse(res);
     expect(JSON.stringify(body)).toMatch(
-      /Status and site Url and site status are invalid or site name is not between 1-300 chars or password is not between 6-16 chars or login name is not between 6-64 chars or corporate name is not empty when type is non-company type./i,
+      /Password must be between 8-16 characters/i,
     );
   });
 
@@ -81,9 +79,7 @@ test.describe("Internal Publisher Registration Without Email API V2", () => {
     });
     expect(res.status()).toBe(400);
     const body = await logResponse(res);
-    expect(JSON.stringify(body)).toMatch(
-      /Status and site Url and site status are invalid or site name is not between 1-300 chars or password is not between 6-16 chars or login name is not between 6-64 chars or corporate name is not empty when type is non-company type./i,
-    );
+    expect(JSON.stringify(body)).toMatch(/siteName must not be null or empty/i);
   });
 
   // TODO: Change message errors
@@ -95,9 +91,7 @@ test.describe("Internal Publisher Registration Without Email API V2", () => {
     });
     expect(res.status()).toBe(400);
     const body = await logResponse(res);
-    expect(JSON.stringify(body)).toMatch(
-      /Status and site Url and site status are invalid or site name is not between 1-300 chars or password is not between 6-16 chars or login name is not between 6-64 chars or corporate name is not empty when type is non-company type./i,
-    );
+    expect(JSON.stringify(body)).toMatch(/siteUrl must not be null or empty/i);
   });
 
   // TODO: Change message errors
@@ -112,7 +106,7 @@ test.describe("Internal Publisher Registration Without Email API V2", () => {
     expect(res.status()).toBe(400);
     const body = await logResponse(res);
     expect(JSON.stringify(body)).toMatch(
-      /Status and site Url and site status are invalid or site name is not between 1-300 chars or password is not between 6-16 chars or login name is not between 6-64 chars or corporate name is not empty when type is non-company type./i,
+      /accountType must not be null or empty/i,
     );
   });
 
@@ -189,6 +183,7 @@ test.describe("Internal Publisher Registration Without Email API V2", () => {
     expect(JSON.stringify(body)).toMatch(/Email is already in use/i);
   });
 
+  // TODO: Change message errors
   test("TC11 - Verify loginName shorter than 5 characters", async ({
     request,
   }) => {
@@ -200,10 +195,11 @@ test.describe("Internal Publisher Registration Without Email API V2", () => {
     expect(res.status()).toBe(400);
     const body = await logResponse(res);
     expect(JSON.stringify(body)).toMatch(
-      /Login name is not between 6-64 chars/i,
+      /Login name is not between 6-64 chars/,
     );
   });
 
+  // TODO: Change message errors
   test("TC12 - Verify loginName longer than 64 characters", async ({
     request,
   }) => {
@@ -215,14 +211,14 @@ test.describe("Internal Publisher Registration Without Email API V2", () => {
     expect(res.status()).toBe(400);
     const body = await logResponse(res);
     expect(JSON.stringify(body)).toMatch(
-      /Login name is not between 6-64 chars/i,
+      /Login name is not between 6-64 chars/,
     );
   });
 
-  test.skip("TC13 - Verify loginName with invalid special characters", async ({
+  test("TC13 - Verify loginName with invalid special characters", async ({
     request,
   }) => {
-    const payload = { ...validPayload(), loginName: "!@#$%^&!" };
+    const payload = { ...validPayload(), loginName: "!*&%ass" };
     const res = await request.post(API_URL, {
       headers: getAuthHeaders(),
       data: payload,
@@ -251,7 +247,7 @@ test.describe("Internal Publisher Registration Without Email API V2", () => {
     expect(body).toBeGreaterThan(0);
   });
 
-  // ! Verify status code and response body
+  // ? If countryCode is null, get default country code from system
   test.skip("TC15 - Verify null or empty countryCode", async ({ request }) => {
     const payload = { ...validPayload(), countryCode: null };
     const res = await request.post(API_URL, {
@@ -263,7 +259,6 @@ test.describe("Internal Publisher Registration Without Email API V2", () => {
     expect(JSON.stringify(body)).toMatch(/Country Code is required/i);
   });
 
-  // TODO: Change message errors
   test("TC16 - Verify invalid countryCode outside allowed list", async ({
     request,
   }) => {
@@ -274,7 +269,7 @@ test.describe("Internal Publisher Registration Without Email API V2", () => {
     });
     expect(res.status()).toBe(400);
     const body = await logResponse(res);
-    expect(JSON.stringify(body)).toMatch(/Country Code is not allowed/i);
+    expect(JSON.stringify(body)).toMatch(/countryCode is invalid/i);
   });
 
   for (const countryCode of ["ID", "TH", "VN"]) {
@@ -293,7 +288,6 @@ test.describe("Internal Publisher Registration Without Email API V2", () => {
     });
   }
 
-  // TODO: Change message errors
   test("TC18 - Verify invalid email format", async ({ request }) => {
     const payload = { ...validPayload(), email: "not-an-email" };
     const res = await request.post(API_URL, {
@@ -302,11 +296,10 @@ test.describe("Internal Publisher Registration Without Email API V2", () => {
     });
     expect(res.status()).toBe(400);
     const body = await logResponse(res);
-    expect(JSON.stringify(body)).toMatch(/Invalid email format/i);
+    expect(JSON.stringify(body)).toMatch(/email is invalid/i);
   });
 
-  // ! Verify status code and response body
-  test.skip("TC19 - Verify invalid phoneNumber format", async ({ request }) => {
+  test("TC19 - Verify invalid phoneNumber format", async ({ request }) => {
     const payload = { ...validPayload(), phoneNumber: randomString(5) };
     const res = await request.post(API_URL, {
       headers: getAuthHeaders(),
@@ -314,7 +307,9 @@ test.describe("Internal Publisher Registration Without Email API V2", () => {
     });
     expect(res.status()).toBe(400);
     const body = await logResponse(res);
-    expect(JSON.stringify(body)).toMatch(/Invalid phoneNumber format/i);
+    expect(JSON.stringify(body)).toMatch(
+      /Invalid Phone number format, only accepts numbers/i,
+    );
   });
 
   test.skip("TC20 - Verify registration without email and phoneNumber", async ({
@@ -353,7 +348,6 @@ test.describe("Internal Publisher Registration Without Email API V2", () => {
     expect(body).toBeGreaterThan(0);
   });
 
-  // TODO: Change message errors
   test("TC22 - Verify duplicate validation combinations (loginName + siteUrl)", async ({
     request,
   }) => {
@@ -370,9 +364,7 @@ test.describe("Internal Publisher Registration Without Email API V2", () => {
     });
     expect(res.status()).toBe(400);
     const body = await logResponse(res);
-    expect(JSON.stringify(body)).toMatch(
-      /Login Name, Site url is already in use/i,
-    );
+    expect(JSON.stringify(body)).toMatch(/Site url is already in use/i);
   });
 
   test.skip("TC23 - Verify account status after successful registration (DB check)", async () => {
@@ -430,7 +422,6 @@ test.describe("Internal Publisher Registration Without Email API V2", () => {
     );
   });
 
-  // TODO: Change message errors
   test("TC30 - Verify password shorter than 8 characters", async ({
     request,
   }) => {
@@ -446,7 +437,6 @@ test.describe("Internal Publisher Registration Without Email API V2", () => {
     );
   });
 
-  // TODO: Change message errors
   test("TC31 - Verify password longer than 32 characters", async ({
     request,
   }) => {
