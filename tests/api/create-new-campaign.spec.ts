@@ -214,9 +214,7 @@ test.describe("Create New Campaign API", () => {
     });
     expect(res.status()).toBe(400);
     const body = await logResponse(res);
-    expect(JSON.stringify(body)).toMatch(
-      /The following fields are required: merchantId/i,
-    );
+    expect(JSON.stringify(body)).toMatch(/Merchant ID is invalid/i);
   });
 
   test("TC02.1 - Verify merchantId does not exist", async ({ request }) => {
@@ -253,7 +251,7 @@ test.describe("Create New Campaign API", () => {
     });
     expect(res.status()).toBe(400);
     const body = await logResponse(res);
-    expect(JSON.stringify(body)).toMatch(/merchantId must be greater than 0/i);
+    expect(JSON.stringify(body)).toMatch(/Merchant ID is invalid/i);
   });
 
   test("TC03 - Verify insertCampaignDetails is null", async ({ request }) => {
@@ -535,7 +533,7 @@ test.describe("Create New Campaign API", () => {
     expect(res.status()).toBe(400);
     const body = await logResponse(res);
     expect(JSON.stringify(body)).toMatch(
-      /cookieExpirationDateView must be greater than 0/i,
+      /cookieExpirationDateView must be greater than or equal to 0/i,
     );
   });
 });

@@ -70,7 +70,6 @@ test.describe("Internal Publisher Registration Without Email API V2", () => {
     );
   });
 
-  // TODO: Change message errors
   test("TC03 - Verify exception when siteName is null", async ({ request }) => {
     const payload = { ...validPayload(), siteName: null };
     const res = await request.post(API_URL, {
@@ -82,7 +81,6 @@ test.describe("Internal Publisher Registration Without Email API V2", () => {
     expect(JSON.stringify(body)).toMatch(/siteName must not be null or empty/i);
   });
 
-  // TODO: Change message errors
   test("TC04 - Verify exception when siteUrl is null", async ({ request }) => {
     const payload = { ...validPayload(), siteUrl: null };
     const res = await request.post(API_URL, {
@@ -94,7 +92,6 @@ test.describe("Internal Publisher Registration Without Email API V2", () => {
     expect(JSON.stringify(body)).toMatch(/siteUrl must not be null or empty/i);
   });
 
-  // TODO: Change message errors
   test("TC05 - Verify exception when accountType is null", async ({
     request,
   }) => {
@@ -183,7 +180,6 @@ test.describe("Internal Publisher Registration Without Email API V2", () => {
     expect(JSON.stringify(body)).toMatch(/Email is already in use/i);
   });
 
-  // TODO: Change message errors
   test("TC11 - Verify loginName shorter than 5 characters", async ({
     request,
   }) => {
@@ -199,7 +195,6 @@ test.describe("Internal Publisher Registration Without Email API V2", () => {
     );
   });
 
-  // TODO: Change message errors
   test("TC12 - Verify loginName longer than 64 characters", async ({
     request,
   }) => {

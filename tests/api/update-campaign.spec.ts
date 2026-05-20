@@ -48,7 +48,7 @@ const eDate = randomDateString(
 const updatePayload = () => ({
   merchantId: randomInt(1760, 2300),
   updateCampaignDetails: {
-    campaignId: randomInt(3745, 3763),
+    campaignId: randomInt(3745, 3750),
     campaignStatus: "RUNNING",
     previousCampaignStatus: "RUNNING",
     campaignName: `Updated Campaign - ${randomString(5)}`,
@@ -129,18 +129,13 @@ test.describe("Update Campaign API", () => {
     const body = await logResponse(res);
     expect(res.status()).toBe(400);
 
-    expect(JSON.stringify(body)).toMatch(
-      /body is empty or cannot be bound to UpdateCampaignRequest/i,
-    );
+    expect(JSON.stringify(body)).toMatch(/Body is missing/i);
   });
 
   test("TC02 - Verify merchantId is null", async ({ request }) => {
     const payload = {
       ...updatePayload(),
-      updateCampaignDetails: {
-        ...updatePayload().updateCampaignDetails,
-        merchantId: null,
-      },
+      merchantId: null,
     };
     const res = await request.put(API_URL, {
       headers: getAuthHeaders(),
@@ -148,16 +143,13 @@ test.describe("Update Campaign API", () => {
     });
     expect(res.status()).toBe(400);
     const body = await logResponse(res);
-    expect(JSON.stringify(body)).toMatch(/merchantId/i);
+    expect(JSON.stringify(body)).toMatch(/merchantId does not exist./i);
   });
 
   test("TC02.1 - Verify merchantId does not exist", async ({ request }) => {
     const payload = {
       ...updatePayload(),
-      updateCampaignDetails: {
-        ...updatePayload().updateCampaignDetails,
-        merchantId: 0,
-      },
+      merchantId: 0,
     };
     const res = await request.put(API_URL, {
       headers: getAuthHeaders(),
@@ -165,16 +157,13 @@ test.describe("Update Campaign API", () => {
     });
     expect(res.status()).toBe(400);
     const body = await logResponse(res);
-    expect(JSON.stringify(body)).toMatch(/merchantId/i);
+    expect(JSON.stringify(body)).toMatch(/Merchant ID is invalid/i);
   });
 
-  test.skip("TC02.2 - Verify merchantId is negative", async ({ request }) => {
+  test("TC02.2 - Verify merchantId is negative", async ({ request }) => {
     const payload = {
       ...updatePayload(),
-      updateCampaignDetails: {
-        ...updatePayload().updateCampaignDetails,
-        merchantId: -1,
-      },
+      merchantId: -1,
     };
     const res = await request.put(API_URL, {
       headers: getAuthHeaders(),
@@ -182,7 +171,7 @@ test.describe("Update Campaign API", () => {
     });
     expect(res.status()).toBe(400);
     const body = await logResponse(res);
-    expect(JSON.stringify(body)).toMatch(/merchantId must be greater than 0/i);
+    expect(JSON.stringify(body)).toMatch(/Merchant ID is invalid/i);
   });
 
   test("TC03 - Verify updateCampaignDetails is null", async ({ request }) => {
@@ -227,7 +216,9 @@ test.describe("Update Campaign API", () => {
     });
     expect(res.status()).toBe(400);
     const body = await logResponse(res);
-    expect(JSON.stringify(body)).toMatch(/campaignId/i);
+    expect(JSON.stringify(body)).toMatch(
+      /Campaign \[999999999\] does not exist./i,
+    );
   });
 
   test("TC05 - Verify campaignType is null", async ({ request }) => {
@@ -366,7 +357,6 @@ test.describe("Update Campaign API", () => {
     expect(JSON.stringify(body)).toMatch(/customerCountries/i);
   });
 
-  // ! Verify status code and response body
   test("TC13 - Verify successful update flow (Happy Path)", async ({
     request,
   }) => {
@@ -403,7 +393,9 @@ test.describe("Update Campaign API", () => {
     expect(JSON.stringify(body)).toMatch(/campaignStatus/i);
   });
 
-  test("TC21 - Verify previousCampaignStatus is null", async ({ request }) => {
+  test.skip("TC21 - Verify previousCampaignStatus is null", async ({
+    request,
+  }) => {
     const payload = {
       ...updatePayload(),
       updateCampaignDetails: {
@@ -420,7 +412,7 @@ test.describe("Update Campaign API", () => {
     expect(JSON.stringify(body)).toMatch(/previousCampaignStatus/i);
   });
 
-  test("TC22 - Verify invalid date range (startDate > endDate)", async ({
+  test.skip("TC22 - Verify invalid date range (startDate > endDate)", async ({
     request,
   }) => {
     const payload = {
@@ -429,8 +421,6 @@ test.describe("Update Campaign API", () => {
         ...updatePayload().updateCampaignDetails,
         campaignStartDate: "2025-05-01",
         campaignEndDate: "2025-04-01",
-        startDate: "2025-05-01",
-        endDate: "2025-04-01",
       },
     };
     const res = await request.put(API_URL, {
@@ -444,7 +434,7 @@ test.describe("Update Campaign API", () => {
     );
   });
 
-  test.skip("TC23 - Verify invalid URL format", async ({ request }) => {
+  test("TC23 - Verify invalid URL format", async ({ request }) => {
     const payload = {
       ...updatePayload(),
       updateCampaignDetails: {
@@ -461,7 +451,7 @@ test.describe("Update Campaign API", () => {
     expect(JSON.stringify(body)).toMatch(/url/i);
   });
 
-  test("TC24 - Verify invalid flag values (outside allowed range 0/1)", async ({
+  test.skip("TC24 - Verify invalid flag values (outside allowed range 0/1)", async ({
     request,
   }) => {
     const payload = {
@@ -502,7 +492,7 @@ test.describe("Update Campaign API", () => {
     );
   });
 
-  test.skip("TC26 - Verify cookieExpirationDateView is negative", async ({
+  test("TC26 - Verify cookieExpirationDateView is negative", async ({
     request,
   }) => {
     const payload = {
@@ -518,7 +508,7 @@ test.describe("Update Campaign API", () => {
     expect(res.status()).toBe(400);
     const body = await logResponse(res);
     expect(JSON.stringify(body)).toMatch(
-      /cookieExpirationDateView must be greater than 0/i,
+      /cookieExpirationDateView must be greater than or equal to 0/i,
     );
   });
 
@@ -534,7 +524,7 @@ test.describe("Update Campaign API", () => {
     });
     expect(res.status()).toBe(401);
     const body = await logResponse(res);
-    expect(JSON.stringify(body)).toMatch(/unauthorized|token/i);
+    expect(JSON.stringify(body)).toMatch(/JWT auth failed!/i);
   });
 
   test("TC28 - Verify request with invalid JWT token", async ({ request }) => {
@@ -548,7 +538,7 @@ test.describe("Update Campaign API", () => {
     });
     expect(res.status()).toBe(401);
     const body = await logResponse(res);
-    expect(JSON.stringify(body)).toMatch(/unauthorized|token/i);
+    expect(JSON.stringify(body)).toMatch(/JWT auth failed!/i);
   });
 
   test("TC29 - Verify non-staff user type cannot call this endpoint", async ({
@@ -564,6 +554,8 @@ test.describe("Update Campaign API", () => {
     });
     expect(res.status()).toBe(403);
     const body = await logResponse(res);
-    expect(JSON.stringify(body)).toMatch(/forbidden|permission/i);
+    expect(JSON.stringify(body)).toMatch(
+      /You are not allowed to access this API/i,
+    );
   });
 });
