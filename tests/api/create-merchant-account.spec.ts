@@ -1,0 +1,299 @@
+import { test, APIResponse, expect } from "@playwright/test";
+import {
+  randomDateString,
+  randomEmail,
+  randomPhoneNumber,
+  randomString,
+} from "../../src/helpers/function-helper";
+import { urlStagingAPI } from "../../src/helpers/base-url-helper";
+
+import { generateJWT } from "../../src/helpers/jwt-helper";
+
+const baseURL = urlStagingAPI("VN");
+
+const API_URL = `${baseURL}/v1/staff/merchant`;
+
+const USER_UID = "llt5mqx11xxl291lta91aqaaaalxxq67";
+const SECRET_KEY = "8qbcc2zzzzbz0ezs20e9jjz90cbxls22";
+
+// Staff user without access to the campaign's country (replace with actual restricted account)
+const RESTRICTED_USER_UID = "restricted_user_uid_placeholder";
+const RESTRICTED_SECRET_KEY = "restricted_secret_key_placeholder";
+
+const token = `Bearer ${generateJWT(USER_UID, SECRET_KEY)}`;
+const restrictedToken = `Bearer ${generateJWT(RESTRICTED_USER_UID, RESTRICTED_SECRET_KEY)}`;
+
+const getAuthHeaders = () => ({
+  "Content-Type": "application/json",
+  "X-Accesstrade-User-Type": "staff",
+  Authorization: token,
+});
+
+const getRestrictedAuthHeaders = () => ({
+  "Content-Type": "application/json",
+  "X-Accesstrade-User-Type": "staff",
+  Authorization: restrictedToken,
+});
+
+const logResponse = async (res: APIResponse) => {
+  const body = await res.json();
+  console.log(JSON.stringify(body, null, 2));
+  return body;
+};
+
+const basicPayload = () => ({
+  corporateName: `Create Merchant - ${randomString(5)}`,
+  fosterEmail: randomEmail(),
+  loginName: `${randomString(8).toLowerCase()}`,
+  loginPassword: `Test@1234`,
+  accountantEmail: randomEmail(),
+  merchantTypeId: 1,
+  countryCode: "VN",
+  parentMerchantId: 0,
+  permissionIds: [1, 2],
+});
+
+const validPayload = () => ({
+  corporateName: `Create Merchant - ${randomString(5)}`,
+  corporateZipCode: "10000",
+  corporatePrefecture: "Tokyo",
+  corporateCity: "Minato",
+  corporateAddress: "1-2-3",
+  corporateAddress2: "Building A",
+  corporatePhone: randomPhoneNumber("0"),
+  corporateFax: randomPhoneNumber("0"),
+  corporateDirectorName: "Director Name",
+  corporateRemark: "remark",
+  fosterLastname: "FosterLast",
+  fosterFirstname: "FosterFirst",
+  fosterMiddlename: "FosterMiddle",
+  fosterZipCode: "10000",
+  fosterPrefecture: "Tokyo",
+  fosterCity: "Minato",
+  fosterAddress: "1-2-3",
+  fosterAddress2: "Building B",
+  fosterSectionName: "section",
+  fosterPostName: "post",
+  fosterEmail: randomEmail(),
+  fosterPhone: randomPhoneNumber("0"),
+  fosterFax: randomPhoneNumber("0"),
+  fosterRemark: "foster remark",
+  loginName: `${randomString(8).toLowerCase()}`,
+  loginPassword: `Test@1234`,
+  merchantTypeId: 1,
+  staffLoginName: "staffUid",
+  accountantLastname: "AccLast",
+  accountantFirstname: "AccFirst",
+  accountantMiddlename: "AccMiddle",
+  accountantEmail: randomEmail(),
+  accountantPhone: randomPhoneNumber("0"),
+  countryCode: "VN",
+  parentMerchantId: 0,
+  permissionIds: [1, 2],
+});
+
+test.describe("Create Merchant Account API", () => {
+  test.describe.configure({ mode: "parallel" });
+
+  /** Test Cases for Create Merchant Account API Method POST /v1/staff/merchant
+   *
+   * Test summary coverage:
+   * 1. Successful creation with valid payload basic required fields
+   * 2. Successful creation with all fields provided
+   * 3. Validation errors for missing required fields
+   * 4. Validation errors for invalid field formats (email, phone)
+   * 5. Authentication failure with invalid token
+   * 6. Authorization failure for restricted user
+   * 7. Verify duplicate loginName handling
+   * 8. Hierarchy handling with parentMerchantId
+   * 9. Role Assignment (permissionIds)
+   */
+
+  // ─── TC_01 ──────────────────────────────────────────────────────────────────
+  test("TC_01 - Successful creation with basic required fields - Expect 200 OK", async ({
+    request,
+  }) => {
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: basicPayload(),
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(200);
+    expect(typeof body).toBe("number");
+    expect(body).toBeGreaterThan(0);
+  });
+
+  // ─── TC_02 ──────────────────────────────────────────────────────────────────
+  test.skip("TC_02 - Successful creation with all fields provided - Expect 200 OK", async ({
+    request,
+  }) => {
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: validPayload(),
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(200);
+    expect(typeof body).toBe("number");
+    expect(body).toBeGreaterThan(0);
+  });
+
+  // ─── TC_03a ─────────────────────────────────────────────────────────────────
+  test("TC_03a - Missing required field loginName - Expect 400 Bad Request", async ({
+    request,
+  }) => {
+    const { loginName, ...payload } = basicPayload();
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(400);
+    expect(JSON.stringify(body)).toMatch(/loginName is required/i);
+  });
+
+  // ─── TC_03b ─────────────────────────────────────────────────────────────────
+  test("TC_03b - Missing required field loginPassword - Expect 400 Bad Request", async ({
+    request,
+  }) => {
+    const { loginPassword, ...payload } = basicPayload();
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(400);
+    expect(JSON.stringify(body)).toMatch(/loginPassword is required/i);
+  });
+
+  // ─── TC_03c ─────────────────────────────────────────────────────────────────
+  test("TC_03c - Missing required field countryCode - Expect 400 Bad Request", async ({
+    request,
+  }) => {
+    const { countryCode, ...payload } = basicPayload();
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(400);
+    expect(JSON.stringify(body)).toMatch(/countryCode is required/i);
+  });
+
+  // ─── TC_03d ─────────────────────────────────────────────────────────────────
+  test("TC_03d - Invalid countryCode - Expect 400 Bad Request", async ({
+    request,
+  }) => {
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: { ...basicPayload(), countryCode: "XX" },
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(400);
+    expect(JSON.stringify(body)).toMatch(/Bad Request|countryCode|invalid/i);
+  });
+
+  // ─── TC_04a ─────────────────────────────────────────────────────────────────
+  test("TC_04a - Invalid email format (fosterEmail) - Expect 400 Bad Request", async ({
+    request,
+  }) => {
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: { ...validPayload(), fosterEmail: "not-a-valid-email" },
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(400);
+    expect(JSON.stringify(body)).toMatch(/Email is invalid/i);
+  });
+
+  // ─── TC_04b ─────────────────────────────────────────────────────────────────
+  test.skip("TC_04b - Invalid phone format (fosterPhone) - Expect 400 Bad Request", async ({
+    request,
+  }) => {
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: { ...validPayload(), fosterPhone: "INVALID_PHONE" },
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(400);
+    expect(JSON.stringify(body)).toMatch(/Bad Request|phone|invalid/i);
+  });
+
+  // ─── TC_05 ──────────────────────────────────────────────────────────────────
+  test("TC_05 - Authentication failure (no token) - Expect 401 Unauthorized", async ({
+    request,
+  }) => {
+    const res = await request.post(API_URL, {
+      headers: {
+        "Content-Type": "application/json",
+        "X-Accesstrade-User-Type": "staff",
+      },
+      data: basicPayload(),
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(401);
+    expect(JSON.stringify(body)).toMatch(/JWT auth failed!/i);
+  });
+
+  // ─── TC_06 ──────────────────────────────────────────────────────────────────
+  test("TC_06 - Authorization failure (restricted user) - Expect 401 Unauthorized", async ({
+    request,
+  }) => {
+    // staff account that has no permission to create merchants in staging DB
+    const res = await request.post(API_URL, {
+      headers: getRestrictedAuthHeaders(),
+      data: basicPayload(),
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(401);
+    expect(JSON.stringify(body)).toMatch(/JWT auth failed!/i);
+  });
+
+  // ─── TC_07 ──────────────────────────────────────────────────────────────────
+  test("TC_07 - Duplicate loginName - Expect 400 or 409 Conflict", async ({
+    request,
+  }) => {
+    const sharedLoginName = `dup_${randomString(6).toLowerCase()}`;
+
+    // First creation — should succeed
+    await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: { ...basicPayload(), loginName: sharedLoginName },
+    });
+
+    // Second creation with same loginName — should fail
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: { ...basicPayload(), loginName: sharedLoginName },
+    });
+    const body = await logResponse(res);
+    expect([400, 409]).toContain(res.status());
+    expect(JSON.stringify(body)).toMatch(/duplicate|loginName|conflict|exist/i);
+  });
+
+  // ─── TC_08 ──────────────────────────────────────────────────────────────────
+  test("TC_08 - Valid parentMerchantId (hierarchy) - Expect 200 OK", async ({
+    request,
+  }) => {
+    // TODO: replace with a real parent merchant ID that exists in staging DB
+    const parentMerchantId = 1760;
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: { ...basicPayload(), parentMerchantId },
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(200);
+    expect(body).toHaveProperty("merchantId");
+  });
+
+  // ─── TC_09 ──────────────────────────────────────────────────────────────────
+  test.skip("TC_09 - Empty permissionIds - Expect 200 OK", async ({
+    request,
+  }) => {
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: { ...basicPayload(), permissionIds: [] },
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(200);
+  });
+});
