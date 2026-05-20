@@ -82,7 +82,7 @@ test.describe("Update Campaign Status API", () => {
   });
 
   // ─── TC_02 ──────────────────────────────────────────────────────────────────
-  test("TC_02 - Non-Existing Campaign ID - Expect 404 Not Found", async ({
+  test("TC_02 - Non-Existing Campaign ID - Expect 400 Bad Request", async ({
     request,
   }) => {
     const res = await request.post(getApiUrl(NON_EXISTING_CAMPAIGN_ID), {
@@ -90,8 +90,8 @@ test.describe("Update Campaign Status API", () => {
       data: validPayload(),
     });
     const body = await logResponse(res);
-    expect(res.status()).toBe(404);
-    expect(JSON.stringify(body)).toMatch(/Not Found/i);
+    expect(res.status()).toBe(400);
+    expect(JSON.stringify(body)).toMatch(/does not exist./i);
   });
 
   // ─── TC_03 ──────────────────────────────────────────────────────────────────

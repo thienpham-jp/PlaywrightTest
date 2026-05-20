@@ -76,6 +76,14 @@ export function randomEmail(domain: string = "yopmail.com"): string {
   return `${localPart}@${domain}`;
 }
 
+export function randomUserEmail(
+  user: string = randomString(8).toLowerCase(),
+): string {
+  const domain =
+    "yahoo" + "." + randomArrayElement(["com", "net", "org", "io", "dev"]);
+  return `${user}@${domain}`;
+}
+
 export function randomPhoneNumber(countryCode: string = "+84"): string {
   const digits = Array.from({ length: 9 }, () => cryptoRandomInt(0, 10)).join(
     "",
