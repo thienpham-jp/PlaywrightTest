@@ -1,19 +1,19 @@
 import { test, expect, APIResponse } from "@playwright/test";
-import { urlStagingAPI } from "../../src/helpers/base-url-helper";
-import { generateJWT } from "../../src/helpers/jwt-helper";
 import { randomInt } from "../../src/helpers/function-helper";
+import { urlStagingAPI } from "../../src/helpers/base-url-helper";
+
+import { generateJWT } from "../../src/helpers/jwt-helper";
 
 const baseURL = urlStagingAPI("VN");
 
-const NON_EXISTING_CAMPAIGN_ID = 999999999;
-
 // Replace with a valid campaign ID that exists in the staging DB
-const VALID_CAMPAIGN_IDS = [3745, 3746, 3748, 3749, 3750];
+const VALID_CAMPAIGN_IDS = [3745, 3746, 3747, 3748, 3749, 3750];
 const randomCampaignId = () =>
   VALID_CAMPAIGN_IDS[randomInt(0, VALID_CAMPAIGN_IDS.length - 1)];
+const NON_EXISTING_CAMPAIGN_ID = 999999999;
 
 const getApiUrl = (campaignId: number | null) =>
-  `${baseURL}/v1/staff/campaigns/auto-affiliation-approval?campaignId=${campaignId}`;
+  `${baseURL}/v1/staff/campaigns/${campaignId}/update-status`;
 
 const USER_UID = "llt5mqx11xxl291lta91aqaaaalxxq67";
 const SECRET_KEY = "8qbcc2zzzzbz0ezs20e9jjz90cbxls22";
@@ -43,53 +43,67 @@ const logResponse = async (res: APIResponse) => {
   return body;
 };
 
-test.describe("Find Auto Affiliation Approval API", () => {
+const STATUSES = ["PAUSED", "RUNNING", "TERMINATED"];
+const randomStatus = () => STATUSES[randomInt(0, STATUSES.length - 1)];
+
+const validPayload = () => ({
+  campaignStatus: randomStatus(),
+});
+
+test.describe("Update Campaign Status API", () => {
   test.describe.configure({ mode: "parallel" });
 
-  /** Test Cases for Find Auto Affiliation Approval API method `GET v1/staff/campaigns/auto-affiliation-approval?campaignId={campaignId}`
-   *
+  /** Test Cases for Update Campaign Status API method `POST /v1/staff/campaigns/{campaignId}/update-status`
    * Test summary to cover:
-   *  1. Valid Campaign ID - Expect 200 OK with correct auto affiliation approval data.
+   *  1. Valid Campaign ID and Status - Expect 200 OK with updated campaign status.
    *  2. Non-Existing Campaign ID - Expect 404 Not Found with appropriate error message.
-   *  3. Missing Campaign ID - Expect 400 Bad Request with validation error message.
-   *  4. Invalid Campaign ID Format (e.g., string instead of number) - Expect 400 Bad Request with validation error message.
+   *  3. Missing Campaign ID - Expect 404 Not Found with validation error message.
+   *  4. Invalid Campaign ID Format (e.g., string instead of number) - Expect 404 Not Found with validation error message.
    *  5. Unauthorized Access (e.g., no token or invalid token) - Expect 401 Unauthorized with appropriate error message.
    *  6. Forbidden Access (e.g., user without access to the campaign's country) - Expect 401 Unauthorized with appropriate error message.
-   *  7. Valid Campaign ID with Auto Affiliation Approval Disabled - Expect 200 OK with correct data indicating auto affiliation approval is disabled.
+   *  7. Valid Campaign ID with Invalid Status Value - Expect 400 Bad Request with validation error message.
+   *  8. Missing Status Value - Expect 400 Bad Request with validation error message.
+   *  9. Invalid Status Value Format (e.g., number instead of string) - Expect 400 Bad Request with validation error message.
+   * 10. Valid Campaign ID with Status Already Set to Desired Value - Expect 400 Bad Request with appropriate error message.
    */
 
   // ─── TC_01 ──────────────────────────────────────────────────────────────────
-  test("TC_01 - Valid Campaign ID - Expect 200 OK with correct auto affiliation approval data", async ({
+  test("TC_01 - Valid Campaign ID and Status - Expect 200 OK with updated campaign status", async ({
     request,
   }) => {
-    const res = await request.get(getApiUrl(3747), {
+    const campaignId = randomCampaignId();
+    const res = await request.post(getApiUrl(campaignId), {
       headers: getAuthHeaders(),
+      data: validPayload(),
     });
     const body = await logResponse(res);
     expect(res.status()).toBe(200);
-    expect(body).toHaveProperty("autoAffApprDuration");
-    expect(body).toHaveProperty("autoAffLimitationOption");
+    expect(JSON.stringify(body)).toMatch(/1/i);
   });
 
   // ─── TC_02 ──────────────────────────────────────────────────────────────────
   test("TC_02 - Non-Existing Campaign ID - Expect 404 Not Found", async ({
     request,
   }) => {
-    const res = await request.get(getApiUrl(NON_EXISTING_CAMPAIGN_ID), {
+    const res = await request.post(getApiUrl(NON_EXISTING_CAMPAIGN_ID), {
       headers: getAuthHeaders(),
+      data: validPayload(),
     });
     const body = await logResponse(res);
     expect(res.status()).toBe(404);
-    expect(JSON.stringify(body)).toMatch(/does not exist/i);
+    expect(JSON.stringify(body)).toMatch(/Not Found/i);
   });
 
   // ─── TC_03 ──────────────────────────────────────────────────────────────────
   test("TC_03 - Missing Campaign ID - Expect 404 Not Found", async ({
     request,
   }) => {
-    const res = await request.get(
-      `${baseURL}/v1/staff/campaigns/auto-affiliation-approval`,
-      { headers: getAuthHeaders() },
+    const res = await request.post(
+      `${baseURL}/v1/staff/campaigns//update-status`,
+      {
+        headers: getAuthHeaders(),
+        data: validPayload(),
+      },
     );
     const body = await logResponse(res);
     expect(res.status()).toBe(404);
@@ -100,9 +114,12 @@ test.describe("Find Auto Affiliation Approval API", () => {
   test("TC_04 - Invalid Campaign ID Format (string) - Expect 404 Not Found", async ({
     request,
   }) => {
-    const res = await request.get(
-      `${baseURL}/v1/staff/campaigns/auto-affiliation-approval?campaignId=invalid-id`,
-      { headers: getAuthHeaders() },
+    const res = await request.post(
+      `${baseURL}/v1/staff/campaigns/invalid-id/update-status`,
+      {
+        headers: getAuthHeaders(),
+        data: validPayload(),
+      },
     );
     const body = await logResponse(res);
     expect(res.status()).toBe(404);
@@ -114,11 +131,12 @@ test.describe("Find Auto Affiliation Approval API", () => {
     request,
   }) => {
     const campaignId = randomCampaignId();
-    const res = await request.get(getApiUrl(campaignId), {
+    const res = await request.post(getApiUrl(campaignId), {
       headers: {
         "Content-Type": "application/json",
         "X-Accesstrade-User-Type": "staff",
       },
+      data: validPayload(),
     });
     const body = await logResponse(res);
     expect(res.status()).toBe(401);
@@ -129,11 +147,11 @@ test.describe("Find Auto Affiliation Approval API", () => {
   test("TC_06 - Forbidden Access (user without country access) - Expect 401 Unauthorized", async ({
     request,
   }) => {
-    // TODO: replace RESTRICTED_USER_UID / RESTRICTED_SECRET_KEY with an actual
     // staff account that has no access to the campaign's country in staging DB
     const campaignId = randomCampaignId();
-    const res = await request.get(getApiUrl(campaignId), {
+    const res = await request.post(getApiUrl(campaignId), {
       headers: getRestrictedAuthHeaders(),
+      data: validPayload(),
     });
     const body = await logResponse(res);
     expect(res.status()).toBe(401);
@@ -141,15 +159,72 @@ test.describe("Find Auto Affiliation Approval API", () => {
   });
 
   // ─── TC_07 ──────────────────────────────────────────────────────────────────
-  test("TC_07 - Campaign with Auto Affiliation Approval Disabled - Expect 200 OK with disabled flag", async ({
+  test("TC_07 - Invalid Status Value - Expect 400 Bad Request", async ({
     request,
   }) => {
-    // TODO: replace with a campaign ID that has auto affiliation approval DISABLED in staging DB
-    const campaignIdWithAutoAffDisabled = 3746;
-    const res = await request.get(getApiUrl(campaignIdWithAutoAffDisabled), {
+    const campaignId = randomCampaignId();
+    const res = await request.post(getApiUrl(campaignId), {
       headers: getAuthHeaders(),
+      data: { campaignStatus: "INVALID" },
     });
     const body = await logResponse(res);
-    expect(res.status()).toBe(200);
+    expect(res.status()).toBe(400);
+    expect(JSON.stringify(body)).toMatch(/Campaign status is required./i);
+  });
+
+  // ─── TC_08 ──────────────────────────────────────────────────────────────────
+  test("TC_08 - Missing Status Value - Expect 400 Bad Request", async ({
+    request,
+  }) => {
+    const campaignId = randomCampaignId();
+    const res = await request.post(getApiUrl(campaignId), {
+      headers: getAuthHeaders(),
+      data: {},
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(400);
+    expect(JSON.stringify(body)).toMatch(/Campaign status is required./i);
+  });
+
+  // ─── TC_09 ──────────────────────────────────────────────────────────────────
+  test("TC_09 - Invalid Status Value Format (number instead of string) - Expect 400 Bad Request", async ({
+    request,
+  }) => {
+    const campaignId = randomCampaignId();
+    const res = await request.post(getApiUrl(campaignId), {
+      headers: getAuthHeaders(),
+      data: { campaignStatus: 1 },
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(400);
+    expect(JSON.stringify(body)).toMatch(/Campaign status is required./i);
+  });
+
+  // ─── TC_10 ──────────────────────────────────────────────────────────────────
+  test("TC_10 - Status Already Set to Desired Value - Expect 400 Bad Request", async ({
+    request,
+  }) => {
+    const campaignId = randomCampaignId();
+    const status = validPayload().campaignStatus;
+
+    // First call: set to PAUSED
+    await request.post(getApiUrl(campaignId), {
+      headers: getAuthHeaders(),
+      data: { campaignStatus: status },
+    });
+
+    // Second call: set to PAUSED again (no-op)
+    const res = await request.post(getApiUrl(campaignId), {
+      headers: getAuthHeaders(),
+      data: { campaignStatus: status },
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(400);
+    expect(JSON.stringify(body)).toMatch(
+      new RegExp(
+        `Campaign id ${campaignId} is already in status ${status}`,
+        "i",
+      ),
+    );
   });
 });
