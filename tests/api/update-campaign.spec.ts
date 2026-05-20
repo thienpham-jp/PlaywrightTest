@@ -102,8 +102,11 @@ test.describe("Update Campaign API", () => {
 | ------ | ---------------------------------------------- | --------------------------------------------------------------------------------------- | ----------------------- | ----------- |
 | TC01   | Verify empty or invalid request body           | Return `400` with required field validation errors                                      | Matches expected result | ✅ Done      |
 | TC02   | Verify merchantId is null                      | Return `400` with missing required field error                                          | Matches expected result | ✅ Done      |
+| TC02.1 | Verify merchantId does not exist               | Return `400` with invalid merchant ID error                                               | Matches expected result | ✅ Done      |
+| TC02.2 | Verify merchantId is negative                 | Return `400` with invalid merchant ID error                                               | Matches expected result | ✅ Done      |
 | TC03   | Verify updateCampaignSettingDetails is null    | Return `400` with missing required field error                                          | Matches expected result | ✅ Done      |
 | TC04   | Verify campaignId is null                      | Return `400` with missing required field error                                          | Matches expected result | ✅ Done      |
+| TC04.1 | Verify campaignId does not exist               | Return `400` with error message indicating campaign does not exist                       | Matches expected result | ✅ Done      |
 | TC05   | Verify campaignType is null                    | Return `400` with missing required field error                                          | Matches expected result | ✅ Done      |
 | TC06   | Verify campaignApplication is null             | Return `400` with missing required field error                                          | Matches expected result | ✅ Done      |
 | TC07   | Verify campaignStatus is null                  | Return `400` with missing required field error                                          | Matches expected result | ✅ Done      |
@@ -119,6 +122,17 @@ test.describe("Update Campaign API", () => {
 | TC17   | Verify Product Feed sync logic                 | Product Feed synchronization executes based on Campaign state ID before status update   | TBD                     | ☐ Suggested |
 | TC18   | Verify deprecated legacy APIs are disabled     | Old endpoints (`/global/campaigns`, sync, validate) return error or are inaccessible    | TBD                     | ☐ Suggested |
 | TC19   | Verify optional fields update correctly        | Optional fields such as `description`, `ogImage`, and `categoryIds` are saved correctly | TBD                     | ☐ Suggested |
+| TC20   | Verify invalid campaignStatus value            | Return `400` with validation error for invalid campaignStatus value                     | Matches expected result | ✅ Done      |
+| TC21   | Verify previousCampaignStatus is null          | Return `400` with validation error for null previousCampaignStatus                      | Matches expected result | ✅ Done      |
+| TC22   | Verify invalid date range (startDate > endDate) | Return `400` with validation error for invalid date range                                | Matches expected result | ✅ Done      |
+| TC23   | Verify unauthorized access (no token)         | Return `401` with appropriate error message for missing authentication token             | TBD                     | ☐ Suggested |
+| TC24   | Verify invalid flag values (outside allowed range 0/1) | Return `400` with validation error for invalid flag values                     | Matches expected result | ✅ Done      |
+| TC25   | Verify invalid campaignType value            | Return `400` with validation error for invalid campaignType value                     | Matches expected result | ✅ Done      |
+| TC26   | Verify invalid campaignApplication value      | Return `400` with validation error for invalid campaignApplication value               | Matches expected result | ✅ Done      |
+| TC27   | Verify invalid getParameterFlag value         | Return `400` with validation error for invalid getParameterFlag value                  | Matches expected result | ✅ Done      |
+| TC28   | Verify invalid date formats for campaignStartDate and campaignEndDate | Return `400` with validation error for invalid date formats                     | Matches expected result | ✅ Done      |
+| TC29   | Verify missing required fields in updateCampaignDetails object | Return `400` with validation errors for each missing required field in updateCampaignDetails | Matches expected result | ✅ Done      |
+
    */
 
   test("TC01 - Verify invalid / empty request body", async ({ request }) => {
