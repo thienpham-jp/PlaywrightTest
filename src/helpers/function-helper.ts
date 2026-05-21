@@ -41,6 +41,14 @@ export function randomString(length: number): string {
   return result;
 }
 
+export function randomSentence(wordCount: number = 5): string {
+  const words = [];
+  for (let i = 0; i < wordCount; i++) {
+    words.push(randomString(randomInt(3, 10)));
+  }
+  return words.join(" ");
+}
+
 /** Số nguyên ngẫu nhiên trong [min, max] (inclusive) */
 export function randomInt(min: number, max: number): number {
   return cryptoRandomInt(min, max + 1);
@@ -63,9 +71,17 @@ export function randomBoolean(): boolean {
   return cryptoRandomInt(0, 2) === 1;
 }
 
-export function randomEmail(domain: string = "example.com"): string {
+export function randomEmail(domain: string = "yopmail.com"): string {
   const localPart = randomString(8).toLowerCase();
   return `${localPart}@${domain}`;
+}
+
+export function randomUserEmail(
+  user: string = randomString(8).toLowerCase(),
+): string {
+  const domain =
+    "yahoo" + "." + randomArrayElement(["com", "net", "org", "io", "dev"]);
+  return `${user}@${domain}`;
 }
 
 export function randomPhoneNumber(countryCode: string = "+84"): string {
@@ -81,6 +97,12 @@ export function randomDate(
 ): Date {
   const startMs = start.getTime();
   const endMs = end.getTime();
+  if (startMs > endMs) {
+    throw new RangeError(
+      `randomDate: start (${start.toISOString()}) must be before or equal to end (${end.toISOString()})`,
+    );
+  }
+  if (startMs === endMs) return new Date(startMs);
   return new Date(cryptoRandomInt(startMs, endMs + 1));
 }
 
@@ -182,6 +204,20 @@ export function randomURL(): string {
     randomArrayElement(["com", "net", "org", "io", "dev"]);
 
   return `https://${domain}`;
+}
+
+/** Tạo chuỗi base64 ảnh ngẫu nhiên theo format: "<mimeType>,<base64>"
+ *  Tương đương Java: mimeType + "," + Base64.getEncoder().encodeToString(bytes)
+ */
+export function randomImageBase64(
+  mimeType: string = "image/png",
+  sizeBytes: number = 64,
+): string {
+  const bytes = new Uint8Array(sizeBytes);
+  for (let i = 0; i < sizeBytes; i++) {
+    bytes[i] = cryptoRandomInt(0, 256);
+  }
+  return `${mimeType},${Buffer.from(bytes).toString("base64")}`;
 }
 
 export function randomCapcha(): string {
