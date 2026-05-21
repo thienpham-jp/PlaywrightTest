@@ -1,17 +1,10 @@
 import { test, APIResponse, expect } from "@playwright/test";
 import {
-<<<<<<< HEAD
   randomAddress,
   randomInt,
   randomPhoneNumber,
   randomString,
   randomUserEmail,
-=======
-  randomDateString,
-  randomEmail,
-  randomPhoneNumber,
-  randomString,
->>>>>>> 91793023aaeda27785c0157b13ae75348f9c1ef6
 } from "../../src/helpers/function-helper";
 import { urlStagingAPI } from "../../src/helpers/base-url-helper";
 
@@ -49,7 +42,6 @@ const logResponse = async (res: APIResponse) => {
   return body;
 };
 
-<<<<<<< HEAD
 const basicPayload = () => {
   const regixString = randomString(8);
   const loginName = regixString.toLowerCase();
@@ -109,58 +101,6 @@ const validPayload = () => {
     permissionIds: [1, 2],
   };
 };
-=======
-const basicPayload = () => ({
-  corporateName: `Create Merchant - ${randomString(5)}`,
-  fosterEmail: randomEmail(),
-  loginName: `${randomString(8).toLowerCase()}`,
-  loginPassword: `Test@1234`,
-  accountantEmail: randomEmail(),
-  merchantTypeId: 1,
-  countryCode: "VN",
-  parentMerchantId: 0,
-  permissionIds: [1, 2],
-});
-
-const validPayload = () => ({
-  corporateName: `Create Merchant - ${randomString(5)}`,
-  corporateZipCode: "10000",
-  corporatePrefecture: "Tokyo",
-  corporateCity: "Minato",
-  corporateAddress: "1-2-3",
-  corporateAddress2: "Building A",
-  corporatePhone: randomPhoneNumber("0"),
-  corporateFax: randomPhoneNumber("0"),
-  corporateDirectorName: "Director Name",
-  corporateRemark: "remark",
-  fosterLastname: "FosterLast",
-  fosterFirstname: "FosterFirst",
-  fosterMiddlename: "FosterMiddle",
-  fosterZipCode: "10000",
-  fosterPrefecture: "Tokyo",
-  fosterCity: "Minato",
-  fosterAddress: "1-2-3",
-  fosterAddress2: "Building B",
-  fosterSectionName: "section",
-  fosterPostName: "post",
-  fosterEmail: randomEmail(),
-  fosterPhone: randomPhoneNumber("0"),
-  fosterFax: randomPhoneNumber("0"),
-  fosterRemark: "foster remark",
-  loginName: `${randomString(8).toLowerCase()}`,
-  loginPassword: `Test@1234`,
-  merchantTypeId: 1,
-  staffLoginName: "staffUid",
-  accountantLastname: "AccLast",
-  accountantFirstname: "AccFirst",
-  accountantMiddlename: "AccMiddle",
-  accountantEmail: randomEmail(),
-  accountantPhone: randomPhoneNumber("0"),
-  countryCode: "VN",
-  parentMerchantId: 0,
-  permissionIds: [1, 2],
-});
->>>>>>> 91793023aaeda27785c0157b13ae75348f9c1ef6
 
 test.describe("Create Merchant Account API", () => {
   test.describe.configure({ mode: "parallel" });
@@ -194,11 +134,7 @@ test.describe("Create Merchant Account API", () => {
   });
 
   // ─── TC_02 ──────────────────────────────────────────────────────────────────
-<<<<<<< HEAD
   test("TC_02 - Successful creation with all fields provided - Expect 200 OK", async ({
-=======
-  test.skip("TC_02 - Successful creation with all fields provided - Expect 200 OK", async ({
->>>>>>> 91793023aaeda27785c0157b13ae75348f9c1ef6
     request,
   }) => {
     const res = await request.post(API_URL, {
@@ -280,16 +216,11 @@ test.describe("Create Merchant Account API", () => {
   });
 
   // ─── TC_04b ─────────────────────────────────────────────────────────────────
-<<<<<<< HEAD
   test("TC_04b - Invalid phone format (fosterPhone) - Expect 400 Bad Request", async ({
-=======
-  test.skip("TC_04b - Invalid phone format (fosterPhone) - Expect 400 Bad Request", async ({
->>>>>>> 91793023aaeda27785c0157b13ae75348f9c1ef6
     request,
   }) => {
     const res = await request.post(API_URL, {
       headers: getAuthHeaders(),
-<<<<<<< HEAD
       data: {
         ...validPayload(),
         fosterPhone: "INVALID_PHONE",
@@ -301,13 +232,6 @@ test.describe("Create Merchant Account API", () => {
     expect(JSON.stringify(body)).toMatch(
       /Invalid Phone number format, only accepts numbers/i,
     );
-=======
-      data: { ...validPayload(), fosterPhone: "INVALID_PHONE" },
-    });
-    const body = await logResponse(res);
-    expect(res.status()).toBe(400);
-    expect(JSON.stringify(body)).toMatch(/Bad Request|phone|invalid/i);
->>>>>>> 91793023aaeda27785c0157b13ae75348f9c1ef6
   });
 
   // ─── TC_05 ──────────────────────────────────────────────────────────────────
@@ -366,19 +290,13 @@ test.describe("Create Merchant Account API", () => {
   test("TC_08 - Valid parentMerchantId (hierarchy) - Expect 200 OK", async ({
     request,
   }) => {
-<<<<<<< HEAD
     const parentMerchantId = randomInt(11, 20); // Replace with actual existing merchantId in staging DB for real test
-=======
-    // TODO: replace with a real parent merchant ID that exists in staging DB
-    const parentMerchantId = 1760;
->>>>>>> 91793023aaeda27785c0157b13ae75348f9c1ef6
     const res = await request.post(API_URL, {
       headers: getAuthHeaders(),
       data: { ...basicPayload(), parentMerchantId },
     });
     const body = await logResponse(res);
     expect(res.status()).toBe(200);
-<<<<<<< HEAD
     expect(typeof body).toBe("number");
     expect(body).toBeGreaterThan(0);
   });
@@ -397,20 +315,5 @@ test.describe("Create Merchant Account API", () => {
     expect(res.status()).toBe(200);
     expect(typeof body).toBe("number");
     expect(body).toBeGreaterThan(0);
-=======
-    expect(body).toHaveProperty("merchantId");
-  });
-
-  // ─── TC_09 ──────────────────────────────────────────────────────────────────
-  test.skip("TC_09 - Empty permissionIds - Expect 200 OK", async ({
-    request,
-  }) => {
-    const res = await request.post(API_URL, {
-      headers: getAuthHeaders(),
-      data: { ...basicPayload(), permissionIds: [] },
-    });
-    const body = await logResponse(res);
-    expect(res.status()).toBe(200);
->>>>>>> 91793023aaeda27785c0157b13ae75348f9c1ef6
   });
 });

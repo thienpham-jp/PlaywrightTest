@@ -1,6 +1,6 @@
 import { test, expect, type Frame } from "@playwright/test";
 import { CFDPage } from "../../pages/cfd-page";
-import { CFD_PASSWORD, CFD_USERNAME } from "../../src/helpers/user-helper";
+// import { CFD_PASSWORD, CFD_USERNAME } from "../../src/helpers/user-helper";
 import {
   closeDatabasePool,
   getSystemRules,
@@ -271,7 +271,7 @@ test.describe("CFD ID - System Settings", () => {
 
   test.beforeEach(async ({ page }) => {
     cfdPage = new CFDPage(page);
-    await cfdPage.login("ID", CFD_USERNAME, CFD_PASSWORD);
+    // await cfdPage.login("ID", CFD_USERNAME, CFD_PASSWORD);
     await cfdPage.page.waitForLoadState("networkidle");
     await goToSystemSettings(cfdPage.page);
     ssFrame = await getSystemSettingsFrame(cfdPage.page);
