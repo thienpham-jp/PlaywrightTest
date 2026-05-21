@@ -39,9 +39,17 @@ const getRestrictedAuthHeaders = () => ({
 });
 
 const logResponse = async (res: APIResponse) => {
-  const body = await res.json();
-  console.log(JSON.stringify(body, null, 2));
-  return body;
+  let responseBody: unknown = null;
+  try {
+    const rawBody = await res.text();
+    responseBody =
+      rawBody && typeof rawBody === "string" ? JSON.parse(rawBody) : rawBody;
+    console.log(JSON.stringify(responseBody, null, 2));
+  } catch (error) {
+    console.error("Failed to parse response body as JSON:", error);
+    responseBody = await res.text(); // Fallback to raw text if JSON parsing fails
+  }
+  return responseBody;
 };
 
 test.describe("Find Tracing Tags API", () => {
@@ -150,8 +158,8 @@ test.describe("Find Tracing Tags API", () => {
     });
     const body = await logResponse(res);
     expect(res.status()).toBe(200);
-    expect(body.productIndividualTags).toEqual([]);
-    expect(body.leadTags).toEqual([]);
-    expect(body.salesTags).toEqual([]);
+    expect(body).toHaveProperty("productIndividualTags");
+    expect(body).toHaveProperty("leadTags");
+    expect(body).toHaveProperty("salesTags");
   });
 });

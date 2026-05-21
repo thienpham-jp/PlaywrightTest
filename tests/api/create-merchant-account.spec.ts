@@ -52,9 +52,9 @@ const basicPayload = () => {
     loginPassword: `Test@1234`,
     accountantEmail: randomUserEmail(loginName),
     merchantTypeId: 1,
+    staffLoginName: "obs-dev@interspace.ne.jp",
     countryCode: "VN",
     parentMerchantId: 0,
-    staffLoginName: "obs-dev@interspace.ne.jp",
     permissionIds: [1, 2],
   };
 };

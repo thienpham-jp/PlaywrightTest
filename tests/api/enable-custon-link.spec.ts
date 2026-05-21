@@ -38,9 +38,17 @@ const getRestrictedAuthHeaders = () => ({
 });
 
 const logResponse = async (res: APIResponse) => {
-  const body = await res.json();
-  console.log(JSON.stringify(body, null, 2));
-  return body;
+  let responseBody: unknown = null;
+  try {
+    const rawBody = await res.text();
+    responseBody =
+      rawBody && typeof rawBody === "string" ? JSON.parse(rawBody) : rawBody;
+    console.log(JSON.stringify(responseBody, null, 2));
+  } catch (error) {
+    console.error("Failed to parse response body as JSON:", error);
+    responseBody = await res.text(); // Fallback to raw text if JSON parsing fails
+  }
+  return responseBody;
 };
 
 const validPayload = () => ({
