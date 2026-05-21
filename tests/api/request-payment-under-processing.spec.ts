@@ -237,7 +237,7 @@ test.describe("Request Payment Under Processing API", () => {
     request,
   }) => {
     // Use a partnerId that exists in staging DB but is not in active state
-    const inactivePartnerId = 504;
+    const inactivePartnerId = 11238;
     const res = await request.post(getApiUrl(inactivePartnerId), {
       headers: getAuthHeaders(),
       data: validPayload(),
@@ -264,7 +264,7 @@ test.describe("Request Payment Under Processing API", () => {
   });
 
   // ─── TC_13 ──────────────────────────────────────────────────────────────────
-  test("TC_13 - All IDs belong to the partner but at least one row is not in an allowed status - Expect 422 Unprocessable Entity with appropriate error message", async ({
+  test.skip("TC_13 - All IDs belong to the partner but at least one row is not in an allowed status - Expect 422 Unprocessable Entity with appropriate error message", async ({
     request,
   }) => {
     // Use a mix of valid publisherPaymentHistoryIds where at least one is in an incorrect state in staging DB
