@@ -1,6 +1,7 @@
 import { test, APIResponse, expect } from "@playwright/test";
 import {
   randomAddress,
+  randomInt,
   randomPhoneNumber,
   randomString,
   randomUserEmail,
@@ -41,60 +42,65 @@ const logResponse = async (res: APIResponse) => {
   return body;
 };
 
-const regixString = randomString(8);
-const loginName = `${regixString.toLowerCase()}`;
+const basicPayload = () => {
+  const regixString = randomString(8);
+  const loginName = regixString.toLowerCase();
+  return {
+    corporateName: `Create Merchant - ${regixString}`,
+    fosterEmail: randomUserEmail(loginName),
+    loginName: loginName,
+    loginPassword: `Test@1234`,
+    accountantEmail: randomUserEmail(loginName),
+    merchantTypeId: 1,
+    countryCode: "VN",
+    parentMerchantId: 0,
+    staffLoginName: "obs-dev@interspace.ne.jp",
+    permissionIds: [1, 2],
+  };
+};
 
-const basicPayload = () => ({
-  corporateName: `Create Merchant - ${regixString}`,
-  fosterEmail: randomUserEmail(loginName),
-  loginName: loginName,
-  loginPassword: `Test@1234`,
-  accountantEmail: randomUserEmail(loginName),
-  merchantTypeId: 1,
-  countryCode: "VN",
-  parentMerchantId: 0,
-  staffLoginName: "obs-dev@interspace.ne.jp",
-  permissionIds: [1, 2],
-});
-
-const validPayload = () => ({
-  corporateName: `Create Merchant - ${regixString}`,
-  corporateZipCode: "10000",
-  corporatePrefecture: "VietNam",
-  corporateCity: "HCM",
-  corporateAddress: randomAddress(),
-  corporateAddress2: "Building A",
-  corporatePhone: randomPhoneNumber("0"),
-  corporateFax: randomPhoneNumber("0"),
-  corporateDirectorName: "Director Name",
-  corporateRemark: "remark",
-  fosterLastname: "FosterLast",
-  fosterFirstname: "FosterFirst",
-  fosterMiddlename: "FosterMiddle",
-  fosterZipCode: "10000",
-  fosterPrefecture: "VietNam",
-  fosterCity: "HCM",
-  fosterAddress: randomAddress(),
-  fosterAddress2: "Building B",
-  fosterSectionName: "section",
-  fosterPostName: "post",
-  fosterEmail: randomUserEmail(loginName),
-  fosterPhone: randomPhoneNumber("0"),
-  fosterFax: randomPhoneNumber("0"),
-  fosterRemark: "foster remark",
-  loginName: loginName,
-  loginPassword: `Test@1234`,
-  merchantTypeId: 1,
-  staffLoginName: "obs-dev@interspace.ne.jp",
-  accountantLastname: `Test Last Name - ${regixString}`,
-  accountantFirstname: `Test First Name - ${regixString}`,
-  accountantMiddlename: `Test Middle Name - ${regixString}`,
-  accountantEmail: randomUserEmail(loginName),
-  accountantPhone: randomPhoneNumber("0"),
-  countryCode: "VN",
-  parentMerchantId: 0,
-  permissionIds: [1, 2],
-});
+const validPayload = () => {
+  const regixString = randomString(8);
+  const loginName = regixString.toLowerCase();
+  return {
+    corporateName: `Create Merchant - ${regixString}`,
+    corporateZipCode: "10000",
+    corporatePrefecture: "VietNam",
+    corporateCity: "HCM",
+    corporateAddress: randomAddress(),
+    corporateAddress2: "Building A",
+    corporatePhone: randomPhoneNumber("0"),
+    corporateFax: randomPhoneNumber("0"),
+    corporateDirectorName: "Director Name",
+    corporateRemark: "remark",
+    fosterLastname: "FosterLast",
+    fosterFirstname: "FosterFirst",
+    fosterMiddlename: "FosterMiddle",
+    fosterZipCode: "10000",
+    fosterPrefecture: "VietNam",
+    fosterCity: "HCM",
+    fosterAddress: randomAddress(),
+    fosterAddress2: "Building B",
+    fosterSectionName: "section",
+    fosterPostName: "post",
+    fosterEmail: randomUserEmail(loginName),
+    fosterPhone: randomPhoneNumber("0"),
+    fosterFax: randomPhoneNumber("0"),
+    fosterRemark: "foster remark",
+    loginName: loginName,
+    loginPassword: `Test@1234`,
+    merchantTypeId: 1,
+    staffLoginName: "obs-dev@interspace.ne.jp",
+    accountantLastname: `Test Last Name - ${regixString}`,
+    accountantFirstname: `Test First Name - ${regixString}`,
+    accountantMiddlename: `Test Middle Name - ${regixString}`,
+    accountantEmail: randomUserEmail(loginName),
+    accountantPhone: randomPhoneNumber("0"),
+    countryCode: "VN",
+    parentMerchantId: 0,
+    permissionIds: [1, 2],
+  };
+};
 
 test.describe("Create Merchant Account API", () => {
   test.describe.configure({ mode: "parallel" });
@@ -128,7 +134,7 @@ test.describe("Create Merchant Account API", () => {
   });
 
   // ─── TC_02 ──────────────────────────────────────────────────────────────────
-  test.skip("TC_02 - Successful creation with all fields provided - Expect 200 OK", async ({
+  test("TC_02 - Successful creation with all fields provided - Expect 200 OK", async ({
     request,
   }) => {
     const res = await request.post(API_URL, {
@@ -284,8 +290,7 @@ test.describe("Create Merchant Account API", () => {
   test("TC_08 - Valid parentMerchantId (hierarchy) - Expect 200 OK", async ({
     request,
   }) => {
-    // TODO: replace with a real parent merchant ID that exists in staging DB
-    const parentMerchantId = 1;
+    const parentMerchantId = randomInt(11, 20); // Replace with actual existing merchantId in staging DB for real test
     const res = await request.post(API_URL, {
       headers: getAuthHeaders(),
       data: { ...basicPayload(), parentMerchantId },
@@ -300,9 +305,15 @@ test.describe("Create Merchant Account API", () => {
   test("TC_09 - Empty permissionIds - Expect 200 OK", async ({ request }) => {
     const res = await request.post(API_URL, {
       headers: getAuthHeaders(),
-      data: { ...basicPayload(), permissionIds: [] },
+      data: {
+        ...basicPayload(),
+        loginName: randomString(8).toLowerCase(),
+        permissionIds: [],
+      },
     });
     const body = await logResponse(res);
     expect(res.status()).toBe(200);
+    expect(typeof body).toBe("number");
+    expect(body).toBeGreaterThan(0);
   });
 });
