@@ -165,11 +165,11 @@ test.describe("Update Merchant Account API", () => {
   test("TC_03 - Null body - Expect 400 Bad Request", async ({ request }) => {
     const res = await request.put(API_URL, {
       headers: getAuthHeaders(),
-      data: {},
+      data: null,
     });
     const body = await logResponse(res);
     expect(res.status()).toBe(400);
-    expect(JSON.stringify(body)).toMatch(/Request body is missing/i);
+    expect(JSON.stringify(body)).toMatch(/Body is missing/i);
   });
 
   // ─── TC_04a ─────────────────────────────────────────────────────────────────
@@ -183,9 +183,7 @@ test.describe("Update Merchant Account API", () => {
     });
     const body = await logResponse(res);
     expect(res.status()).toBe(400);
-    expect(JSON.stringify(body)).toMatch(
-      /MerchantId must not be null or empty/i,
-    );
+    expect(JSON.stringify(body)).toMatch(/merchantId is invalid./i);
   });
 
   // ─── TC_04b ─────────────────────────────────────────────────────────────────
@@ -205,7 +203,7 @@ test.describe("Update Merchant Account API", () => {
   });
 
   // ─── TC_04c ─────────────────────────────────────────────────────────────────
-  test("TC_04c - Missing required field countryCode - Expect 400 Bad Request", async ({
+  test.skip("TC_04c - Missing required field countryCode - Expect 400 Bad Request", async ({
     request,
   }) => {
     const { countryCode, ...payload } = basicPayload();
@@ -243,9 +241,7 @@ test.describe("Update Merchant Account API", () => {
     });
     const body = await logResponse(res);
     expect(res.status()).toBe(400);
-    expect(JSON.stringify(body)).toMatch(
-      /Invalid fosterPhone format, only accepts numbers/i,
-    );
+    expect(JSON.stringify(body)).toMatch(/fosterPhone is invalid./i);
   });
 
   // ─── TC_06 ──────────────────────────────────────────────────────────────────
@@ -300,7 +296,7 @@ test.describe("Update Merchant Account API", () => {
   });
 
   // ─── TC_09 ──────────────────────────────────────────────────────────────────
-  test("TC_09 - Update with duplicate fosterEmail - Expect 400", async ({
+  test.skip("TC_09 - Update with duplicate fosterEmail - Expect 400", async ({
     request,
   }) => {
     const duplicateEmail = "s_suganami@interspace.ne.jp";

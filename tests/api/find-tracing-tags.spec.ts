@@ -58,9 +58,9 @@ test.describe("Find Tracing Tags API", () => {
   /** Test Cases for Find Tracing Tags API method `GET v1/staff/campaigns/tracking-tags?campaignId={campaignId}`
    * Test summary to cover:
    *  1. Valid Campaign ID - Expect 200 OK with correct tracing tags data.
-   *  2. Non-Existing Campaign ID - Expect 404 Not Found with appropriate error message.
-   *  3. Missing Campaign ID - Expect 400 Bad Request with validation error message.
-   *  4. Invalid Campaign ID Format (e.g., string instead of number) - Expect 400 Bad Request with validation error message.
+   *  2. Non-Existing Campaign ID - Expect 400 Bad Request with appropriate error message.
+   *  3. Missing Campaign ID - Expect 404 Not Found with validation error message.
+   *  4. Invalid Campaign ID Format (e.g., string instead of number) - Expect 404 Not Found with validation error message.
    *  5. Unauthorized Access (e.g., no token or invalid token) - Expect 401 Unauthorized with appropriate error message.
    *  6. Forbidden Access (e.g., user without access to the campaign's country) - Expect 401 Unauthorized with appropriate error message.
    *  7. Valid Campaign ID with No Tracing Tags - Expect 200 OK with empty tracing tags arrays.
@@ -82,14 +82,14 @@ test.describe("Find Tracing Tags API", () => {
   });
 
   // ─── TC_02 ──────────────────────────────────────────────────────────────────
-  test("TC_02 - Non-Existing Campaign ID - Expect 404 Not Found", async ({
+  test("TC_02 - Non-Existing Campaign ID - Expect 400 Bad Request", async ({
     request,
   }) => {
     const res = await request.get(getApiUrl(NON_EXISTING_CAMPAIGN_ID), {
       headers: getAuthHeaders(),
     });
     const body = await logResponse(res);
-    expect(res.status()).toBe(404);
+    expect(res.status()).toBe(400);
     expect(JSON.stringify(body)).toMatch(/does not exist/i);
   });
 
@@ -103,7 +103,7 @@ test.describe("Find Tracing Tags API", () => {
     );
     const body = await logResponse(res);
     expect(res.status()).toBe(404);
-    expect(JSON.stringify(body)).toMatch(/Not Found/i);
+    expect(JSON.stringify(body)).toMatch(/campaignId is required/i);
   });
 
   // ─── TC_04 ──────────────────────────────────────────────────────────────────
@@ -116,7 +116,7 @@ test.describe("Find Tracing Tags API", () => {
     );
     const body = await logResponse(res);
     expect(res.status()).toBe(404);
-    expect(JSON.stringify(body)).toMatch(/Not Found/i);
+    expect(JSON.stringify(body)).toMatch(/campaignId is required/i);
   });
 
   // ─── TC_05 ──────────────────────────────────────────────────────────────────

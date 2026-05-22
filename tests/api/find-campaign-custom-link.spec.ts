@@ -71,8 +71,7 @@ test.describe("Find Custom Link Rules API", () => {
   test("TC_01 - Valid Campaign ID - Expect 200 OK with correct custom link rules data", async ({
     request,
   }) => {
-    const campaignId = randomCampaignId();
-    const res = await request.get(getApiUrl(3746), {
+    const res = await request.get(getApiUrl(3841), {
       headers: getAuthHeaders(),
     });
     const body = await logResponse(res);
