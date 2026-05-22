@@ -141,7 +141,9 @@ test.describe("Request Payment Under Processing API", () => {
     });
     const body = await logResponse(res);
     expect(res.status()).toBe(400);
-    expect(JSON.stringify(body)).toMatch(/Bad Request|invalid/i);
+    expect(JSON.stringify(body)).toMatch(
+      /Failed to parse request body for requesting payment under processing./i,
+    );
   });
 
   // ─── TC_06 ──────────────────────────────────────────────────────────────────

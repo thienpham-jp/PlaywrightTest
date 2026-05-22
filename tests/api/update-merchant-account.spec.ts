@@ -285,14 +285,14 @@ test.describe("Update Merchant Account API", () => {
   test("TC_08 - Update with duplicate loginName - Expect 400", async ({
     request,
   }) => {
-    const duplicateLoginName = "isvn";
+    const duplicateLoginName = "merchant_test";
     const res = await request.put(API_URL, {
       headers: getAuthHeaders(),
       data: { ...basicPayload(), loginName: duplicateLoginName },
     });
     const body = await logResponse(res);
     expect(res.status()).toBe(400);
-    expect(JSON.stringify(body)).toMatch(/loginName is already in use/i);
+    expect(JSON.stringify(body)).toMatch(/Login name is already in use/i);
   });
 
   // ─── TC_09 ──────────────────────────────────────────────────────────────────

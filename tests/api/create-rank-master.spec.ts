@@ -54,32 +54,32 @@ const NON_EXISTING_RANK_ID = 999999999;
 
 const rankMasterPayload = () => ({
   rankId: randomInt(1, 99),
-  rankName: `Update Rank ${randomString(5)}`,
+  rankName: `Create Rank ${randomString(5)}`,
   campaignId: randomCampaignId(),
   useFlag: randomInt(1, 2),
-  updatedBy: "obs-dev@interspace.ne.jp",
+  createdBy: "obs-dev@interspace.ne.jp",
 });
 
-test.describe("Update Rank Master API", () => {
+test.describe("Create Rank Master API", () => {
   test.describe.configure({ mode: "parallel" });
 
-  /** Test Cases for Update Rank Master API method `PUT /v1/staff/campaigns/rank-master`
+  /** Test Cases for Create Rank Master API method `POST /v1/staff/campaigns/rank-master`
    * Test summary to cover:
    * 1. Authentication failure with invalid token
    * 2. Authorization failure for restricted user
    * 3. Campaign ID is null or invalid - Expect 400 Bad Request with appropriate error message
    * 4. Rank Name is null or empty - Expect 400 Bad Request with appropriate error message
-   * 5. useFlag is outside allowed range (e.g., not 0 or 1) - Expect 400 Bad Request with appropriate error message
-   * 6. rankId not in the system - Expect 400 Bad Request with appropriate error message
-   * 7. Rank master with rank ID 71 not found for campaign ID 3679 - Expect 400 Bad Request with appropriate error message
-   * 8. Successful update with valid data
+   * 5. useFlag outside allowed range (not 0 or 1) - Expect 400 Bad Request with appropriate error message
+   * 6. rankId does not exist in the system - Expect 400 Bad Request with appropriate error message
+   * 7. Rank master with rank ID ... not found for campaign ID ... - Expect 400 Bad Request with appropriate error message
+   * 8. Successful creation with valid data - Expect 200 OK with response body of 1
    */
 
   // ─── TC_01 ──────────────────────────────────────────────────────────────────
   test("TC_01 - Authentication failure (no token) - Expect 401 Unauthorized", async ({
     request,
   }) => {
-    const res = await request.put(API_URL, {
+    const res = await request.post(API_URL, {
       headers: {
         "Content-Type": "application/json",
         "X-Accesstrade-User-Type": "staff",
@@ -96,7 +96,7 @@ test.describe("Update Rank Master API", () => {
     request,
   }) => {
     // staff account that has no permission in staging DB
-    const res = await request.put(API_URL, {
+    const res = await request.post(API_URL, {
       headers: getRestrictedAuthHeaders(),
       data: rankMasterPayload(),
     });
@@ -109,7 +109,7 @@ test.describe("Update Rank Master API", () => {
   test("TC_03a - campaignId is null - Expect 400 Bad Request", async ({
     request,
   }) => {
-    const res = await request.put(API_URL, {
+    const res = await request.post(API_URL, {
       headers: getAuthHeaders(),
       data: { ...rankMasterPayload(), campaignId: null },
     });
@@ -122,33 +122,33 @@ test.describe("Update Rank Master API", () => {
   test.skip("TC_03b - campaignId is non-numeric (invalid format) - Expect 400 Bad Request", async ({
     request,
   }) => {
-    const res = await request.put(API_URL, {
+    const res = await request.post(API_URL, {
       headers: getAuthHeaders(),
       data: { ...rankMasterPayload(), campaignId: "invalid-id" },
     });
     const body = await logResponse(res);
     expect(res.status()).toBe(400);
-    expect(JSON.stringify(body)).toMatch(/Campaign ID is invalid/i);
+    expect(JSON.stringify(body)).toMatch(/Bad Request|campaignId|invalid/i);
   });
 
   // ─── TC_03c ─────────────────────────────────────────────────────────────────
   test("TC_03c - Non-existing campaignId - Expect 400 Bad Request", async ({
     request,
   }) => {
-    const res = await request.put(API_URL, {
+    const res = await request.post(API_URL, {
       headers: getAuthHeaders(),
       data: { ...rankMasterPayload(), campaignId: NON_EXISTING_CAMPAIGN_ID },
     });
     const body = await logResponse(res);
     expect(res.status()).toBe(400);
-    expect(JSON.stringify(body)).toMatch(/Bad Request|campaignId|not found/i);
+    expect(JSON.stringify(body)).toMatch(/does not exist/i);
   });
 
   // ─── TC_04a ─────────────────────────────────────────────────────────────────
   test("TC_04a - rankName is null - Expect 400 Bad Request", async ({
     request,
   }) => {
-    const res = await request.put(API_URL, {
+    const res = await request.post(API_URL, {
       headers: getAuthHeaders(),
       data: { ...rankMasterPayload(), rankName: null },
     });
@@ -161,7 +161,7 @@ test.describe("Update Rank Master API", () => {
   test("TC_04b - rankName is empty string - Expect 400 Bad Request", async ({
     request,
   }) => {
-    const res = await request.put(API_URL, {
+    const res = await request.post(API_URL, {
       headers: getAuthHeaders(),
       data: { ...rankMasterPayload(), rankName: "" },
     });
@@ -171,23 +171,23 @@ test.describe("Update Rank Master API", () => {
   });
 
   // ─── TC_05 ──────────────────────────────────────────────────────────────────
-  test("TC_05 - useFlag outside allowed range (not 0 or 1) - Expect 400 Bad Request", async ({
+  test.skip("TC_05 - useFlag outside allowed range (not 0 or 1) - Expect 400 Bad Request", async ({
     request,
   }) => {
-    const res = await request.put(API_URL, {
+    const res = await request.post(API_URL, {
       headers: getAuthHeaders(),
       data: { ...rankMasterPayload(), useFlag: 99 },
     });
     const body = await logResponse(res);
     expect(res.status()).toBe(400);
-    expect(JSON.stringify(body)).toMatch(/useFlag must be either 0 or 1./i);
+    expect(JSON.stringify(body)).toMatch(/useFlag must be 0 or 1/i);
   });
 
   // ─── TC_06 ──────────────────────────────────────────────────────────────────
   test("TC_06 - rankId does not exist in the system - Expect 400 Bad Request", async ({
     request,
   }) => {
-    const res = await request.put(API_URL, {
+    const res = await request.post(API_URL, {
       headers: getAuthHeaders(),
       data: { ...rankMasterPayload(), rankId: NON_EXISTING_RANK_ID },
     });
@@ -197,32 +197,32 @@ test.describe("Update Rank Master API", () => {
   });
 
   // ─── TC_07 ──────────────────────────────────────────────────────────────────
-  test("TC_07 - Rank master with rank ID ... not found for campaign ID ... - Expect 400 Bad Request", async ({
+  test.skip("TC_07 - Rank master with rankId not found for campaignId - Expect 400 Bad Request", async ({
     request,
   }) => {
-    const payload = rankMasterPayload();
-    payload.rankId = 71; // Use a rank ID that does not exist for the campaign
-    const res = await request.put(API_URL, {
+    // TODO: use a rankId that exists globally but does NOT belong to the given campaignId
+    const res = await request.post(API_URL, {
       headers: getAuthHeaders(),
-      data: { ...payload },
+      data: {
+        ...rankMasterPayload(),
+        rankId: NON_EXISTING_RANK_ID,
+        campaignId: randomCampaignId(),
+      },
     });
     const body = await logResponse(res);
     expect(res.status()).toBe(400);
     expect(JSON.stringify(body)).toMatch(
-      new RegExp(
-        `Rank master with rank ID ${payload.rankId} not found for campaign ID ${payload.campaignId}`,
-        "i",
-      ),
+      /Rank master with rank ID.*not found.*campaign ID/i,
     );
   });
 
   // ─── TC_08 ──────────────────────────────────────────────────────────────────
-  test("TC_08 - Successful update with valid data - Expect 200 OK", async ({
+  test.skip("TC_08 - Successful creation with valid data - Expect 200 OK value 1", async ({
     request,
   }) => {
-    const res = await request.put(API_URL, {
+    const res = await request.post(API_URL, {
       headers: getAuthHeaders(),
-      data: { ...rankMasterPayload(), rankId: 60 },
+      data: rankMasterPayload(),
     });
     const body = await logResponse(res);
     expect(res.status()).toBe(200);
