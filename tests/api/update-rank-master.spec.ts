@@ -56,7 +56,7 @@ const rankMasterPayload = () => ({
   rankId: randomInt(1, 99),
   rankName: `Update Rank ${randomString(5)}`,
   campaignId: randomCampaignId(),
-  useFlag: randomInt(1, 2),
+  useFlag: randomInt(0, 1),
   updatedBy: "obs-dev@interspace.ne.jp",
 });
 
@@ -141,7 +141,7 @@ test.describe("Update Rank Master API", () => {
     });
     const body = await logResponse(res);
     expect(res.status()).toBe(400);
-    expect(JSON.stringify(body)).toMatch(/Bad Request|campaignId|not found/i);
+    expect(JSON.stringify(body)).toMatch(/Campaign ID does not exist./i);
   });
 
   // ─── TC_04a ─────────────────────────────────────────────────────────────────

@@ -9,13 +9,14 @@ import {
 } from "../../src/helpers/function-helper";
 import { urlStagingAPI } from "../../src/helpers/base-url-helper";
 import { generateJWT } from "../../src/helpers/jwt-helper";
+import { SECRET_KEY, USER_UID } from "../../src/helpers/user-helper";
 
-const baseURL = urlStagingAPI("VN");
+const baseURL = urlStagingAPI("ID");
 
 const API_URL = `${baseURL}/v1/staff/campaigns/fixed-fee-histories`;
 
-const USER_UID = "llt5mqx11xxl291lta91aqaaaalxxq67";
-const SECRET_KEY = "8qbcc2zzzzbz0ezs20e9jjz90cbxls22";
+// const USER_UID = "llt5mqx11xxl291lta91aqaaaalxxq67";
+// const SECRET_KEY = "8qbcc2zzzzbz0ezs20e9jjz90cbxls22";
 
 // Staff user without access to the campaign's country (replace with actual restricted account)
 const RESTRICTED_USER_UID = "restricted_user_uid_placeholder";
@@ -51,7 +52,7 @@ const logResponse = async (res: APIResponse) => {
 };
 
 // TODO: replace with a campaignId that has fixed fee histories in staging DB
-const VALID_CAMPAIGN_ID = randomInt(3745, 3750);
+const VALID_CAMPAIGN_ID = randomInt(3777, 3780);
 const NON_EXISTING_CAMPAIGN_ID = 999999999;
 
 const buildUrl = (params: Record<string, string | number | boolean>) => {

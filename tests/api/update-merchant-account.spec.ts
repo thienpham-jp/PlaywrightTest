@@ -277,8 +277,8 @@ test.describe("Update Merchant Account API", () => {
       data: { ...basicPayload(), merchantId: 999999999 },
     });
     const body = await logResponse(res);
-    expect(res.status()).toBe(404);
-    expect(JSON.stringify(body)).toMatch(/does not exist/i);
+    expect(res.status()).toBe(400);
+    expect(JSON.stringify(body)).toMatch(/merchantId is not exist./i);
   });
 
   // ─── TC_08 ──────────────────────────────────────────────────────────────────

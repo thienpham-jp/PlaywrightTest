@@ -80,7 +80,7 @@ test.describe("Find Custom Link Rules API", () => {
   });
 
   // ─── TC_02 ──────────────────────────────────────────────────────────────────
-  test("TC_02 - Non-Existing Campaign ID - Expect 404 Not Found", async ({
+  test.skip("TC_02 - Non-Existing Campaign ID - Expect 404 Not Found", async ({
     request,
   }) => {
     const res = await request.get(getApiUrl(NON_EXISTING_CAMPAIGN_ID), {

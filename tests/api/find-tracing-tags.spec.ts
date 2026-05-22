@@ -2,7 +2,6 @@ import { test, expect, APIResponse } from "@playwright/test";
 import { urlStagingAPI } from "../../src/helpers/base-url-helper";
 import { generateJWT } from "../../src/helpers/jwt-helper";
 import { randomInt } from "../../src/helpers/function-helper";
-import { request } from "https";
 
 const baseURL = urlStagingAPI("VN");
 
