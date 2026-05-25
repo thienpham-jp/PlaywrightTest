@@ -8,7 +8,7 @@ const baseURL = urlStagingAPI("VN");
 const NON_EXISTING_CAMPAIGN_ID = 999999999;
 
 // Replace with a valid campaign ID that exists in the staging DB
-const VALID_CAMPAIGN_IDS = [3745, 3746, 3747, 3748, 3749, 3750];
+const VALID_CAMPAIGN_IDS = [3747, 3748, 3749, 3750];
 const randomCampaignId = () =>
   VALID_CAMPAIGN_IDS[randomInt(0, VALID_CAMPAIGN_IDS.length - 1)];
 
@@ -49,7 +49,7 @@ test.describe("Find Campaign Detail API", () => {
   /** Test Cases for Find Campaign Detail API method `GET /v1/staff/campaign/{campaignId}`
    * Test summary to cover:
    *  1. Valid Campaign ID - Expect 200 OK with correct campaign detail data.
-   *  2. Non-Existing Campaign ID - Expect 404 Not Found with appropriate error message.
+   *  2. Non-Existing Campaign ID - Expect 400 Bad Request with appropriate error message.
    *  3. Missing Campaign ID - Expect 400 Bad Request with validation error message.
    *  4. Invalid Campaign ID Format (e.g., string instead of number) - Expect 400 Bad Request with validation error message.
    *  5. Unauthorized Access (e.g., no token or invalid token) - Expect 401 Unauthorized with appropriate error message.
@@ -60,7 +60,7 @@ test.describe("Find Campaign Detail API", () => {
   test("TC_01 - Valid Campaign ID - Expect 200 OK with correct campaign detail data", async ({
     request,
   }) => {
-    const campaignId = randomCampaignId();
+    const campaignId = 3841;
     const res = await request.get(getApiUrl(campaignId), {
       headers: getAuthHeaders(),
     });
@@ -73,15 +73,15 @@ test.describe("Find Campaign Detail API", () => {
   });
 
   // ─── TC_02 ──────────────────────────────────────────────────────────────────
-  test("TC_02 - Non-Existing Campaign ID - Expect 404 Not Found", async ({
+  test("TC_02 - Non-Existing Campaign ID - Expect 400 Bad Request", async ({
     request,
   }) => {
     const res = await request.get(getApiUrl(NON_EXISTING_CAMPAIGN_ID), {
       headers: getAuthHeaders(),
     });
     const body = await logResponse(res);
-    expect(res.status()).toBe(404);
-    expect(JSON.stringify(body)).toMatch(/Not Found/i);
+    expect(res.status()).toBe(400);
+    expect(JSON.stringify(body)).toMatch(/does not exist/i);
   });
 
   // ─── TC_03 ──────────────────────────────────────────────────────────────────

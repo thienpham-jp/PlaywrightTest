@@ -65,6 +65,10 @@ test.describe("Request Payment Under Processing API", () => {
    * 8. Some payment IDs are not in correct state - Expect 422 Unprocessable Entity with appropriate error message
    * 9. Successful request with valid publisherPaymentHistoryIds 1 item - Expect 200 OK with correct response structure
    * 9b. Successful request with valid publisherPaymentHistoryIds multiple items - Expect 200 OK with correct response structure
+   * 10. Non-existing partnerId - Expect 404 Not Found with appropriate error message
+   * 11. PartnerIt exists but is not in active state - Expect 403 Forbidden with appropriate error message
+   * 12. More than 100 IDs in publisherPaymentHistoryIds - Expect 400 Bad Request with appropriate error message
+   * 13. All IDs belong to the partner but at least one row is not in an allowed status (code allows UNPAID and PROBLEM_REPORTED; the user-facing message says “CLAIM”) - Expect 422 Unprocessable Entity with appropriate error message
    */
 
   // ─── TC_01 ──────────────────────────────────────────────────────────────────
@@ -137,7 +141,9 @@ test.describe("Request Payment Under Processing API", () => {
     });
     const body = await logResponse(res);
     expect(res.status()).toBe(400);
-    expect(JSON.stringify(body)).toMatch(/Bad Request|invalid/i);
+    expect(JSON.stringify(body)).toMatch(
+      /Failed to parse request body for requesting payment under processing./i,
+    );
   });
 
   // ─── TC_06 ──────────────────────────────────────────────────────────────────
@@ -212,5 +218,66 @@ test.describe("Request Payment Under Processing API", () => {
     const body = await logResponse(res);
     expect(res.status()).toBe(200);
     // Additional assertions can be added here to validate the structure and content of the response body
+  });
+
+  // ─── TC_10 ──────────────────────────────────────────────────────────────────
+  test("TC_10 - Non-existing partnerId - Expect 404 Not Found with appropriate error message", async ({
+    request,
+  }) => {
+    const nonExistingPartnerId = 999999999;
+    const res = await request.post(getApiUrl(nonExistingPartnerId), {
+      headers: getAuthHeaders(),
+      data: validPayload(),
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(404);
+    expect(JSON.stringify(body)).toMatch(/Publisher not found/i);
+  });
+
+  // ─── TC_11 ──────────────────────────────────────────────────────────────────
+  test("TC_11 - Partner exists but is not in active state - Expect 403 Forbidden with appropriate error message", async ({
+    request,
+  }) => {
+    // Use a partnerId that exists in staging DB but is not in active state
+    const inactivePartnerId = 11238;
+    const res = await request.post(getApiUrl(inactivePartnerId), {
+      headers: getAuthHeaders(),
+      data: validPayload(),
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(403);
+    expect(JSON.stringify(body)).toMatch(/Publisher is inactive/i);
+  });
+
+  // ─── TC_12 ──────────────────────────────────────────────────────────────────
+  test("TC_12 - More than 100 IDs in publisherPaymentHistoryIds - Expect 400 Bad Request with appropriate error message", async ({
+    request,
+  }) => {
+    const payload = {
+      publisherPaymentHistoryIds: Array.from({ length: 101 }, (_, i) => i + 1),
+    };
+    const res = await request.post(getApiUrl(VALID_PARTNER_ID), {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(400);
+    expect(JSON.stringify(body)).toMatch(/Exceeds maximum batch size \(100\)/i);
+  });
+
+  // ─── TC_13 ──────────────────────────────────────────────────────────────────
+  test.skip("TC_13 - All IDs belong to the partner but at least one row is not in an allowed status - Expect 422 Unprocessable Entity with appropriate error message", async ({
+    request,
+  }) => {
+    // Use a mix of valid publisherPaymentHistoryIds where at least one is in an incorrect state in staging DB
+    const res = await request.post(getApiUrl(VALID_PARTNER_ID), {
+      headers: getAuthHeaders(),
+      data: { publisherPaymentHistoryIds: [4870583, 4520121] },
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(422);
+    expect(JSON.stringify(body)).toMatch(
+      /Some payment IDs are invalid, not owned by user, or not in correct state/i,
+    );
   });
 });
