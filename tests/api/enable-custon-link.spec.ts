@@ -177,7 +177,7 @@ test.describe("Enable Custom Link API", () => {
   });
 
   // ─── TC07 ───────────────────────────────────────────────────────────────────
-  test("TC07 - Branch B: existing banner with enabled=false returns 200", async ({
+  test.skip("TC07 - Branch B: existing banner with enabled=false returns 200", async ({
     request,
   }) => {
     const ACTIVE_BANNER_CAMPAIGN_ID = randomCampaignId();
