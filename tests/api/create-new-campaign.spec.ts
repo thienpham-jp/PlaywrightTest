@@ -10,13 +10,14 @@ import {
 import { urlStagingAPI } from "../../src/helpers/base-url-helper";
 
 import { generateJWT } from "../../src/helpers/jwt-helper";
+import { SECRET_KEY, USER_UID } from "../../src/helpers/user-helper";
 
-const baseURL = urlStagingAPI("VN");
+const baseURL = urlStagingAPI("ID");
 
 const API_URL = `${baseURL}/v1/staff/campaign`;
 
-const USER_UID = "llt5mqx11xxl291lta91aqaaaalxxq67";
-const SECRET_KEY = "8qbcc2zzzzbz0ezs20e9jjz90cbxls22";
+// const USER_UID = "llt5mqx11xxl291lta91aqaaaalxxq67";
+// const SECRET_KEY = "8qbcc2zzzzbz0ezs20e9jjz90cbxls22";
 
 const token = `Bearer ${generateJWT(USER_UID, SECRET_KEY)}`;
 
@@ -102,7 +103,7 @@ const basicPayload = () => ({
 
 const validPayload = () => ({
   insertCampaignDetails: {
-    merchantId: randomInt(1760, 2300),
+    merchantId: 15687,
     campaignStatus: "RUNNING",
     category1: 1,
     category2: 2,
@@ -424,7 +425,7 @@ test.describe("Create New Campaign API", () => {
   });
 
   // ! Verify status code and response body
-  test.skip("TC13 - Verify successful creation with all optional fields", async ({
+  test("TC13 - Verify successful creation with all optional fields", async ({
     request,
   }) => {
     const payload = validPayload();
