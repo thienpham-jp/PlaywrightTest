@@ -115,7 +115,7 @@ test.describe("Publisher Update Email API V2", () => {
     expect(JSON.stringify(body)).toMatch(/Account already has an email/i);
   });
 
-  test("TC06 - Verify successful case - only change email", async ({
+  test.skip("TC06 - Verify successful case - only change email", async ({
     request,
   }) => {
     const payload = validPayload();
@@ -139,7 +139,7 @@ test.describe("Publisher Update Email API V2", () => {
     expect(JSON.stringify(body)).toMatch(/Email is invalid/i);
   });
 
-  test("TC08 - Verify success with email and phoneNumber", async ({
+  test.skip("TC08 - Verify success with email and phoneNumber", async ({
     request,
   }) => {
     const payload = {

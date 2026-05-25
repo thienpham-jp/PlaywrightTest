@@ -133,7 +133,7 @@ test.describe("Delete Fixed Fee Histories API", () => {
   });
 
   // ─── TC_04 ──────────────────────────────────────────────────────────────────
-  test("TC_04 - Successful deletion with valid payload - Expect 200 OK value 1", async ({
+  test.skip("TC_04 - Successful deletion with valid payload - Expect 200 OK value 1", async ({
     request,
   }) => {
     // TODO: replace transactionId 910 with a record that exists and is not yet deleted in staging DB
