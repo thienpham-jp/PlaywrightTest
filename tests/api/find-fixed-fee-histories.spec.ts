@@ -135,8 +135,8 @@ test.describe("Find Fixed Fee Histories API", () => {
     expect(Array.isArray(body)).toBeTruthy();
     const items = body as any[];
     if (items.length > 0) {
-      expect(items[0]).toHaveProperty("campaignId");
-      expect(items[0].campaignId).toBe(VALID_CAMPAIGN_ID);
+      expect(items[0]).toHaveProperty("merchantCampaignNo");
+      expect(items[0].merchantCampaignNo).toBe(VALID_CAMPAIGN_ID);
     }
   });
 
