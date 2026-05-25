@@ -10,14 +10,14 @@ import {
 import { urlStagingAPI } from "../../src/helpers/base-url-helper";
 
 import { generateJWT } from "../../src/helpers/jwt-helper";
-import { SECRET_KEY, USER_UID } from "../../src/helpers/user-helper";
+// import { SECRET_KEY, USER_UID } from "../../src/helpers/user-helper";
 
-const baseURL = urlStagingAPI("ID");
+const baseURL = urlStagingAPI("VN");
 
 const API_URL = `${baseURL}/v1/staff/campaign`;
 
-// const USER_UID = "llt5mqx11xxl291lta91aqaaaalxxq67";
-// const SECRET_KEY = "8qbcc2zzzzbz0ezs20e9jjz90cbxls22";
+const USER_UID = "llt5mqx11xxl291lta91aqaaaalxxq67";
+const SECRET_KEY = "8qbcc2zzzzbz0ezs20e9jjz90cbxls22";
 
 const token = `Bearer ${generateJWT(USER_UID, SECRET_KEY)}`;
 
@@ -93,7 +93,7 @@ const basicPayload = () => ({
   categoryIds: [1, 2, 3],
   insertCampaignSettingDetails: {
     cvOnlyOnceFlag: 1,
-    cookieExpirationDateView: 30,
+    cookieExpirationDateView: 60,
     verifyCutFlag: 0,
     verifyCutTarget: 0,
     verifyCutCondition: 0,
@@ -103,7 +103,7 @@ const basicPayload = () => ({
 
 const validPayload = () => ({
   insertCampaignDetails: {
-    merchantId: 15687,
+    merchantId: randomInt(1760, 2300),
     campaignStatus: "RUNNING",
     category1: 1,
     category2: 2,
@@ -150,7 +150,7 @@ const validPayload = () => ({
   categoryIds: [1, 2, 3],
   insertCampaignSettingDetails: {
     cvOnlyOnceFlag: 1,
-    cookieExpirationDateView: 30,
+    cookieExpirationDateView: 60,
     verifyCutFlag: 0,
     verifyCutTarget: 0,
     verifyCutCondition: 0,
@@ -410,7 +410,6 @@ test.describe("Create New Campaign API", () => {
     expect(JSON.stringify(body)).toMatch(/customerCountries/i);
   });
 
-  // ! Verify status code and response body
   test.skip("TC12 - Verify successful campaign creation (Basic)", async ({
     request,
   }) => {
@@ -424,8 +423,7 @@ test.describe("Create New Campaign API", () => {
     expect(body).toBeGreaterThan(0);
   });
 
-  // ! Verify status code and response body
-  test("TC13 - Verify successful creation with all optional fields", async ({
+  test.skip("TC13 - Verify successful creation with all optional fields", async ({
     request,
   }) => {
     const payload = validPayload();

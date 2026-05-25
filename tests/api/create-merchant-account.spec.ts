@@ -9,14 +9,14 @@ import {
 import { urlStagingAPI } from "../../src/helpers/base-url-helper";
 
 import { generateJWT } from "../../src/helpers/jwt-helper";
-import { SECRET_KEY, USER_UID } from "../../src/helpers/user-helper";
+// import { SECRET_KEY, USER_UID } from "../../src/helpers/user-helper";
 
-const baseURL = urlStagingAPI("ID");
+const baseURL = urlStagingAPI("VN");
 
 const API_URL = `${baseURL}/v1/staff/merchant`;
 
-// const USER_UID = "llt5mqx11xxl291lta91aqaaaalxxq67";
-// const SECRET_KEY = "8qbcc2zzzzbz0ezs20e9jjz90cbxls22";
+const USER_UID = "llt5mqx11xxl291lta91aqaaaalxxq67";
+const SECRET_KEY = "8qbcc2zzzzbz0ezs20e9jjz90cbxls22";
 
 // Staff user without access to the campaign's country (replace with actual restricted account)
 const RESTRICTED_USER_UID = "restricted_user_uid_placeholder";
