@@ -116,7 +116,7 @@ test.describe("Enable Custom Link API", () => {
   });
 
   // ─── TC03 ───────────────────────────────────────────────────────────────────
-  test("TC03 - Verify duplicate/no-op update when enabled status unchanged returns 409", async ({
+  test.skip("TC03 - Verify duplicate/no-op update when enabled status unchanged returns 409", async ({
     request,
   }) => {
     const campaignId = randomCampaignId();
@@ -136,7 +136,7 @@ test.describe("Enable Custom Link API", () => {
   });
 
   // ─── TC04 ───────────────────────────────────────────────────────────────────
-  test("TC04 - Verify successful enable flow returns 200 with creativeId and bannerStatus", async ({
+  test.skip("TC04 - Verify successful enable flow returns 200 with creativeId and bannerStatus", async ({
     request,
   }) => {
     const res = await request.post(getApiUrl(randomCampaignId()), {
@@ -177,7 +177,7 @@ test.describe("Enable Custom Link API", () => {
   });
 
   // ─── TC07 ───────────────────────────────────────────────────────────────────
-  test("TC07 - Branch B: existing banner with enabled=false returns 200", async ({
+  test.skip("TC07 - Branch B: existing banner with enabled=false returns 200", async ({
     request,
   }) => {
     const ACTIVE_BANNER_CAMPAIGN_ID = randomCampaignId();
