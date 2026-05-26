@@ -591,12 +591,12 @@ test.describe("Test Update Campaign", () => {
   }) => {
     const campaignStates = [0, 1, 2, 3, 4, 5]; // Assuming these are the valid campaign state IDs for
     const statuses = [
-      "BEFORE THE SERVICE BEGINS",
+      "GETTING_READY",
       "RUNNING",
       "TERMINATED",
       "PAUSED",
       "OTHER",
-      "TERMINATED_BEFORE_SERVICE",
+      "WONT_RUN",
     ];
     /* 0: Before the service begins
           1: Running
@@ -645,7 +645,14 @@ test.describe("Test Update Campaign", () => {
 
     console.log(`Pre-check campaign status: ${preStatus}`);
 
-    const STATUSES = ["OTHER", "PAUSED", "RUNNING", "TERMINATED"];
+    const STATUSES = [
+      "GETTING_READY",
+      "RUNNING",
+      "TERMINATED",
+      "PAUSED",
+      "OTHER",
+      "WONT_RUN",
+    ];
 
     const availableStatuses = STATUSES.filter((s) => s !== preStatus);
     const newStatus =

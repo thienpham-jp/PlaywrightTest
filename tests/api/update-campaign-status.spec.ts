@@ -52,7 +52,14 @@ const logResponse = async (res: APIResponse) => {
   return responseBody;
 };
 
-const STATUSES = ["OTHER", "PAUSED", "RUNNING", "TERMINATED"];
+const STATUSES = [
+  "GETTING_READY",
+  "RUNNING",
+  "TERMINATED",
+  "PAUSED",
+  "OTHER",
+  "WONT_RUN",
+];
 const randomStatus = () => STATUSES[randomInt(0, STATUSES.length - 1)];
 
 const validPayload = () => ({
@@ -82,12 +89,12 @@ test.describe("Update Campaign Status API", () => {
   }) => {
     const campaignStates = [0, 1, 2, 3, 4, 5]; // Assuming these are the valid campaign state IDs for
     const statuses = [
-      "BEFORE THE SERVICE BEGINS",
+      "GETTING_READY",
       "RUNNING",
       "TERMINATED",
       "PAUSED",
       "OTHER",
-      "TERMINATED_BEFORE_SERVICE",
+      "WONT_RUN",
     ];
     /* 0: Before the service begins
       1: Running
