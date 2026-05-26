@@ -121,6 +121,8 @@ test.describe("Create Result Target Settings API", () => {
 | TC24   | Verify data stored in both DB tables                              | Data exists in both `RESULT_TARGET_SETTING` and `RESULT_TARGET_MASTER`                 | N/A                                      | ☐ Suggestion |
 | TC25   | Verify invalid rewardTypeCPA values                               | Return `400` with invalid value error                                                  | N/A                                      | ☐ Suggestion |
 | TC26   | Verify `data_access:all_countries` permission access              | Staff can access campaigns from all countries successfully                             | N/A                                      | ☐ Suggestion |
+| TC27   | Verify inputMode=null with resultIdGroup provided returns validation error | Return `400` with message indicating inputMode is required when resultIdGroup is set | N/A                                      | ☐ Suggestion |
+| TC28   | Verify inputMode=0 with resultIdGroup but missing customerType returns validation error | Return `400` with message indicating customerType is required when resultIdGroup is set | N/A                                      | ☐ Suggestion |
 
    */
 
@@ -604,5 +606,39 @@ test.describe("Create Result Target Settings API", () => {
       expect(res.status()).toBe(400);
       expect(JSON.stringify(body)).toMatch(/rewardTypeCPA/i);
     }
+  });
+
+  // ─── TC26 (Suggestion) ──────────────────────────────────────────────────────
+  test("TC26 - Verify `inputMode=null` with `validPayloadMode0` provided returns validation error", async ({
+    request,
+  }) => {
+    const payload = {
+      ...validPayloadMode0,
+      inputMode: null,
+    }; // resultIdGroup picked randomly from VALID_RESULT_GROUPS
+    const res = await request.post(getApiUrl(randomCampaignId()), {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(400);
+    // Record should be inserted with INPUT_TYPE = 0 and repeatFlag = false
+  });
+
+  // ─── TC27 (Suggestion) ──────────────────────────────────────────────────────
+  test("TC27 - Verify `inputMode=null` with `validPayloadMode1` provided returns validation error", async ({
+    request,
+  }) => {
+    const payload = {
+      ...validPayloadMode1,
+      inputMode: null,
+    }; // resultIdGroup picked randomly from VALID_RESULT_GROUPS
+    const res = await request.post(getApiUrl(randomCampaignId()), {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(400);
+    // Record should be inserted with INPUT_TYPE = 0 and repeatFlag = false
   });
 });

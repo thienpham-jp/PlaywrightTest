@@ -111,7 +111,7 @@ test.describe("function-helper", () => {
     test("Return valid email with default domain", () => {
       const email = randomEmail();
 
-      expect(email).toMatch(/^[a-z0-9]+@example\.com$/);
+      expect(email).toMatch(/^[a-z0-9]+@yopmail\.com$/);
     });
 
     test("Return email with custom domain", () => {

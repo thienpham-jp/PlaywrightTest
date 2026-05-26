@@ -9,6 +9,7 @@ import {
 import { urlStagingAPI } from "../../src/helpers/base-url-helper";
 
 import { generateJWT } from "../../src/helpers/jwt-helper";
+// import { SECRET_KEY, USER_UID } from "../../src/helpers/user-helper";
 
 const baseURL = urlStagingAPI("VN");
 
@@ -53,9 +54,9 @@ const basicPayload = () => {
     accountantEmail: randomUserEmail(loginName),
     merchantTypeId: 1,
     staffLoginName: "obs-dev@interspace.ne.jp",
-    countryCode: "VN",
+    countryCode: "ID",
     parentMerchantId: 0,
-    permissionIds: [1, 2],
+    // permissionIds: [1, 2],
   };
 };
 
@@ -96,9 +97,9 @@ const validPayload = () => {
     accountantMiddlename: `Test Middle Name - ${regixString}`,
     accountantEmail: randomUserEmail(loginName),
     accountantPhone: randomPhoneNumber("0"),
-    countryCode: "VN",
+    countryCode: "ID",
     parentMerchantId: 0,
-    permissionIds: [1, 2],
+    // permissionIds: [1, 2],
   };
 };
 
@@ -134,7 +135,7 @@ test.describe("Create Merchant Account API", () => {
   });
 
   // ─── TC_02 ──────────────────────────────────────────────────────────────────
-  test.skip("TC_02 - Successful creation with all fields provided - Expect 200 OK", async ({
+  test("TC_02 - Successful creation with all fields provided - Expect 200 OK", async ({
     request,
   }) => {
     const res = await request.post(API_URL, {

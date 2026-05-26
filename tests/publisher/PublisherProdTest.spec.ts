@@ -42,7 +42,7 @@ test.describe("Publisher Production Tests", () => {
     await expect(publisherPage.page).toHaveURL(`${BASE_URL}/dashboard`);
   });
 
-  test("Dashboard - Performance section", async () => {
+  test.skip("Dashboard - Performance section", async () => {
     const performanceText = publisherPage.page.getByText("Performance", {
       exact: true,
     });

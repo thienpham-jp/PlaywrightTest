@@ -10,6 +10,7 @@ import {
 import { urlStagingAPI } from "../../src/helpers/base-url-helper";
 
 import { generateJWT } from "../../src/helpers/jwt-helper";
+// import { SECRET_KEY, USER_UID } from "../../src/helpers/user-helper";
 
 const baseURL = urlStagingAPI("VN");
 
@@ -72,8 +73,6 @@ const basicPayload = () => ({
     offerCode: "OFFER123",
     campaignStartDate: sDate,
     campaignEndDate: eDate,
-    // startDate: sDate,
-    // endDate: eDate,
     currency: "VND",
     hideClickReferrer: 0,
     adPlatformId: 0,
@@ -92,7 +91,7 @@ const basicPayload = () => ({
   categoryIds: [1, 2, 3],
   insertCampaignSettingDetails: {
     cvOnlyOnceFlag: 1,
-    cookieExpirationDateView: 30,
+    cookieExpirationDateView: 60,
     verifyCutFlag: 0,
     verifyCutTarget: 0,
     verifyCutCondition: 0,
@@ -124,8 +123,6 @@ const validPayload = () => ({
     offerCode: "OFFER123",
     campaignStartDate: sDate,
     campaignEndDate: eDate,
-    // startDate: sDate,
-    // endDate: eDate,
     currency: "VND",
     hideClickReferrer: 0,
     adPlatformId: 0,
@@ -149,7 +146,7 @@ const validPayload = () => ({
   categoryIds: [1, 2, 3],
   insertCampaignSettingDetails: {
     cvOnlyOnceFlag: 1,
-    cookieExpirationDateView: 30,
+    cookieExpirationDateView: 60,
     verifyCutFlag: 0,
     verifyCutTarget: 0,
     verifyCutCondition: 0,
@@ -184,6 +181,7 @@ test.describe("Create New Campaign API", () => {
     TC16	Verify invalid flag values	Return validation error when flag values are outside allowed range (0/1)	N/A
     TC17	Verify character limit validation	Return validation error when campaign name or description exceeds max length	N/A
     TC18	Verify logical constraint for auto action duration	Return validation error for negative or invalid auto action duration	N/A
+    TC19	Verify logical constraint for auto action duration (0)	Return validation error if 0 is not allowed for auto action duration	N/A
    */
 
   test("TC01 - Verify invalid / empty request body", async ({ request }) => {
@@ -409,7 +407,6 @@ test.describe("Create New Campaign API", () => {
     expect(JSON.stringify(body)).toMatch(/customerCountries/i);
   });
 
-  // ! Verify status code and response body
   test.skip("TC12 - Verify successful campaign creation (Basic)", async ({
     request,
   }) => {
@@ -423,7 +420,6 @@ test.describe("Create New Campaign API", () => {
     expect(body).toBeGreaterThan(0);
   });
 
-  // ! Verify status code and response body
   test.skip("TC13 - Verify successful creation with all optional fields", async ({
     request,
   }) => {
@@ -542,6 +538,28 @@ test.describe("Create New Campaign API", () => {
     const body = await logResponse(res);
     expect(JSON.stringify(body)).toMatch(
       /cookieExpirationDateView must be greater than or equal to 0/i,
+    );
+  });
+
+  // Nếu giá trị 0 không hợp lệ, hãy sửa lại thông điệp lỗi và regex phù hợp
+  test.skip("TC19 - Verify logical constraint for auto action duration (0)", async ({
+    request,
+  }) => {
+    const payload = {
+      ...validPayload(),
+      insertCampaignSettingDetails: {
+        ...validPayload().insertCampaignSettingDetails,
+        cookieExpirationDateView: 0,
+      },
+    };
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(
+      /cookieExpirationDateView must be greater than 0/i,
     );
   });
 });

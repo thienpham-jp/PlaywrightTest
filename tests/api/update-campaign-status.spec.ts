@@ -3,8 +3,9 @@ import { randomInt } from "../../src/helpers/function-helper";
 import { urlStagingAPI } from "../../src/helpers/base-url-helper";
 
 import { generateJWT } from "../../src/helpers/jwt-helper";
+import { SECRET_KEY, USER_UID } from "../../src/helpers/user-helper";
 
-const baseURL = urlStagingAPI("VN");
+const baseURL = urlStagingAPI("ID");
 
 // Replace with a valid campaign ID that exists in the staging DB
 const VALID_CAMPAIGN_IDS = [3745, 3746];
@@ -15,8 +16,8 @@ const NON_EXISTING_CAMPAIGN_ID = 999999999;
 const getApiUrl = (campaignId: number | null) =>
   `${baseURL}/v1/staff/campaigns/${campaignId}/update-status`;
 
-const USER_UID = "llt5mqx11xxl291lta91aqaaaalxxq67";
-const SECRET_KEY = "8qbcc2zzzzbz0ezs20e9jjz90cbxls22";
+// const USER_UID = "llt5mqx11xxl291lta91aqaaaalxxq67";
+// const SECRET_KEY = "8qbcc2zzzzbz0ezs20e9jjz90cbxls22";
 
 // Staff user without access to the campaign's country (replace with actual restricted account)
 const RESTRICTED_USER_UID = "restricted_user_uid_placeholder";
@@ -51,7 +52,14 @@ const logResponse = async (res: APIResponse) => {
   return responseBody;
 };
 
-const STATUSES = ["PAUSED", "RUNNING", "TERMINATED"];
+const STATUSES = [
+  "GETTING_READY",
+  "RUNNING",
+  "TERMINATED",
+  "PAUSED",
+  "OTHER",
+  "WONT_RUN",
+];
 const randomStatus = () => STATUSES[randomInt(0, STATUSES.length - 1)];
 
 const validPayload = () => ({
@@ -76,13 +84,73 @@ test.describe("Update Campaign Status API", () => {
    */
 
   // ─── TC_01 ──────────────────────────────────────────────────────────────────
-  test.skip("TC_01 - Valid Campaign ID and Status - Expect 200 OK with updated campaign status", async ({
+  test("TC_01 - Valid Campaign ID and Status - Expect 200 OK with updated campaign status", async ({
     request,
   }) => {
-    const campaignId = randomCampaignId();
+    const campaignStates = [0, 1, 2, 3, 4, 5]; // Assuming these are the valid campaign state IDs for
+    const statuses = [
+      "GETTING_READY",
+      "RUNNING",
+      "TERMINATED",
+      "PAUSED",
+      "OTHER",
+      "WONT_RUN",
+    ];
+    /* 0: Before the service begins
+      1: Running
+      2: Terminated
+      3: Paused
+      4: Other
+      5: Terminated before the service begins */
+    const getPayload = () => ({
+      keyword: "",
+      status: -1,
+      campaignIds: [],
+      resultIds: [],
+      categoryIds: [],
+      stopType: -1,
+      budgetStatus: -1,
+      pointbackPermission: -1,
+      selfConversion: -1,
+      autoAffiliationApproval: -1,
+      autoActionApproval: -1,
+      createdStartDate: null,
+      createdEndDate: null,
+      hiddenFlag: -1,
+      campaignType: -1,
+      adPlatformId: -1,
+      merchantIds: [],
+      hasBanner: -1,
+    });
+    const targetIds = [7889];
+    const prePayload = { ...getPayload(), campaignIds: targetIds };
+    const pre = await request.post(`${baseURL}/v1/staff/campaigns`, {
+      headers: getAuthHeaders(),
+      data: prePayload,
+    });
+    const preBody = await logResponse(pre);
+    expect(pre.status()).toBe(200);
+
+    // check preBody has campaignStateId
+    const preItem = Array.isArray(preBody) ? preBody[0] : preBody;
+    expect(preItem).toHaveProperty("campaignStateId");
+    const currentState = preItem.campaignStateId;
+
+    // preStatus = if currentState is in campaignStates = 0 => map to BEFORE THE SERVICE BEGINS, 1 => map to RUNNING, 2 => map to TERMINATED, 3 => map to PAUSED, 4 => map to OTHER, 5 => map to TERMINATED BEFORE THE SERVICE BEGINS else random campaign state from campaignStates
+    const preStatus = campaignStates.includes(currentState)
+      ? statuses[campaignStates.indexOf(currentState)]
+      : statuses[randomInt(0, statuses.length - 1)];
+
+    console.log(`Pre-check campaign status: ${preStatus}`);
+
+    const campaignId = 7889;
+    const availableStatuses = STATUSES.filter((s) => s !== preStatus);
+    const campaignStatus =
+      availableStatuses[randomInt(0, availableStatuses.length - 1)];
+    const payload = { campaignStatus };
     const res = await request.put(getApiUrl(campaignId), {
       headers: getAuthHeaders(),
-      data: validPayload(),
+      data: payload,
     });
     const body = await logResponse(res);
     expect(res.status()).toBe(200);
