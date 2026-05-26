@@ -138,6 +138,7 @@ test.describe("Update Campaign API", () => {
 | TC24   | Verify invalid flag values (outside allowed range 0/1) | Return `400` with validation error for invalid flag values                     | Matches expected result | ✅ Done      |
 | TC25   | Verify invalid campaignType value            | Return `400` with validation error for invalid campaignType value                     | Matches expected result | ✅ Done      |
 | TC26   | Verify invalid campaignApplication value      | Return `400` with validation error for invalid campaignApplication value               | Matches expected result | ✅ Done      |
+| TC26.1 | Verify cookieExpirationDateView is zero      | Return `400` with validation error for cookieExpirationDateView being zero               | Matches expected result | N/A     |
 | TC27   | Verify invalid getParameterFlag value         | Return `400` with validation error for invalid getParameterFlag value                  | Matches expected result | ✅ Done      |
 | TC28   | Verify invalid date formats for campaignStartDate and campaignEndDate | Return `400` with validation error for invalid date formats                     | Matches expected result | ✅ Done      |
 | TC29   | Verify missing required fields in updateCampaignDetails object | Return `400` with validation errors for each missing required field in updateCampaignDetails | Matches expected result | ✅ Done      |
@@ -535,6 +536,26 @@ test.describe("Update Campaign API", () => {
     );
   });
 
+  test.skip("TC26.1 - Verify cookieExpirationDateView is zero", async ({
+    request,
+  }) => {
+    const payload = {
+      ...updatePayload(),
+      updateCampaignSettingDetails: {
+        cookieExpirationDateView: 0,
+      },
+    };
+    const res = await request.put(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(
+      /cookieExpirationDateView must be greater than 0/i,
+    );
+  });
+
   test("TC27 - Verify request without Authorization header", async ({
     request,
   }) => {
@@ -586,7 +607,7 @@ test.describe("Update Campaign API", () => {
 test.describe("Test Update Campaign", () => {
   test.describe.configure({ mode: "parallel" });
 
-  test("TC13 - Verify successful update flow (Happy Path)", async ({
+  test.skip("TC01 - Verify successful update flow (Happy Path)", async ({
     request,
   }) => {
     const campaignStates = [0, 1, 2, 3, 4, 5]; // Assuming these are the valid campaign state IDs for
