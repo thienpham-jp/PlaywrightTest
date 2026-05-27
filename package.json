@@ -6,12 +6,19 @@
     "test": "npx playwright test",
     "test:headed": "npx playwright test --headed",
     "test:ui": "npx playwright test --ui",
-    "report": "npx playwright show-report"
+    "test:ui:allure": "scripts\\test-ui-allure.bat",
+    "allure:watch": "node scripts/allure-watch.js",
+    "report": "npx playwright show-report",
+    "allure:generate": "npx allure generate allure-results --clean -o allure-report",
+    "allure:open": "npx allure open allure-report",
+    "allure:serve": "scripts\\allure-serve.bat",
+    "test:allure": "scripts\\allure-test.bat"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
     "@types/node": "^22.19.15",
     "@types/pg": "^8.20.0",
+    "allure-commandline": "^2.42.0",
     "allure-playwright": "^3.0.0",
     "pg": "^8.20.0",
     "typescript": "^5.0.0"

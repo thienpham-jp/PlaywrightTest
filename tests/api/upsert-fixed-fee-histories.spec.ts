@@ -1,11 +1,8 @@
 import { test, expect, APIResponse } from "@playwright/test";
 import {
-  randomEmail,
   randomFloat,
   randomInt,
-  randomPhoneNumber,
   randomString,
-  randomURL,
 } from "../../src/helpers/function-helper";
 import { urlStagingAPI } from "../../src/helpers/base-url-helper";
 import { generateJWT } from "../../src/helpers/jwt-helper";
