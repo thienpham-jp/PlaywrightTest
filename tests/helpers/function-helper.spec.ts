@@ -15,6 +15,10 @@ import {
   randomAddress,
   randomUUID,
   randomCapcha,
+  randomSentence,
+  randomUserEmail,
+  randomURL,
+  randomImageBase64,
 } from "../../src/helpers/function-helper";
 
 test.describe("function-helper", () => {
@@ -55,6 +59,20 @@ test.describe("function-helper", () => {
     test("Only contains alphanumeric characters", () => {
       const result = randomString(100);
       expect(result).toMatch(/^[A-Za-z0-9]+$/);
+    });
+  });
+
+  test.describe("randomSentence", () => {
+    test("Return string with default number of words", () => {
+      const sentence = randomSentence();
+      const words = sentence.split(" ");
+      expect(words.length).toBe(5);
+    });
+
+    test("Return string with correct number of words", () => {
+      const sentence = randomSentence(7);
+      const words = sentence.split(" ");
+      expect(words.length).toBe(7);
     });
   });
 
@@ -121,6 +139,20 @@ test.describe("function-helper", () => {
     });
   });
 
+  test.describe("randomUserEmail", () => {
+    test("Return valid email with default username input", () => {
+      const email = randomUserEmail("test1234");
+
+      expect(email).toMatch(/^test1234+@yahoo\.(com|net|org|io|dev)$/);
+    });
+
+    test("Return email with custom username", () => {
+      const email = randomUserEmail();
+
+      expect(email).toMatch(/^[a-z0-9]+@[a-z0-9]+\.(com|net|org|io|dev)$/);
+    });
+  });
+
   test.describe("randomPhoneNumber", () => {
     test("Return phone number with default country code +84", () => {
       const phone = randomPhoneNumber();
@@ -172,8 +204,8 @@ test.describe("function-helper", () => {
 
   test.describe("randomPickFrom", () => {
     test("Return element from input array", () => {
-      const arr = [1, 2, 3, 4, 5];
-      for (let i = 0; i < 20; i++) {
+      const arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+      for (let i = 0; i < 10; i++) {
         expect(arr).toContain(randomArrayElement(arr));
       }
     });
@@ -257,6 +289,34 @@ test.describe("function-helper", () => {
       const uuids = Array.from({ length: 20 }, () => randomUUID());
 
       expect(new Set(uuids).size).toBe(20);
+    });
+  });
+
+  test.describe("randomURL", () => {
+    test("Return URL in correct format", () => {
+      const url = randomURL();
+      expect(url).toMatch(/^https?:\/\/[a-z0-9]+(\.[a-z0-9]+)+\/?$/);
+    });
+
+    test("Return different URLs on each call", () => {
+      const urls = Array.from({ length: 20 }, () => randomURL());
+      expect(new Set(urls).size).toBe(20);
+    });
+  });
+
+  test.describe("randomImageBase64", () => {
+    test("Return string in correct Base64 format with data URI prefix", () => {
+      const base64 = randomImageBase64();
+      expect(base64).toMatch(/^image\/\w+,[A-Za-z0-9+/=]+$/);
+    });
+
+    test("Return Base64 string of approximately correct size", () => {
+      const sizeBytes = 128;
+      const base64 = randomImageBase64("image/png", sizeBytes);
+      const base64Data = base64.split(",")[1];
+      const decodedSize = (base64Data.length * 3) / 4;
+      expect(decodedSize).toBeGreaterThanOrEqual(sizeBytes * 0.9);
+      expect(decodedSize).toBeLessThanOrEqual(sizeBytes * 1.1);
     });
   });
 
