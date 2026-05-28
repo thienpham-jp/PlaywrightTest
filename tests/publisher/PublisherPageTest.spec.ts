@@ -45,7 +45,7 @@ const buildLandingPageURL = (baseURL: string): string => {
 
 // ── Test suite ───────────────────────────────────────────────
 test.describe("Publisher Staging Tests", () => {
-  test.describe.configure({ mode: "serial" });
+  test.describe.configure({ mode: "parallel" });
   let publisherPage: PublisherPage;
 
   test.beforeEach(async ({ page }, testInfo) => {

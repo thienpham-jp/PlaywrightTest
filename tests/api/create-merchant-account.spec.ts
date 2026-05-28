@@ -241,8 +241,8 @@ test.describe("Create Merchant Account API", () => {
   }) => {
     const res = await request.post(API_URL, {
       headers: {
-        "Content-Type": "application/json",
-        "X-Accesstrade-User-Type": "staff",
+        ...getRestrictedAuthHeaders(),
+        Authorization: "",
       },
       data: basicPayload(),
     });

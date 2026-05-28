@@ -23,7 +23,7 @@ test.describe("Example Tests", () => {
     await page.close();
   });
 
-  test("Script Generated JWT token", async ({ page }) => {
+  test("Script Generated JWT token", async () => {
     // Generate the token
     const jwtToken = generateJWT(USER_UID, SECRET_KEY);
 

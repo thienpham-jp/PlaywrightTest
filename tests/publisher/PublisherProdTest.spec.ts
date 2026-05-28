@@ -20,7 +20,7 @@ const PERFORMANCE_ITEMS = [
 
 // ── Test suite ───────────────────────────────────────────────
 test.describe("Publisher Production Tests", () => {
-  test.describe.configure({ mode: "serial" });
+  test.describe.configure({ mode: "parallel" });
   let publisherPage: PublisherPage;
 
   test.beforeEach(async ({ page }, testInfo) => {
