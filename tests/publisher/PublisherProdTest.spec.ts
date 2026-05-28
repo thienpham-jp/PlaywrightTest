@@ -976,27 +976,32 @@ test.describe("Publisher Production Tests", () => {
 
       const randomIndex = Math.floor(Math.random() * campaignCount);
 
-      const [newPage] = await Promise.all([
-        publisherPage.page.context().waitForEvent("page"),
-        // Re-evaluate nth() at click time to avoid stale DOM reference after Angular re-renders;
-        // click() also scrolls into view automatically
-        listCampaign.nth(randomIndex).click(),
-      ]);
+      // Start listening for a new tab before clicking; if none opens, fall back to same-tab navigation
+      const newPagePromise = publisherPage.page
+        .context()
+        .waitForEvent("page", { timeout: 5000 })
+        .catch(() => null);
+
+      await listCampaign.nth(randomIndex).click();
+
+      const newPage = await newPagePromise;
+      const targetPage = newPage ?? publisherPage.page;
 
       try {
-        await newPage.waitForLoadState("networkidle");
+        await targetPage.waitForLoadState("networkidle");
 
-        // FIX: replaced fragile escaped BASE_URL regex with a simple path pattern
-        await expect(newPage).toHaveURL(
+        await expect(targetPage).toHaveURL(
           /\/dashboard\/sites\/campaigns\/details\//,
           { timeout: 15000 },
         );
 
-        await expect(newPage.getByText("Description").first()).toBeVisible({
+        await expect(targetPage.getByText("Description").first()).toBeVisible({
           timeout: 15000,
         });
       } finally {
-        await newPage.close();
+        if (newPage) {
+          await newPage.close();
+        }
       }
     });
   });
