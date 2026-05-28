@@ -221,7 +221,7 @@ test.describe("Upsert Fixed Fee Histories API", () => {
   });
 
   // ─── TC_07c ─────────────────────────────────────────────────────────────────
-  test("TC_07c - feeAmount very large number - Expect 200 OK or 400", async ({
+  test("TC_07c - feeAmount very large number - Expect 200 OK", async ({
     request,
   }) => {
     const res = await request.post(API_URL, {
@@ -232,7 +232,7 @@ test.describe("Upsert Fixed Fee Histories API", () => {
       },
     });
     const body = await logResponse(res);
-    // Accept 200 if DB supports large decimal, or 400 if validation rejects it
-    expect([200, 400]).toContain(res.status());
+    // Accept 200 if DB supports large decimal
+    expect(res.status()).toBe(200);
   });
 });
