@@ -33,7 +33,9 @@ const logResponse = async (res: APIResponse) => {
     const rawBody = await res.text();
     responseBody =
       rawBody && typeof rawBody === "string" ? JSON.parse(rawBody) : rawBody;
-    console.log(JSON.stringify(responseBody, null, 2));
+    if (responseBody !== "") {
+      console.log(JSON.stringify(responseBody, null, 2));
+    }
   } catch (error) {
     console.error("Failed to parse response body as JSON:", error);
     responseBody = await res.text(); // Fallback to raw text if JSON parsing fails

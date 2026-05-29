@@ -76,7 +76,7 @@ const basicPayload = () => ({
     currency: "VND",
     hideClickReferrer: 0,
     adPlatformId: 0,
-    createdBy: "staff_user",
+    createdBy: "obs-dev@interspace.ne.jp",
     integratedCampaignId: null,
     integratedCountryCode: null,
     isRewardsByCategoriesVisible: true,
@@ -126,7 +126,7 @@ const validPayload = () => ({
     currency: "VND",
     hideClickReferrer: 0,
     adPlatformId: 0,
-    createdBy: "staff_user",
+    createdBy: "obs-dev@interspace.ne.jp",
     integratedCampaignId: null,
     integratedCountryCode: null,
     isRewardsByCategoriesVisible: true,
@@ -561,5 +561,30 @@ test.describe("Create New Campaign API", () => {
     expect(JSON.stringify(body)).toMatch(
       /cookieExpirationDateView must be greater than 0/i,
     );
+  });
+});
+
+test.describe.skip("Test Create New Campaign API for ID", () => {
+  // * Create campaign with status = RUNNING, send message to Kafka topic, check message in topic: notifications-campaigns-new
+  test("TC13 - Verify successful creation with all optional fields", async ({
+    request,
+  }) => {
+    const payload = validPayload();
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: {
+        ...payload,
+        insertCampaignDetails: {
+          ...payload.insertCampaignDetails,
+          merchantId: 15687,
+          currency: "IDR",
+          customerCountries: "IDN",
+        },
+      },
+    });
+    const body = await logResponse(res);
+    expect(res.status()).toBe(200);
+    expect(typeof body).toBe("number");
+    expect(body).toBeGreaterThan(0);
   });
 });

@@ -40,6 +40,23 @@ const logResponse = async (res: APIResponse) => {
   return responseBody;
 };
 
+const CAMPAIGN_STATES = [0, 1, 2, 3, 4, 5]; // Assuming these are the valid campaign state IDs for
+
+const STATUSES = [
+  "GETTING_READY",
+  "RUNNING",
+  "TERMINATED",
+  "PAUSED",
+  "OTHER",
+  "WONT_RUN",
+];
+/*        0: Before the service begins
+          1: Running
+          2: Terminated
+          3: Paused
+          4: Other
+          5: Terminated before the service begins */
+
 const campaignTypes = ["CPC", "CPA", "CPS", "CPL"];
 
 const sDate = randomDateString(
@@ -77,14 +94,14 @@ const updatePayload = () => ({
     offerCode: "OFFER123",
     campaignStartDate: sDate,
     campaignEndDate: eDate,
-    currencyCode: "IDR",
+    currencyCode: "VND",
     hideClickReferrer: 0,
     adPlatformId: 0,
-    updatedBy: "staff_user",
+    updatedBy: "obs-dev@interspace.ne.jp",
     integratedCampaignId: null,
     integratedCountryCode: null,
     isRewardsByCategoriesVisible: true,
-    customerCountries: "IDN",
+    customerCountries: "VNM",
     affConditionSpecialEnglish: "EN required actions",
     resultApprovalSpecialEnglish: "EN result approval",
     validationTerm: "Local validation",
@@ -99,7 +116,7 @@ const updatePayload = () => ({
     logoImageBase64: null,
   },
   categoryIds: [1, 2, 3],
-  updateCampaignSettingDetails: {},
+  updateCampaignSettingDetails: { cookieExpirationDateView: 60 },
 });
 
 test.describe("Update Campaign API", () => {
@@ -384,11 +401,62 @@ test.describe("Update Campaign API", () => {
   test("TC13 - Verify successful update flow (Happy Path)", async ({
     request,
   }) => {
+    const getPayload = () => ({
+      keyword: "",
+      status: -1,
+      campaignIds: [],
+      resultIds: [],
+      categoryIds: [],
+      stopType: -1,
+      budgetStatus: -1,
+      pointbackPermission: -1,
+      selfConversion: -1,
+      autoAffiliationApproval: -1,
+      autoActionApproval: -1,
+      createdStartDate: null,
+      createdEndDate: null,
+      hiddenFlag: -1,
+      campaignType: -1,
+      adPlatformId: -1,
+      merchantIds: [],
+      hasBanner: -1,
+    });
+    // ! Change the campaignId = id just created in staging DB for testing
+    const targetIds = [3748];
+    const prePayload = { ...getPayload(), campaignIds: targetIds };
+    const pre = await request.post(`${baseURL}/v1/staff/campaigns`, {
+      headers: getAuthHeaders(),
+      data: prePayload,
+    });
+    const preBody = await logResponse(pre);
+    expect(pre.status()).toBe(200);
+
+    // check preBody has campaignStateId
+    const preItem = Array.isArray(preBody) ? preBody[0] : preBody;
+    expect(preItem).toHaveProperty("campaignStateId");
+    const currentState = preItem.campaignStateId;
+
+    const preStatus = CAMPAIGN_STATES.includes(currentState)
+      ? STATUSES[CAMPAIGN_STATES.indexOf(currentState)]
+      : STATUSES[randomInt(0, STATUSES.length - 1)];
+
+    console.log(`Pre-check campaign status: ${preStatus}`);
+
+    const availableStatuses = STATUSES.filter((s) => s !== preStatus);
+    const newStatus =
+      availableStatuses[randomInt(0, availableStatuses.length - 1)];
+
+    // ! Change the campaignId = id just created in staging DB for testing
+    const campaignId = preItem.campaignId || targetIds[0];
+
     const payload = {
       ...updatePayload(),
+      merchantId: preItem.accountNo,
       updateCampaignDetails: {
         ...updatePayload().updateCampaignDetails,
-        campaignId: 3748,
+        campaignId: campaignId,
+        previousCampaignStatus: preStatus,
+        campaignStatus: newStatus,
       },
     };
     const res = await request.put(API_URL, {
@@ -604,27 +672,18 @@ test.describe("Update Campaign API", () => {
   });
 });
 
-test.describe("Test Update Campaign", () => {
+test.describe.skip("Test Update Campaign API for ID", () => {
   test.describe.configure({ mode: "parallel" });
+  /*
+   * Test Cases for Update Campaign API
+   ? 1. RUNNING    → chỉ send message to Kafka khi: GETTING_READY → RUNNING -> topic: notifications-campaigns-new
+   * 2. PAUSED     → chỉ send message to Kafka khi: RUNNING → PAUSED -> topic: notifications-campaigns-paused
+   ! 3. TERMINATED → chỉ send message to Kafka khi: RUNNING → TERMINATED -> topic: notifications-campaigns-terminated
+   */
 
-  test.skip("TC01 - Verify successful update flow (Happy Path)", async ({
+  test("TC01 - Verify successful update flow (Happy Path)", async ({
     request,
   }) => {
-    const campaignStates = [0, 1, 2, 3, 4, 5]; // Assuming these are the valid campaign state IDs for
-    const statuses = [
-      "GETTING_READY",
-      "RUNNING",
-      "TERMINATED",
-      "PAUSED",
-      "OTHER",
-      "WONT_RUN",
-    ];
-    /* 0: Before the service begins
-          1: Running
-          2: Terminated
-          3: Paused
-          4: Other
-          5: Terminated before the service begins */
     const getPayload = () => ({
       keyword: "",
       status: -1,
@@ -645,6 +704,7 @@ test.describe("Test Update Campaign", () => {
       merchantIds: [],
       hasBanner: -1,
     });
+    // ! Change the campaignId = id just created in staging DB for testing
     const targetIds = [8019];
     const prePayload = { ...getPayload(), campaignIds: targetIds };
     const pre = await request.post(`${baseURL}/v1/staff/campaigns`, {
@@ -659,34 +719,29 @@ test.describe("Test Update Campaign", () => {
     expect(preItem).toHaveProperty("campaignStateId");
     const currentState = preItem.campaignStateId;
 
-    // preStatus = if currentState is in campaignStates = 0 => map to BEFORE THE SERVICE BEGINS, 1 => map to RUNNING, 2 => map to TERMINATED, 3 => map to PAUSED, 4 => map to OTHER, 5 => map to TERMINATED BEFORE THE SERVICE BEGINS else random campaign state from campaignStates
-    const preStatus = campaignStates.includes(currentState)
-      ? statuses[campaignStates.indexOf(currentState)]
-      : statuses[randomInt(0, statuses.length - 1)];
+    const preStatus = CAMPAIGN_STATES.includes(currentState)
+      ? STATUSES[CAMPAIGN_STATES.indexOf(currentState)]
+      : STATUSES[randomInt(0, STATUSES.length - 1)];
 
     console.log(`Pre-check campaign status: ${preStatus}`);
-
-    const STATUSES = [
-      "GETTING_READY",
-      "RUNNING",
-      "TERMINATED",
-      "PAUSED",
-      "OTHER",
-      "WONT_RUN",
-    ];
 
     const availableStatuses = STATUSES.filter((s) => s !== preStatus);
     const newStatus =
       availableStatuses[randomInt(0, availableStatuses.length - 1)];
+
+    // ! Change the campaignId = id just created in staging DB for testing
+    const campaignId = preItem.campaignId || targetIds[0];
 
     const payload = {
       ...updatePayload(),
       merchantId: 15687,
       updateCampaignDetails: {
         ...updatePayload().updateCampaignDetails,
-        campaignId: 8019,
+        campaignId: campaignId,
         previousCampaignStatus: preStatus,
         campaignStatus: newStatus,
+        currencyCode: "IDR",
+        customerCountries: "IDN",
       },
     };
     const res = await request.put(API_URL, {

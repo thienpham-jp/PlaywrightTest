@@ -52,6 +52,8 @@ const logResponse = async (res: APIResponse) => {
   return responseBody;
 };
 
+const CAMPAIGN_STATES = [0, 1, 2, 3, 4, 5]; // Assuming these are the valid campaign state IDs for
+
 const STATUSES = [
   "GETTING_READY",
   "RUNNING",
@@ -60,6 +62,13 @@ const STATUSES = [
   "OTHER",
   "WONT_RUN",
 ];
+/*    0: Before the service begins
+      1: Running
+      2: Terminated
+      3: Paused
+      4: Other
+      5: Terminated before the service begins */
+
 const randomStatus = () => STATUSES[randomInt(0, STATUSES.length - 1)];
 
 const validPayload = () => ({
@@ -87,21 +96,6 @@ test.describe("Update Campaign Status API", () => {
   test("TC_01 - Valid Campaign ID and Status - Expect 200 OK with updated campaign status", async ({
     request,
   }) => {
-    const campaignStates = [0, 1, 2, 3, 4, 5]; // Assuming these are the valid campaign state IDs for
-    const statuses = [
-      "GETTING_READY",
-      "RUNNING",
-      "TERMINATED",
-      "PAUSED",
-      "OTHER",
-      "WONT_RUN",
-    ];
-    /* 0: Before the service begins
-      1: Running
-      2: Terminated
-      3: Paused
-      4: Other
-      5: Terminated before the service begins */
     const getPayload = () => ({
       keyword: "",
       status: -1,
@@ -136,10 +130,10 @@ test.describe("Update Campaign Status API", () => {
     expect(preItem).toHaveProperty("campaignStateId");
     const currentState = preItem.campaignStateId;
 
-    // preStatus = if currentState is in campaignStates = 0 => map to BEFORE THE SERVICE BEGINS, 1 => map to RUNNING, 2 => map to TERMINATED, 3 => map to PAUSED, 4 => map to OTHER, 5 => map to TERMINATED BEFORE THE SERVICE BEGINS else random campaign state from campaignStates
-    const preStatus = campaignStates.includes(currentState)
-      ? statuses[campaignStates.indexOf(currentState)]
-      : statuses[randomInt(0, statuses.length - 1)];
+    // preStatus = if currentState is in CAMPAIGN_STATES = 0 => map to BEFORE THE SERVICE BEGINS, 1 => map to RUNNING, 2 => map to TERMINATED, 3 => map to PAUSED, 4 => map to OTHER, 5 => map to TERMINATED BEFORE THE SERVICE BEGINS else random campaign state from CAMPAIGN_STATES
+    const preStatus = CAMPAIGN_STATES.includes(currentState)
+      ? STATUSES[CAMPAIGN_STATES.indexOf(currentState)]
+      : STATUSES[randomInt(0, STATUSES.length - 1)];
 
     console.log(`Pre-check campaign status: ${preStatus}`);
 
