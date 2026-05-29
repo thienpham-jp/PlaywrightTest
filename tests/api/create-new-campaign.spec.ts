@@ -12,7 +12,7 @@ import { urlStagingAPI } from "../../src/helpers/base-url-helper";
 import { generateJWT } from "../../src/helpers/jwt-helper";
 // import { SECRET_KEY, USER_UID } from "../../src/helpers/user-helper";
 
-const baseURL = urlStagingAPI("ID");
+const baseURL = urlStagingAPI("VN");
 
 const API_URL = `${baseURL}/v1/staff/campaign`;
 

@@ -11,7 +11,7 @@ import { urlStagingAPI } from "../../src/helpers/base-url-helper";
 import { generateJWT } from "../../src/helpers/jwt-helper";
 // import { SECRET_KEY, USER_UID } from "../../src/helpers/user-helper";
 
-const baseURL = urlStagingAPI("ID");
+const baseURL = urlStagingAPI("VN");
 
 const API_URL = `${baseURL}/v1/staff/campaign`;
 
@@ -99,7 +99,7 @@ const updatePayload = () => ({
     logoImageBase64: null,
   },
   categoryIds: [1, 2, 3],
-  updateCampaignSettingDetails: {},
+  updateCampaignSettingDetails: { cookieExpirationDateView: 60 },
 });
 
 test.describe("Update Campaign API", () => {
@@ -384,11 +384,86 @@ test.describe("Update Campaign API", () => {
   test("TC13 - Verify successful update flow (Happy Path)", async ({
     request,
   }) => {
+    const campaignStates = [0, 1, 2, 3, 4, 5]; // Assuming these are the valid campaign state IDs for
+    const statuses = [
+      "GETTING_READY",
+      "RUNNING",
+      "TERMINATED",
+      "PAUSED",
+      "OTHER",
+      "WONT_RUN",
+    ];
+    const getPayload = () => ({
+      keyword: "",
+      status: -1,
+      campaignIds: [],
+      resultIds: [],
+      categoryIds: [],
+      stopType: -1,
+      budgetStatus: -1,
+      pointbackPermission: -1,
+      selfConversion: -1,
+      autoAffiliationApproval: -1,
+      autoActionApproval: -1,
+      createdStartDate: null,
+      createdEndDate: null,
+      hiddenFlag: -1,
+      campaignType: -1,
+      adPlatformId: -1,
+      merchantIds: [],
+      hasBanner: -1,
+    });
+    // ! Change the campaignId = id just created in staging DB for testing
+    const targetIds = [3748];
+    const prePayload = { ...getPayload(), campaignIds: targetIds };
+    const pre = await request.post(`${baseURL}/v1/staff/campaigns`, {
+      headers: getAuthHeaders(),
+      data: prePayload,
+    });
+    const preBody = await logResponse(pre);
+    // expect(pre.status()).toBe(200);
+
+    // check preBody has campaignStateId
+    const preItem = Array.isArray(preBody) ? preBody[0] : preBody;
+    expect(preItem).toHaveProperty("campaignStateId");
+    const currentState = preItem.campaignStateId;
+
+    const preStatus = campaignStates.includes(currentState)
+      ? statuses[campaignStates.indexOf(currentState)]
+      : statuses[randomInt(0, statuses.length - 1)];
+
+    console.log(`Pre-check campaign status: ${preStatus}`);
+
+    const STATUSES = [
+      "GETTING_READY",
+      "RUNNING",
+      "TERMINATED",
+      "PAUSED",
+      "OTHER",
+      "WONT_RUN",
+    ];
+
+    const availableStatuses = STATUSES.filter((s) => s !== preStatus);
+    const newStatus =
+      availableStatuses[randomInt(0, availableStatuses.length - 1)];
+
+    // ! Change the campaignId = id just created in staging DB for testing
+    const campaignId = preItem.campaignId || targetIds[0];
+
+    // const payload = {
+    //   ...updatePayload(),
+    //   merchantId: preItem.accountNo,
+    //   updateCampaignDetails: {
+    //     ...updatePayload().updateCampaignDetails,
+    //     campaignId: campaignId,
+    //   },
+    // };
     const payload = {
       ...updatePayload(),
+      merchantId: preItem.accountNo,
       updateCampaignDetails: {
         ...updatePayload().updateCampaignDetails,
-        campaignId: 3748,
+        campaignId: campaignId,
       },
     };
     const res = await request.put(API_URL, {
