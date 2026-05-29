@@ -40,6 +40,23 @@ const logResponse = async (res: APIResponse) => {
   return responseBody;
 };
 
+const CAMPAIGN_STATES = [0, 1, 2, 3, 4, 5]; // Assuming these are the valid campaign state IDs for
+
+const STATUSES = [
+  "GETTING_READY",
+  "RUNNING",
+  "TERMINATED",
+  "PAUSED",
+  "OTHER",
+  "WONT_RUN",
+];
+/*        0: Before the service begins
+          1: Running
+          2: Terminated
+          3: Paused
+          4: Other
+          5: Terminated before the service begins */
+
 const campaignTypes = ["CPC", "CPA", "CPS", "CPL"];
 
 const sDate = randomDateString(
@@ -384,15 +401,6 @@ test.describe("Update Campaign API", () => {
   test("TC13 - Verify successful update flow (Happy Path)", async ({
     request,
   }) => {
-    const campaignStates = [0, 1, 2, 3, 4, 5]; // Assuming these are the valid campaign state IDs for
-    const statuses = [
-      "GETTING_READY",
-      "RUNNING",
-      "TERMINATED",
-      "PAUSED",
-      "OTHER",
-      "WONT_RUN",
-    ];
     const getPayload = () => ({
       keyword: "",
       status: -1,
@@ -421,27 +429,18 @@ test.describe("Update Campaign API", () => {
       data: prePayload,
     });
     const preBody = await logResponse(pre);
-    // expect(pre.status()).toBe(200);
+    expect(pre.status()).toBe(200);
 
     // check preBody has campaignStateId
     const preItem = Array.isArray(preBody) ? preBody[0] : preBody;
     expect(preItem).toHaveProperty("campaignStateId");
     const currentState = preItem.campaignStateId;
 
-    const preStatus = campaignStates.includes(currentState)
-      ? statuses[campaignStates.indexOf(currentState)]
-      : statuses[randomInt(0, statuses.length - 1)];
+    const preStatus = CAMPAIGN_STATES.includes(currentState)
+      ? STATUSES[CAMPAIGN_STATES.indexOf(currentState)]
+      : STATUSES[randomInt(0, STATUSES.length - 1)];
 
     console.log(`Pre-check campaign status: ${preStatus}`);
-
-    const STATUSES = [
-      "GETTING_READY",
-      "RUNNING",
-      "TERMINATED",
-      "PAUSED",
-      "OTHER",
-      "WONT_RUN",
-    ];
 
     const availableStatuses = STATUSES.filter((s) => s !== preStatus);
     const newStatus =
@@ -450,20 +449,14 @@ test.describe("Update Campaign API", () => {
     // ! Change the campaignId = id just created in staging DB for testing
     const campaignId = preItem.campaignId || targetIds[0];
 
-    // const payload = {
-    //   ...updatePayload(),
-    //   merchantId: preItem.accountNo,
-    //   updateCampaignDetails: {
-    //     ...updatePayload().updateCampaignDetails,
-    //     campaignId: campaignId,
-    //   },
-    // };
     const payload = {
       ...updatePayload(),
       merchantId: preItem.accountNo,
       updateCampaignDetails: {
         ...updatePayload().updateCampaignDetails,
         campaignId: campaignId,
+        previousCampaignStatus: preStatus,
+        campaignStatus: newStatus,
       },
     };
     const res = await request.put(API_URL, {
@@ -691,21 +684,6 @@ test.describe.skip("Test Update Campaign API for ID", () => {
   test("TC01 - Verify successful update flow (Happy Path)", async ({
     request,
   }) => {
-    const campaignStates = [0, 1, 2, 3, 4, 5]; // Assuming these are the valid campaign state IDs for
-    const statuses = [
-      "GETTING_READY",
-      "RUNNING",
-      "TERMINATED",
-      "PAUSED",
-      "OTHER",
-      "WONT_RUN",
-    ];
-    /* 0: Before the service begins
-          1: Running
-          2: Terminated
-          3: Paused
-          4: Other
-          5: Terminated before the service begins */
     const getPayload = () => ({
       keyword: "",
       status: -1,
@@ -741,20 +719,11 @@ test.describe.skip("Test Update Campaign API for ID", () => {
     expect(preItem).toHaveProperty("campaignStateId");
     const currentState = preItem.campaignStateId;
 
-    const preStatus = campaignStates.includes(currentState)
-      ? statuses[campaignStates.indexOf(currentState)]
-      : statuses[randomInt(0, statuses.length - 1)];
+    const preStatus = CAMPAIGN_STATES.includes(currentState)
+      ? STATUSES[CAMPAIGN_STATES.indexOf(currentState)]
+      : STATUSES[randomInt(0, STATUSES.length - 1)];
 
     console.log(`Pre-check campaign status: ${preStatus}`);
-
-    const STATUSES = [
-      "GETTING_READY",
-      "RUNNING",
-      "TERMINATED",
-      "PAUSED",
-      "OTHER",
-      "WONT_RUN",
-    ];
 
     const availableStatuses = STATUSES.filter((s) => s !== preStatus);
     const newStatus =
