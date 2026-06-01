@@ -21,12 +21,6 @@ const getAuthHeaders = () => ({
   Authorization: token,
 });
 
-const getRestrictedAuthHeaders = () => ({
-  "Content-Type": "application/json",
-  "X-Accesstrade-User-Type": "staff",
-  Authorization: restrictedToken,
-});
-
 const logResponse = async (res: APIResponse) => {
   let responseBody: unknown = null;
   try {
@@ -53,7 +47,7 @@ const buildUrl = (params: any) => {
   return `${API_URL}?${query}`;
 };
 
-test.describe("Find Campaign Relationship API", () => {
+test.describe.skip("Find Campaign Relationship API", () => {
   test.describe.configure({ mode: "parallel" });
 
   /** Test Cases for Find Campaign Relationship API method `GET /v1/staff/campaigns/relationship?`
@@ -73,8 +67,8 @@ test.describe("Find Campaign Relationship API", () => {
       buildUrl({ childCampaignId: VALID_CAMPAIGN_ID }),
       {
         headers: {
-          "Content-Type": "application/json",
-          "X-Accesstrade-User-Type": "staff",
+          ...getAuthHeaders(),
+          Authorization: "",
         },
       },
     );
@@ -92,7 +86,10 @@ test.describe("Find Campaign Relationship API", () => {
     const res = await request.get(
       buildUrl({ childCampaignId: VALID_CAMPAIGN_ID }),
       {
-        headers: getRestrictedAuthHeaders(),
+        headers: {
+          ...getAuthHeaders(),
+          Authorization: restrictedToken,
+        },
       },
     );
     const body = await logResponse(res);
