@@ -11,8 +11,8 @@ const USER_UID = users.secretKey.user;
 const SECRET_KEY = users.secretKey.key;
 
 // User credentials for VN environment
-const USER_UID_VN = users.keyVN.userUid_VN;
-const SECRET_KEY_VN = users.keyVN.secretKey_VN;
+const USER_UID_VN = users.secretKeyVN.user;
+const SECRET_KEY_VN = users.secretKeyVN.key;
 
 // CFD User Credentials
 // export const CFD_USERNAME = users.cfdUser.username;
