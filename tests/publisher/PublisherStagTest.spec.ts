@@ -908,7 +908,7 @@ test.describe("Publisher Staging Tests", () => {
       const searchInput = publisherPage.page.locator("input[name='keyword']");
       await searchInput.waitFor({ state: "visible", timeout: 10000 });
       await searchInput.scrollIntoViewIfNeeded();
-      await searchInput.fill("zataru");
+      await searchInput.fill("wardah");
       await searchInput.press("Enter");
 
       await publisherPage.page.waitForLoadState("networkidle");
