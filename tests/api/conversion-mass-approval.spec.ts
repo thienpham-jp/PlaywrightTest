@@ -1,7 +1,8 @@
-import { test, expect, APIResponse } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import { generateJWT } from "../../src/helpers/jwt-helper";
 import { SECRET_KEY, USER_UID } from "../../src/helpers/user-helper";
 import { urlStagingAPI } from "../../src/helpers/base-url-helper";
+import { logResponse, createStaffHeaders } from "./helpers/api-test-helper";
 
 const baseURL = urlStagingAPI("ID");
 
@@ -9,11 +10,7 @@ const API_URL = `${baseURL}/v1/staff/conversion/mass-approval`;
 
 const token = `Bearer ${generateJWT(USER_UID, SECRET_KEY)}`;
 
-const getAuthHeaders = () => ({
-  "Content-Type": "application/json",
-  "X-Accesstrade-User-Type": "staff",
-  Authorization: token,
-});
+const getAuthHeaders = () => createStaffHeaders(token);
 
 const today = new Date().toISOString().split("T")[0];
 
@@ -26,22 +23,6 @@ const validPayload = () => ({
   confirmationDate: today,
   status: "APPROVED",
 });
-
-const logResponse = async (res: APIResponse) => {
-  let responseBody: unknown = null;
-  try {
-    const rawBody = await res.text();
-    responseBody =
-      rawBody && typeof rawBody === "string" ? JSON.parse(rawBody) : rawBody;
-    if (responseBody !== "") {
-      console.log(JSON.stringify(responseBody, null, 2));
-    }
-  } catch (error) {
-    console.error("Failed to parse response body as JSON:", error);
-    responseBody = await res.text(); // Fallback to raw text if JSON parsing fails
-  }
-  return responseBody;
-};
 
 test.describe("Mass Approval API - Limit Validation", () => {
   // ── Validation for conversionId Limit (100,000) ─────────────────────────────

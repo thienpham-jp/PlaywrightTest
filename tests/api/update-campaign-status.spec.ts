@@ -1,9 +1,14 @@
-import { test, expect, APIResponse } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import { randomInt } from "../../src/helpers/function-helper";
 import { urlStagingAPI } from "../../src/helpers/base-url-helper";
-
 import { generateJWT } from "../../src/helpers/jwt-helper";
 import { SECRET_KEY, USER_UID } from "../../src/helpers/user-helper";
+import {
+  logResponse,
+  createStaffHeaders,
+  RESTRICTED_USER_UID,
+  RESTRICTED_SECRET_KEY,
+} from "./helpers/api-test-helper";
 
 const baseURL = urlStagingAPI("ID");
 
@@ -16,41 +21,11 @@ const NON_EXISTING_CAMPAIGN_ID = 999999999;
 const getApiUrl = (campaignId: number | null) =>
   `${baseURL}/v1/staff/campaigns/${campaignId}/update-status`;
 
-// const USER_UID = "llt5mqx11xxl291lta91aqaaaalxxq67";
-// const SECRET_KEY = "8qbcc2zzzzbz0ezs20e9jjz90cbxls22";
-
-// Staff user without access to the campaign's country (replace with actual restricted account)
-const RESTRICTED_USER_UID = "restricted_user_uid_placeholder";
-const RESTRICTED_SECRET_KEY = "restricted_secret_key_placeholder";
-
 const token = `Bearer ${generateJWT(USER_UID, SECRET_KEY)}`;
 const restrictedToken = `Bearer ${generateJWT(RESTRICTED_USER_UID, RESTRICTED_SECRET_KEY)}`;
 
-const getAuthHeaders = () => ({
-  "Content-Type": "application/json",
-  "X-Accesstrade-User-Type": "staff",
-  Authorization: token,
-});
-
-const getRestrictedAuthHeaders = () => ({
-  "Content-Type": "application/json",
-  "X-Accesstrade-User-Type": "staff",
-  Authorization: restrictedToken,
-});
-
-const logResponse = async (res: APIResponse) => {
-  let responseBody: unknown = null;
-  try {
-    const rawBody = await res.text();
-    responseBody =
-      rawBody && typeof rawBody === "string" ? JSON.parse(rawBody) : rawBody;
-    console.log(JSON.stringify(responseBody, null, 2));
-  } catch (error) {
-    console.error("Failed to parse response body as JSON:", error);
-    responseBody = await res.text(); // Fallback to raw text if JSON parsing fails
-  }
-  return responseBody;
-};
+const getAuthHeaders = () => createStaffHeaders(token);
+const getRestrictedAuthHeaders = () => createStaffHeaders(restrictedToken);
 
 const CAMPAIGN_STATES = [0, 1, 2, 3, 4, 5]; // Assuming these are the valid campaign state IDs for
 

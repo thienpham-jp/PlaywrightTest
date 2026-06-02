@@ -1,6 +1,13 @@
-import { test, expect, APIResponse } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import { urlStagingAPI } from "../../src/helpers/base-url-helper";
 import { generateJWT } from "../../src/helpers/jwt-helper";
+import { USER_UID_VN, SECRET_KEY_VN } from "../../src/helpers/user-helper";
+import {
+  logResponse,
+  createStaffHeaders,
+  RESTRICTED_USER_UID,
+  RESTRICTED_SECRET_KEY,
+} from "./helpers/api-test-helper";
 
 const baseURL = urlStagingAPI("VN");
 
@@ -8,33 +15,11 @@ const NON_EXISTING_CAMPAIGN_ID = 999999999;
 
 const API_URL = `${baseURL}/v1/staff/campaigns`;
 
-const USER_UID = "llt5mqx11xxl291lta91aqaaaalxxq67";
-const SECRET_KEY = "8qbcc2zzzzbz0ezs20e9jjz90cbxls22";
-
-// Staff user without access to the campaign's country (replace with actual restricted account)
-const RESTRICTED_USER_UID = "restricted_user_uid_placeholder";
-const RESTRICTED_SECRET_KEY = "restricted_secret_key_placeholder";
-
-const token = `Bearer ${generateJWT(USER_UID, SECRET_KEY)}`;
+const token = `Bearer ${generateJWT(USER_UID_VN, SECRET_KEY_VN)}`;
 const restrictedToken = `Bearer ${generateJWT(RESTRICTED_USER_UID, RESTRICTED_SECRET_KEY)}`;
 
-const getAuthHeaders = () => ({
-  "Content-Type": "application/json",
-  "X-Accesstrade-User-Type": "staff",
-  Authorization: token,
-});
-
-const getRestrictedAuthHeaders = () => ({
-  "Content-Type": "application/json",
-  "X-Accesstrade-User-Type": "staff",
-  Authorization: restrictedToken,
-});
-
-const logResponse = async (res: APIResponse) => {
-  const body = await res.json();
-  console.log(JSON.stringify(body, null, 2));
-  return body;
-};
+const getAuthHeaders = () => createStaffHeaders(token);
+const getRestrictedAuthHeaders = () => createStaffHeaders(restrictedToken);
 
 const validPayload = () => ({
   keyword: "",
