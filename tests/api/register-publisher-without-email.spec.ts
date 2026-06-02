@@ -1,4 +1,4 @@
-import { test, expect, APIResponse } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import {
   randomEmail,
   randomPhoneNumber,
@@ -6,6 +6,7 @@ import {
   randomURL,
 } from "../../src/helpers/function-helper";
 import { urlStagingAPI } from "../../src/helpers/base-url-helper";
+import { logResponse } from "./helpers/api-test-helper";
 
 const baseURL = urlStagingAPI("VN");
 
@@ -14,20 +15,6 @@ const API_URL = `${baseURL}/v2/publishers/register-without-email`;
 const getAuthHeaders = () => ({
   "Content-Type": "application/json",
 });
-
-const logResponse = async (res: APIResponse) => {
-  let responseBody: unknown = null;
-  try {
-    const rawBody = await res.text();
-    responseBody =
-      rawBody && typeof rawBody === "string" ? JSON.parse(rawBody) : rawBody;
-    console.log(JSON.stringify(responseBody, null, 2));
-  } catch (error) {
-    console.error("Failed to parse response body as JSON:", error);
-    responseBody = await res.text(); // Fallback to raw text if JSON parsing fails
-  }
-  return responseBody;
-};
 
 const validPayload = () => ({
   loginName: randomString(10),

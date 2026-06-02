@@ -1,38 +1,22 @@
-import { test, expect, APIResponse } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import { urlStagingAPI } from "../../src/helpers/base-url-helper";
 import { generateJWT } from "../../src/helpers/jwt-helper";
 import { SECRET_KEY, USER_UID } from "../../src/helpers/user-helper";
+import {
+  logResponse,
+  createStaffHeaders,
+  RESTRICTED_USER_UID,
+  RESTRICTED_SECRET_KEY,
+} from "./helpers/api-test-helper";
 
 const baseURL = urlStagingAPI("ID");
 
 const API_URL = `${baseURL}/v1/staff/payment`;
 
-// Staff user without access to the campaign's country (replace with actual restricted account)
-const RESTRICTED_USER_UID = "restricted_user_uid_placeholder";
-const RESTRICTED_SECRET_KEY = "restricted_secret_key_placeholder";
-
 const token = `Bearer ${generateJWT(USER_UID, SECRET_KEY)}`;
 const restrictedToken = `Bearer ${generateJWT(RESTRICTED_USER_UID, RESTRICTED_SECRET_KEY)}`;
 
-const getAuthHeaders = () => ({
-  "Content-Type": "application/json",
-  "X-Accesstrade-User-Type": "staff",
-  Authorization: token,
-});
-
-const logResponse = async (res: APIResponse) => {
-  let responseBody: unknown = null;
-  try {
-    const rawBody = await res.text();
-    responseBody =
-      rawBody && typeof rawBody === "string" ? JSON.parse(rawBody) : rawBody;
-    console.log(JSON.stringify(responseBody, null, 2));
-  } catch (error) {
-    console.error("Failed to parse response body as JSON:", error);
-    responseBody = await res.text(); // Fallback to raw text if JSON parsing fails
-  }
-  return responseBody;
-};
+const getAuthHeaders = () => createStaffHeaders(token);
 
 // TODO: replace with a invoiceId that has rank master data in staging DB
 const VALID_INVOICE_ID = "ATID202510-1";
