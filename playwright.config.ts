@@ -29,11 +29,13 @@ export default defineConfig({
   /* Increase test timeout for complex forms */
   timeout: 120000,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: [
-    ["html", { open: "always" }],
-    // ["allure-playwright", { outputFolder: "allure-results" }],
-    // ["./scripts/allure-trigger-reporter.ts"],
-  ],
+  reporter: process.env.CI
+    ? [["html", { open: "never" }]]
+    : [
+        ["html", { open: "never" }],
+        ["allure-playwright", { outputFolder: "allure-results" }],
+        ["./scripts/allure-trigger-reporter.ts"],
+      ],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('')`. */
