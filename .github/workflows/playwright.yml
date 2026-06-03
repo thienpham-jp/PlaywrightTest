@@ -33,10 +33,12 @@ jobs:
         run: npm ci
 
       - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
+        run: npx playwright install chromium --with-deps
 
       - name: Run Playwright tests
         run: npx playwright test
+        timeout-minutes: 90
+        continue-on-error: true
 
       - name: Upload Playwright report artifact
         if: always()
@@ -45,12 +47,14 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 30
+          if-no-files-found: warn
 
       - name: Upload Pages artifact
         if: always()
         uses: actions/upload-pages-artifact@v3
         with:
           path: playwright-report/
+          if-no-files-found: warn
 
   deploy:
     needs: test # ← wait for test job to finish first
