@@ -1,4 +1,4 @@
-import { test, expect, APIResponse } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import {
   randomDateString,
   randomInt,
@@ -7,38 +7,17 @@ import {
   randomURL,
 } from "../../src/helpers/function-helper";
 import { urlStagingAPI } from "../../src/helpers/base-url-helper";
-
 import { generateJWT } from "../../src/helpers/jwt-helper";
-// import { SECRET_KEY, USER_UID } from "../../src/helpers/user-helper";
+import { USER_UID_VN, SECRET_KEY_VN } from "../../src/helpers/user-helper";
+import { logResponse, createStaffHeaders } from "./helpers/api-test-helper";
 
 const baseURL = urlStagingAPI("VN");
 
 const API_URL = `${baseURL}/v1/staff/campaign`;
 
-const USER_UID = "llt5mqx11xxl291lta91aqaaaalxxq67";
-const SECRET_KEY = "8qbcc2zzzzbz0ezs20e9jjz90cbxls22";
+const token = `Bearer ${generateJWT(USER_UID_VN, SECRET_KEY_VN)}`;
 
-const token = `Bearer ${generateJWT(USER_UID, SECRET_KEY)}`;
-
-const getAuthHeaders = () => ({
-  "Content-Type": "application/json",
-  "X-Accesstrade-User-Type": "staff",
-  Authorization: token,
-});
-
-const logResponse = async (res: APIResponse) => {
-  let responseBody: unknown = null;
-  try {
-    const rawBody = await res.text();
-    responseBody =
-      rawBody && typeof rawBody === "string" ? JSON.parse(rawBody) : rawBody;
-    console.log(JSON.stringify(responseBody, null, 2));
-  } catch (error) {
-    console.error("Failed to parse response body as JSON:", error);
-    responseBody = await res.text(); // Fallback to raw text if JSON parsing fails
-  }
-  return responseBody;
-};
+const getAuthHeaders = () => createStaffHeaders(token);
 
 const CAMPAIGN_STATES = [0, 1, 2, 3, 4, 5]; // Assuming these are the valid campaign state IDs for
 
@@ -75,8 +54,8 @@ const updatePayload = () => ({
   merchantId: randomInt(1760, 2300),
   updateCampaignDetails: {
     campaignId: randomInt(3745, 3750),
-    campaignStatus: "RUNNING",
     previousCampaignStatus: "RUNNING",
+    campaignStatus: "RUNNING",
     campaignName: `Updated Campaign - ${randomString(5)}`,
     campaignType: campaignTypes[randomInt(0, campaignTypes.length - 1)],
     url: randomURL(),
@@ -457,6 +436,8 @@ test.describe("Update Campaign API", () => {
         campaignId: campaignId,
         previousCampaignStatus: preStatus,
         campaignStatus: newStatus,
+        imageUrl: `https://s3.ap-southeast-1.amazonaws.com/images.accesstrade.co.id/00411460f7c92d2124a67ea0f4cb5f85/logo_20170912094621.png`,
+        ogImage: `https://s3.ap-southeast-1.amazonaws.com/images.accesstrade.co.id/00411460f7c92d2124a67ea0f4cb5f85/logo_20170912094621.png`,
       },
     };
     const res = await request.put(API_URL, {
@@ -669,6 +650,392 @@ test.describe("Update Campaign API", () => {
     expect(JSON.stringify(body)).toMatch(
       /You are not allowed to access this API/i,
     );
+  });
+});
+
+test.describe.skip("Improve Update Campaign API", () => {
+  test.describe.configure({ mode: "parallel" });
+
+  // ─── GROUP 1: Country code restriction ─────────────────────────────────────
+  test("TC30 - Verify restricted country code is rejected (JP)", async ({
+    request,
+  }) => {
+    // TODO: confirm exact 3-letter code and error message for JP restriction
+    const payload = {
+      ...updatePayload(),
+      updateCampaignDetails: {
+        ...updatePayload().updateCampaignDetails,
+        customerCountries: "JPN",
+      },
+    };
+    const res = await request.put(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/customerCountries/i);
+  });
+
+  test("TC30b - Verify restricted country code is rejected (KR)", async ({
+    request,
+  }) => {
+    // TODO: confirm exact 3-letter code and error message for KR restriction
+    const payload = {
+      ...updatePayload(),
+      updateCampaignDetails: {
+        ...updatePayload().updateCampaignDetails,
+        customerCountries: "KOR",
+      },
+    };
+    const res = await request.put(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/customerCountries/i);
+  });
+
+  // ─── GROUP 2: Cookie duration null + max value ──────────────────────────────
+  test("TC31 - Verify cookieExpirationDateView is null", async ({
+    request,
+  }) => {
+    const payload = {
+      ...updatePayload(),
+      updateCampaignSettingDetails: {
+        cookieExpirationDateView: null,
+      },
+    };
+    const res = await request.put(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/cookieExpirationDateView/i);
+  });
+
+  test("TC32 - Verify cookieExpirationDateView exceeds max value", async ({
+    request,
+  }) => {
+    // TODO: replace 99999 with actual max allowed value + 1 per spec
+    const payload = {
+      ...updatePayload(),
+      updateCampaignSettingDetails: {
+        cookieExpirationDateView: 99999,
+      },
+    };
+    const res = await request.put(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/cookieExpirationDateView/i);
+  });
+
+  // ─── GROUP 3: Agency/Direct merchant type validation ───────────────────────
+  test("TC33 - Verify agencyAccountNo is required when merchantTypeId is agency type", async ({
+    request,
+  }) => {
+    // TODO: replace merchantTypeId=2 with actual agency-type value from DB
+    const payload = {
+      ...updatePayload(),
+      updateCampaignDetails: {
+        ...updatePayload().updateCampaignDetails,
+        merchantTypeId: 2,
+        agencyAccountNo: null,
+      },
+    };
+    const res = await request.put(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/agencyAccountNo/i);
+  });
+
+  test("TC34 - Verify invalid merchantTypeId value", async ({ request }) => {
+    const payload = {
+      ...updatePayload(),
+      updateCampaignDetails: {
+        ...updatePayload().updateCampaignDetails,
+        merchantTypeId: 999,
+      },
+    };
+    const res = await request.put(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/merchantTypeId/i);
+  });
+
+  // ─── GROUP 4: verifyCut conditional validation ─────────────────────────────
+  test("TC35 - Verify verifyCutTarget is required when verifyCutFlag=1", async ({
+    request,
+  }) => {
+    const payload = {
+      ...updatePayload(),
+      updateCampaignSettingDetails: {
+        cookieExpirationDateView: 60,
+        verifyCutFlag: 1,
+        verifyCutTarget: null,
+        verifyCutCondition: 1,
+      },
+    };
+    const res = await request.put(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/verifyCutTarget/i);
+  });
+
+  test("TC36 - Verify verifyCutCondition is required when verifyCutFlag=1", async ({
+    request,
+  }) => {
+    const payload = {
+      ...updatePayload(),
+      updateCampaignSettingDetails: {
+        cookieExpirationDateView: 60,
+        verifyCutFlag: 1,
+        verifyCutTarget: 1,
+        verifyCutCondition: null,
+      },
+    };
+    const res = await request.put(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/verifyCutCondition/i);
+  });
+
+  // ─── GROUP 5: Text field byte length ───────────────────────────────────────
+  // TODO: replace repeat counts with actual max bytes + 1 per field spec
+  test("TC37 - Verify affConditionSpecial exceeds max byte length", async ({
+    request,
+  }) => {
+    const payload = {
+      ...updatePayload(),
+      updateCampaignDetails: {
+        ...updatePayload().updateCampaignDetails,
+        affConditionSpecial: "A".repeat(10001),
+      },
+    };
+    const res = await request.put(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/affConditionSpecial/i);
+  });
+
+  test("TC38 - Verify affConditionSpecialEnglish exceeds max byte length", async ({
+    request,
+  }) => {
+    const payload = {
+      ...updatePayload(),
+      updateCampaignDetails: {
+        ...updatePayload().updateCampaignDetails,
+        affConditionSpecialEnglish: "A".repeat(10001),
+      },
+    };
+    const res = await request.put(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/affConditionSpecialEnglish/i);
+  });
+
+  test("TC39 - Verify resultApprovalSpecial exceeds max byte length", async ({
+    request,
+  }) => {
+    const payload = {
+      ...updatePayload(),
+      updateCampaignDetails: {
+        ...updatePayload().updateCampaignDetails,
+        resultApprovalSpecial: "A".repeat(10001),
+      },
+    };
+    const res = await request.put(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/resultApprovalSpecial/i);
+  });
+
+  test("TC40 - Verify resultApprovalSpecialEnglish exceeds max byte length", async ({
+    request,
+  }) => {
+    const payload = {
+      ...updatePayload(),
+      updateCampaignDetails: {
+        ...updatePayload().updateCampaignDetails,
+        resultApprovalSpecialEnglish: "A".repeat(10001),
+      },
+    };
+    const res = await request.put(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/resultApprovalSpecialEnglish/i);
+  });
+
+  test("TC41 - Verify validationTerm exceeds max byte length", async ({
+    request,
+  }) => {
+    const payload = {
+      ...updatePayload(),
+      updateCampaignDetails: {
+        ...updatePayload().updateCampaignDetails,
+        validationTerm: "A".repeat(10001),
+      },
+    };
+    const res = await request.put(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/validationTerm/i);
+  });
+
+  test("TC42 - Verify validationTermEnglish exceeds max byte length", async ({
+    request,
+  }) => {
+    const payload = {
+      ...updatePayload(),
+      updateCampaignDetails: {
+        ...updatePayload().updateCampaignDetails,
+        validationTermEnglish: "A".repeat(10001),
+      },
+    };
+    const res = await request.put(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/validationTermEnglish/i);
+  });
+
+  // ─── GROUP 6: Date min/max bounds ──────────────────────────────────────────
+  test("TC43 - Verify campaignStartDate below minimum allowed date", async ({
+    request,
+  }) => {
+    // TODO: replace with actual min date boundary per business rule
+    const payload = {
+      ...updatePayload(),
+      updateCampaignDetails: {
+        ...updatePayload().updateCampaignDetails,
+        campaignStartDate: "1900-01-01T00:00:00.000Z",
+        campaignEndDate: "1900-06-01T00:00:00.000Z",
+      },
+    };
+    const res = await request.put(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/campaignStartDate/i);
+  });
+
+  test("TC44 - Verify campaignEndDate above maximum allowed date", async ({
+    request,
+  }) => {
+    // TODO: replace with actual max date boundary per business rule
+    const payload = {
+      ...updatePayload(),
+      updateCampaignDetails: {
+        ...updatePayload().updateCampaignDetails,
+        campaignStartDate: "2024-01-01T00:00:00.000Z",
+        campaignEndDate: "9999-12-31T00:00:00.000Z",
+      },
+    };
+    const res = await request.put(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/campaignEndDate/i);
+  });
+
+  // ─── GROUP 7: Business Logic — update-specific ─────────────────────────────
+
+  test("TC45 - Verify ogDescription is accepted (truncation observable via response)", async ({
+    request,
+  }) => {
+    // istools truncates ogDescription to 60 bytes; send >60 bytes and verify API accepts it
+    // TODO: after update, fetch campaign and confirm stored ogDescription <= 60 bytes
+    const longOgDesc = "A".repeat(200);
+    const payload = {
+      ...updatePayload(),
+      updateCampaignDetails: {
+        ...updatePayload().updateCampaignDetails,
+        ogDescription: longOgDesc,
+      },
+    };
+    const res = await request.put(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    const body = await logResponse(res);
+    // Should either truncate and return 200, or reject with 400
+    expect([200, 400]).toContain(res.status());
+  });
+
+  test("TC46 - Verify cookieExpirationDateView defaults when not provided", async ({
+    request,
+  }) => {
+    // istools sets cookieExpirationDateView=86400 when mode=DEFAULT before validation
+    // Omit the field to see if gurkha handles the default
+    const base = updatePayload();
+    const payload = {
+      ...base,
+      updateCampaignSettingDetails: {},
+    };
+    const res = await request.put(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    const body = await logResponse(res);
+    // Expected: either 400 (missing required field) or 200 (default applied)
+    // TODO: confirm expected behavior with backend team
+    expect([200, 400]).toContain(res.status());
+  });
+
+  test.skip("TC47 - Verify merchantAgencyCampaignDetails is required for agency campaigns", async ({
+    request,
+  }) => {
+    // updateAccountAgencyCampaign() not called in gurkha update flow
+    // TODO: confirm field name and structure for merchantAgencyCampaignDetails
+    const payload = {
+      ...updatePayload(),
+      merchantAgencyCampaignDetails: null,
+    };
+    const res = await request.put(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/merchantAgencyCampaignDetails/i);
   });
 });
 

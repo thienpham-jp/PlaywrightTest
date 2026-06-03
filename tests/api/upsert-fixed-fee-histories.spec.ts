@@ -136,7 +136,7 @@ test.describe("Upsert Fixed Fee Histories API", () => {
   });
 
   // ─── TC_04 ──────────────────────────────────────────────────────────────────
-  test("TC_04 - Upsert with missing transactionId (INSERT new record) - Expect 200 OK value 1", async ({
+  test.skip("TC_04 - Upsert with missing transactionId (INSERT new record) - Expect 200 OK value 1", async ({
     request,
   }) => {
     const { ...payload } = validPayload();

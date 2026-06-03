@@ -1,4 +1,4 @@
-import { test, expect, APIResponse } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import {
   randomDateString,
   randomImageBase64,
@@ -8,38 +8,17 @@ import {
   randomURL,
 } from "../../src/helpers/function-helper";
 import { urlStagingAPI } from "../../src/helpers/base-url-helper";
-
 import { generateJWT } from "../../src/helpers/jwt-helper";
-// import { SECRET_KEY, USER_UID } from "../../src/helpers/user-helper";
+import { USER_UID_VN, SECRET_KEY_VN } from "../../src/helpers/user-helper";
+import { logResponse, createStaffHeaders } from "./helpers/api-test-helper";
 
 const baseURL = urlStagingAPI("VN");
 
 const API_URL = `${baseURL}/v1/staff/campaign`;
 
-const USER_UID = "llt5mqx11xxl291lta91aqaaaalxxq67";
-const SECRET_KEY = "8qbcc2zzzzbz0ezs20e9jjz90cbxls22";
+const token = `Bearer ${generateJWT(USER_UID_VN, SECRET_KEY_VN)}`;
 
-const token = `Bearer ${generateJWT(USER_UID, SECRET_KEY)}`;
-
-const getAuthHeaders = () => ({
-  "Content-Type": "application/json",
-  "X-Accesstrade-User-Type": "staff",
-  Authorization: token,
-});
-
-const logResponse = async (res: APIResponse) => {
-  let responseBody: unknown = null;
-  try {
-    const rawBody = await res.text();
-    responseBody =
-      rawBody && typeof rawBody === "string" ? JSON.parse(rawBody) : rawBody;
-    console.log(JSON.stringify(responseBody, null, 2));
-  } catch (error) {
-    console.error("Failed to parse response body as JSON:", error);
-    responseBody = await res.text(); // Fallback to raw text if JSON parsing fails
-  }
-  return responseBody;
-};
+const getAuthHeaders = () => createStaffHeaders(token);
 
 const campaignTypes = ["CPC", "CPA", "CPS", "CPL"];
 
@@ -562,29 +541,357 @@ test.describe("Create New Campaign API", () => {
       /cookieExpirationDateView must be greater than 0/i,
     );
   });
+  test.describe.skip("Test Create New Campaign API for ID", () => {
+    // * Create campaign with status = RUNNING, send message to Kafka topic, check message in topic: notifications-campaigns-new
+    test("TC13 - Verify successful creation with all optional fields", async ({
+      request,
+    }) => {
+      const payload = validPayload();
+      const res = await request.post(API_URL, {
+        headers: getAuthHeaders(),
+        data: {
+          ...payload,
+          insertCampaignDetails: {
+            ...payload.insertCampaignDetails,
+            campaignName: `Thien Test Campaign Socket - ${randomString(5)}`,
+            url: "https://lambent-mermaid-adc381.netlify.app/socket-landing.html?click_id={clickid}",
+            merchantId: 15691,
+            currency: "IDR",
+            customerCountries: "IDN",
+            getParameterFlag: "SOCKET",
+          },
+        },
+      });
+      const body = await logResponse(res);
+      expect(res.status()).toBe(200);
+      expect(typeof body).toBe("number");
+      expect(body).toBeGreaterThan(0);
+    });
+  });
 });
 
-test.describe.skip("Test Create New Campaign API for ID", () => {
-  // * Create campaign with status = RUNNING, send message to Kafka topic, check message in topic: notifications-campaigns-new
-  test("TC13 - Verify successful creation with all optional fields", async ({
+test.describe.skip("Improve Create New Campaign API", () => {
+  test.describe.configure({ mode: "parallel" });
+
+  // ─── GROUP 1: Country code restriction ─────────────────────────────────────
+  test("TC20 - Verify restricted country code is rejected (JP)", async ({
     request,
   }) => {
-    const payload = validPayload();
+    // TODO: confirm exact 3-letter code and error message for JP restriction
+    const payload = {
+      ...validPayload(),
+      insertCampaignDetails: {
+        ...validPayload().insertCampaignDetails,
+        customerCountries: "JPN",
+      },
+    };
     const res = await request.post(API_URL, {
       headers: getAuthHeaders(),
-      data: {
-        ...payload,
-        insertCampaignDetails: {
-          ...payload.insertCampaignDetails,
-          merchantId: 15687,
-          currency: "IDR",
-          customerCountries: "IDN",
-        },
-      },
+      data: payload,
     });
+    expect(res.status()).toBe(400);
     const body = await logResponse(res);
-    expect(res.status()).toBe(200);
-    expect(typeof body).toBe("number");
-    expect(body).toBeGreaterThan(0);
+    expect(JSON.stringify(body)).toMatch(/customerCountries/i);
+  });
+
+  test("TC20b - Verify restricted country code is rejected (KR)", async ({
+    request,
+  }) => {
+    // TODO: confirm exact 3-letter code and error message for KR restriction
+    const payload = {
+      ...validPayload(),
+      insertCampaignDetails: {
+        ...validPayload().insertCampaignDetails,
+        customerCountries: "KOR",
+      },
+    };
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/customerCountries/i);
+  });
+
+  // ─── GROUP 2: Cookie duration null + max value ──────────────────────────────
+  test("TC21 - Verify cookieExpirationDateView is null", async ({
+    request,
+  }) => {
+    const payload = {
+      ...validPayload(),
+      insertCampaignSettingDetails: {
+        ...validPayload().insertCampaignSettingDetails,
+        cookieExpirationDateView: null,
+      },
+    };
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/cookieExpirationDateView/i);
+  });
+
+  test("TC22 - Verify cookieExpirationDateView exceeds max value", async ({
+    request,
+  }) => {
+    // TODO: replace 99999 with actual max allowed value + 1 per spec
+    const payload = {
+      ...validPayload(),
+      insertCampaignSettingDetails: {
+        ...validPayload().insertCampaignSettingDetails,
+        cookieExpirationDateView: 99999,
+      },
+    };
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/cookieExpirationDateView/i);
+  });
+
+  // ─── GROUP 3: Agency/Direct merchant type validation ───────────────────────
+  test("TC23 - Verify agencyAccountNo is required when merchantTypeId is agency type", async ({
+    request,
+  }) => {
+    // TODO: replace merchantTypeId=2 with actual agency-type value from DB
+    const payload = {
+      ...validPayload(),
+      insertCampaignDetails: {
+        ...validPayload().insertCampaignDetails,
+        merchantTypeId: 2,
+        agencyAccountNo: null,
+      },
+    };
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/agencyAccountNo/i);
+  });
+
+  test("TC24 - Verify invalid merchantTypeId value", async ({ request }) => {
+    const payload = {
+      ...validPayload(),
+      insertCampaignDetails: {
+        ...validPayload().insertCampaignDetails,
+        merchantTypeId: 999,
+      },
+    };
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/merchantTypeId/i);
+  });
+
+  // ─── GROUP 4: verifyCut conditional validation ─────────────────────────────
+  test("TC25 - Verify verifyCutTarget is required when verifyCutFlag=1", async ({
+    request,
+  }) => {
+    const payload = {
+      ...validPayload(),
+      insertCampaignSettingDetails: {
+        ...validPayload().insertCampaignSettingDetails,
+        verifyCutFlag: 1,
+        verifyCutTarget: null,
+        verifyCutCondition: 1,
+      },
+    };
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/verifyCutTarget/i);
+  });
+
+  test("TC26 - Verify verifyCutCondition is required when verifyCutFlag=1", async ({
+    request,
+  }) => {
+    const payload = {
+      ...validPayload(),
+      insertCampaignSettingDetails: {
+        ...validPayload().insertCampaignSettingDetails,
+        verifyCutFlag: 1,
+        verifyCutTarget: 1,
+        verifyCutCondition: null,
+      },
+    };
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/verifyCutCondition/i);
+  });
+
+  // ─── GROUP 5: Text field byte length ───────────────────────────────────────
+  // TODO: replace repeat counts with actual max bytes + 1 per field spec
+  test("TC27 - Verify affConditionSpecial exceeds max byte length", async ({
+    request,
+  }) => {
+    const payload = {
+      ...validPayload(),
+      insertCampaignDetails: {
+        ...validPayload().insertCampaignDetails,
+        affConditionSpecial: "A".repeat(10001),
+      },
+    };
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/affConditionSpecial/i);
+  });
+
+  test("TC28 - Verify affConditionSpecialEnglish exceeds max byte length", async ({
+    request,
+  }) => {
+    const payload = {
+      ...validPayload(),
+      insertCampaignDetails: {
+        ...validPayload().insertCampaignDetails,
+        affConditionSpecialEnglish: "A".repeat(10001),
+      },
+    };
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/affConditionSpecialEnglish/i);
+  });
+
+  test("TC29 - Verify resultApprovalSpecial exceeds max byte length", async ({
+    request,
+  }) => {
+    const payload = {
+      ...validPayload(),
+      insertCampaignDetails: {
+        ...validPayload().insertCampaignDetails,
+        resultApprovalSpecial: "A".repeat(10001),
+      },
+    };
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/resultApprovalSpecial/i);
+  });
+
+  test("TC30 - Verify resultApprovalSpecialEnglish exceeds max byte length", async ({
+    request,
+  }) => {
+    const payload = {
+      ...validPayload(),
+      insertCampaignDetails: {
+        ...validPayload().insertCampaignDetails,
+        resultApprovalSpecialEnglish: "A".repeat(10001),
+      },
+    };
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/resultApprovalSpecialEnglish/i);
+  });
+
+  test("TC31 - Verify validationTerm exceeds max byte length", async ({
+    request,
+  }) => {
+    const payload = {
+      ...validPayload(),
+      insertCampaignDetails: {
+        ...validPayload().insertCampaignDetails,
+        validationTerm: "A".repeat(10001),
+      },
+    };
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/validationTerm/i);
+  });
+
+  test("TC32 - Verify validationTermEnglish exceeds max byte length", async ({
+    request,
+  }) => {
+    const payload = {
+      ...validPayload(),
+      insertCampaignDetails: {
+        ...validPayload().insertCampaignDetails,
+        validationTermEnglish: "A".repeat(10001),
+      },
+    };
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/validationTermEnglish/i);
+  });
+
+  // ─── GROUP 6: Date min/max bounds ──────────────────────────────────────────
+  test("TC33 - Verify campaignStartDate below minimum allowed date", async ({
+    request,
+  }) => {
+    // TODO: replace with actual min date boundary per business rule
+    const payload = {
+      ...validPayload(),
+      insertCampaignDetails: {
+        ...validPayload().insertCampaignDetails,
+        campaignStartDate: "1900-01-01T00:00:00.000Z",
+        campaignEndDate: "1900-06-01T00:00:00.000Z",
+      },
+    };
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/campaignStartDate/i);
+  });
+
+  test("TC34 - Verify campaignEndDate above maximum allowed date", async ({
+    request,
+  }) => {
+    // TODO: replace with actual max date boundary per business rule
+    const payload = {
+      ...validPayload(),
+      insertCampaignDetails: {
+        ...validPayload().insertCampaignDetails,
+        campaignStartDate: "2024-01-01T00:00:00.000Z",
+        campaignEndDate: "9999-12-31T00:00:00.000Z",
+      },
+    };
+    const res = await request.post(API_URL, {
+      headers: getAuthHeaders(),
+      data: payload,
+    });
+    expect(res.status()).toBe(400);
+    const body = await logResponse(res);
+    expect(JSON.stringify(body)).toMatch(/campaignEndDate/i);
   });
 });
