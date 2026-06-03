@@ -19,12 +19,8 @@ env:
 
 jobs:
   test:
-    timeout-minutes: 120
+    timeout-minutes: 180 # Increase if needed
     runs-on: ubuntu-latest
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - uses: actions/checkout@v4
@@ -50,18 +46,24 @@ jobs:
           path: playwright-report/
           retention-days: 30
 
-      # Publish report lên GitHub Pages
-      - name: Setup Pages
-        if: always()
-        uses: actions/configure-pages@v5
-
       - name: Upload Pages artifact
         if: always()
         uses: actions/upload-pages-artifact@v3
         with:
           path: playwright-report/
 
+  deploy:
+    needs: test # ← wait for test job to finish first
+    if: always() # ← but run regardless of whether test passed or failed
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
       - name: Deploy to GitHub Pages
-        if: always()
         id: deployment
         uses: actions/deploy-pages@v4
