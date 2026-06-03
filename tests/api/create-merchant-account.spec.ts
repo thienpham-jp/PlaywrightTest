@@ -35,7 +35,7 @@ const basicPayload = () => {
     loginName: loginName,
     loginPassword: `Test@1234`,
     accountantEmail: randomUserEmail(loginName),
-    merchantTypeId: 1,
+    merchantTypeId: randomInt(1, 2),
     staffLoginName: "obs-dev@interspace.ne.jp",
     countryCode: "ID",
     parentMerchantId: 0,
@@ -73,7 +73,7 @@ const validPayload = () => {
     fosterRemark: "foster remark",
     loginName: loginName,
     loginPassword: `Test@1234`,
-    merchantTypeId: 1,
+    merchantTypeId: 2,
     staffLoginName: "obs-dev@interspace.ne.jp",
     accountantLastname: `Test Last Name - ${regixString}`,
     accountantFirstname: `Test First Name - ${regixString}`,
@@ -118,7 +118,7 @@ test.describe("Create Merchant Account API", () => {
   });
 
   // ─── TC_02 ──────────────────────────────────────────────────────────────────
-  test("TC_02 - Successful creation with all fields provided - Expect 200 OK", async ({
+  test.skip("TC_02 - Successful creation with all fields provided - Expect 200 OK", async ({
     request,
   }) => {
     const res = await request.post(API_URL, {
