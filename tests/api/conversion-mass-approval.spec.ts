@@ -2,13 +2,19 @@ import { test, expect } from "@playwright/test";
 import { generateJWT } from "../../src/helpers/jwt-helper";
 import { SECRET_KEY, USER_UID } from "../../src/helpers/user-helper";
 import { urlStagingAPI } from "../../src/helpers/base-url-helper";
-import { logResponse, createStaffHeaders } from "./helpers/api-test-helper";
+import {
+  logResponse,
+  createStaffHeaders,
+  RESTRICTED_SECRET_KEY,
+  RESTRICTED_USER_UID,
+} from "./helpers/api-test-helper";
 
 const baseURL = urlStagingAPI("ID");
 
 const API_URL = `${baseURL}/v1/staff/conversion/mass-approval`;
 
 const token = `Bearer ${generateJWT(USER_UID, SECRET_KEY)}`;
+const restrictedToken = `Bearer ${generateJWT(RESTRICTED_USER_UID, RESTRICTED_SECRET_KEY)}`;
 
 const getAuthHeaders = () => createStaffHeaders(token);
 
@@ -25,8 +31,27 @@ const validPayload = () => ({
 });
 
 test.describe("Mass Approval API - Limit Validation", () => {
-  // ── Validation for conversionId Limit (100,000) ─────────────────────────────
+  test.describe.configure({ mode: "parallel" });
 
+  /*
+   ? Test Cases for Mass Approval API method `PUT /v1/staff/conversion/mass-approval`
+   * Test summary to cover:
+    1. Verify mass approval with conversionId within limit (≤100k) - Expect 200 OK
+    2. Verify mass approval exceeding conversionId limit (>100k) - Expect 400 Bad Request
+    3. Verify boundary condition for conversionId limit (exactly 100k) - Expect 200 OK
+    4. Verify mass approval with transactionId within limit (≤10k) - Expect 200 OK
+    5. Verify mass approval exceeding transactionId limit (>10k) - Expect 400 Bad Request
+    6. Verify boundary condition for transactionId limit (exactly 10k) - Expect 200 OK
+    7. Verify empty request payload - Expect 400 Bad Request
+    8. Verify duplicate IDs in request - Expect 200 OK (or 400 Bad Request if duplicates are not allowed)
+    9. Verify partial invalid IDs in request - Expect 200 OK (or 400 Bad Request if any invalid ID causes failure)
+    10. Verify performance at maximum allowed limit - Expect response within acceptable time frame (e.g. <30 seconds)
+    11. Authentication failure (no token) - Expect 401 Unauthorized
+    12. Authorization failure (restricted user) - Expect 401 Unauthorized
+    13. Missing user type - Expect 400 Bad Request
+   */
+
+  // ── Validation for conversionId Limit (100,000) ─────────────────────────────
   test("TC01: Verify mass approval with conversionId within limit (≤100k)", async ({
     page,
   }) => {
@@ -258,5 +283,55 @@ test.describe("Mass Approval API - Limit Validation", () => {
     expect(response.status()).toBeGreaterThanOrEqual(200);
     expect(response.status()).toBeLessThan(600);
     expect(elapsed).toBeLessThan(30_000); // must respond within 30 seconds
+  });
+
+  // ─── TC_12 ──────────────────────────────────────────────────────────────────
+  test("TC_12 - Authentication failure (no token) - Expect 401 Unauthorized", async ({
+    page,
+  }) => {
+    const response = await page.request.put(API_URL, {
+      headers: { ...getAuthHeaders(), Authorization: "" },
+      data: {
+        ...validPayload(),
+      },
+      timeout: 60_000,
+    });
+    const body = await logResponse(response);
+    expect(response.status()).toBe(401);
+    expect(JSON.stringify(body)).toMatch(/JWT auth failed!/i);
+  });
+
+  // ─── TC_13 ──────────────────────────────────────────────────────────────────
+  test("TC_13 - Authorization failure (restricted user) - Expect 401 Unauthorized", async ({
+    page,
+  }) => {
+    const response = await page.request.put(API_URL, {
+      headers: { ...getAuthHeaders(), Authorization: restrictedToken },
+      data: {
+        ...validPayload(),
+      },
+      timeout: 60_000,
+    });
+    const body = await logResponse(response);
+    expect(response.status()).toBe(401);
+    expect(JSON.stringify(body)).toMatch(/JWT auth failed!/i);
+  });
+
+  // ─── TC_14 ──────────────────────────────────────────────────────────────────
+  test("TC_14 - Missing user type - Expect 400 Bad Request", async ({
+    page,
+  }) => {
+    const response = await page.request.put(API_URL, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+      data: {
+        ...validPayload(),
+      },
+      timeout: 60_000,
+    });
+    const body = await logResponse(response);
+    expect(response.status()).toBe(400);
+    expect(JSON.stringify(body)).toMatch(/invalid user type:/i);
   });
 }); // end: Mass Approval API - Limit Validation
