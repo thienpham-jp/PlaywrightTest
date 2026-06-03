@@ -54,7 +54,6 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: playwright-report/
-          if-no-files-found: warn
 
   deploy:
     needs: test # ← wait for test job to finish first
