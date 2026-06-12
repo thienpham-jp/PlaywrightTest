@@ -1462,13 +1462,15 @@ test.describe("CFD ID Tests", () => {
           },
           { timeout: 15000 },
         );
-        return cfdPage.page.evaluate(() => {
-          const iframes = Array.from(document.querySelectorAll("iframe"));
-          for (const f of iframes) {
-            const doc = (f as HTMLIFrameElement).contentDocument;
-            if (!doc || !doc.querySelector("table.log-table")) continue;
-            return Array.from(doc.querySelectorAll("tbody tr.log-row")).map(
-              (row) => ({
+        return cfdPage.page
+          .evaluate(() => {
+            const iframes = Array.from(document.querySelectorAll("iframe"));
+            for (const f of iframes) {
+              const doc = (f as HTMLIFrameElement).contentDocument;
+              if (!doc || !doc.querySelector("table.log-table")) continue;
+              const rows = Array.from(
+                doc.querySelectorAll("tbody tr.log-row"),
+              ).map((row) => ({
                 clickTime:
                   row.querySelector(".col-ts")?.textContent?.trim() ?? "",
                 detectionId:
@@ -1478,55 +1480,83 @@ test.describe("CFD ID Tests", () => {
                 rules:
                   row.querySelector(".col-rules")?.textContent?.trim() ?? "",
                 rec: row.querySelector(".col-rec")?.textContent?.trim() ?? "",
-              }),
-            );
-          }
-          return [] as Array<{
-            clickTime: string;
-            detectionId: string;
-            site: string;
-            ip: string;
-            rules: string;
-            rec: string;
-          }>;
-        });
+              }));
+              console.log(
+                `[getDetailRows] Read ${rows.length} rows. First row IP: ${rows[0]?.ip}`,
+              );
+              return rows;
+            }
+            console.warn(`[getDetailRows] No table.log-table found in iframes`);
+            return [] as Array<{
+              clickTime: string;
+              detectionId: string;
+              site: string;
+              ip: string;
+              rules: string;
+              rec: string;
+            }>;
+          })
+          .catch((err) => {
+            console.error(`[getDetailRows] evaluate failed: ${err}`);
+            return [] as Array<{
+              clickTime: string;
+              detectionId: string;
+              site: string;
+              ip: string;
+              rules: string;
+              rec: string;
+            }>;
+          });
       };
 
       /** Get pagination total from the detail iframe footer. */
       const getDetailPaginationTotal = async (): Promise<number> =>
-        cfdPage.page.evaluate(() => {
-          const iframes = Array.from(document.querySelectorAll("iframe"));
-          for (const f of iframes) {
-            const doc = (f as HTMLIFrameElement).contentDocument;
-            if (!doc || !doc.querySelector("table.log-table")) continue;
-            const pgSpan = Array.from(
-              doc.querySelectorAll(".det-footer-bar span"),
-            ).find((s) => /of\s/.test(s.textContent ?? ""));
-            const m = pgSpan?.textContent?.trim().match(/of ([\d,]+)/);
-            return m ? parseInt(m[1].replace(/,/g, "")) : 0;
-          }
-          return 0;
-        });
+        cfdPage.page
+          .evaluate(() => {
+            const iframes = Array.from(document.querySelectorAll("iframe"));
+            for (const f of iframes) {
+              const doc = (f as HTMLIFrameElement).contentDocument;
+              if (!doc || !doc.querySelector("table.log-table")) continue;
+              const pgSpan = Array.from(
+                doc.querySelectorAll(".det-footer-bar span"),
+              ).find((s) => /of\s/.test(s.textContent ?? ""));
+              const m = pgSpan?.textContent?.trim().match(/of ([\d,]+)/);
+              return m ? parseInt(m[1].replace(/,/g, "")) : 0;
+            }
+            return 0;
+          })
+          .catch((err) => {
+            console.error(`[getDetailPaginationTotal] evaluate failed: ${err}`);
+            return 0;
+          });
 
       /** Type into the IP search input and trigger Enter. */
       const typeDetailIPSearch = async (term: string) => {
-        await cfdPage.page.evaluate((t) => {
-          const iframes = Array.from(document.querySelectorAll("iframe"));
-          for (const f of iframes) {
-            const doc = (f as HTMLIFrameElement).contentDocument;
-            if (!doc || !doc.querySelector("table.log-table")) continue;
-            const input =
-              (doc.getElementById("det-search") as HTMLInputElement | null) ??
-              (doc.querySelector(".det-search") as HTMLInputElement | null);
-            if (!input) continue;
-            input.value = t;
-            input.dispatchEvent(
-              new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
-            );
-            return;
-          }
-        }, term);
-        await cfdPage.page.waitForLoadState("networkidle");
+        await cfdPage.page
+          .evaluate((t) => {
+            const iframes = Array.from(document.querySelectorAll("iframe"));
+            for (const f of iframes) {
+              const doc = (f as HTMLIFrameElement).contentDocument;
+              if (!doc || !doc.querySelector("table.log-table")) continue;
+              const input =
+                (doc.getElementById("det-search") as HTMLInputElement | null) ??
+                (doc.querySelector(".det-search") as HTMLInputElement | null);
+              if (!input) continue;
+              input.value = t;
+              input.dispatchEvent(
+                new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+              );
+              return;
+            }
+          }, term)
+          .catch((err) => {
+            console.warn(`[typeDetailIPSearch] evaluate failed: ${err}`);
+          });
+        await cfdPage.page
+          .waitForLoadState("networkidle", { timeout: 15000 })
+          .catch(() => {});
+        // Wait a short time for table to re-render with filtered results
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       };
 
       /**
@@ -1536,38 +1566,47 @@ test.describe("CFD ID Tests", () => {
       const clickDetailSiteFilter = async (
         siteIndex: number,
       ): Promise<string> => {
-        const siteId = await cfdPage.page.evaluate((idx) => {
-          const iframes = Array.from(document.querySelectorAll("iframe"));
-          for (const f of iframes) {
-            const doc = (f as HTMLIFrameElement).contentDocument;
-            if (!doc || !doc.querySelector("table.log-table")) continue;
-            const ddWraps = Array.from(doc.querySelectorAll(".det-dd-wrap"));
-            const siteWrap = ddWraps[0] as HTMLElement | undefined;
-            if (!siteWrap) continue;
-            // Open dropdown
-            (
-              siteWrap.querySelector(".det-site-btn") as HTMLElement | null
-            )?.click();
-            // Check the nth checkbox
-            const checkboxes = Array.from(
-              siteWrap.querySelectorAll('.det-site-opt input[type="checkbox"]'),
-            ) as HTMLInputElement[];
-            const cb = checkboxes[idx];
-            if (!cb) continue;
-            const selectedId = cb.value;
-            cb.checked = true;
-            cb.dispatchEvent(new Event("change", { bubbles: true }));
-            // Click Apply
-            (
-              siteWrap.querySelector(
-                ".det-dd-footer-btn.primary",
-              ) as HTMLElement | null
-            )?.click();
-            return selectedId;
-          }
-          return "";
-        }, siteIndex);
-        await cfdPage.page.waitForLoadState("networkidle");
+        const siteId = await cfdPage.page
+          .evaluate((idx) => {
+            const iframes = Array.from(document.querySelectorAll("iframe"));
+            for (const f of iframes) {
+              const doc = (f as HTMLIFrameElement).contentDocument;
+              if (!doc || !doc.querySelector("table.log-table")) continue;
+              const ddWraps = Array.from(doc.querySelectorAll(".det-dd-wrap"));
+              const siteWrap = ddWraps[0] as HTMLElement | undefined;
+              if (!siteWrap) continue;
+              // Open dropdown
+              (
+                siteWrap.querySelector(".det-site-btn") as HTMLElement | null
+              )?.click();
+              // Check the nth checkbox
+              const checkboxes = Array.from(
+                siteWrap.querySelectorAll(
+                  '.det-site-opt input[type="checkbox"]',
+                ),
+              ) as HTMLInputElement[];
+              const cb = checkboxes[idx];
+              if (!cb) continue;
+              const selectedId = cb.value;
+              cb.checked = true;
+              cb.dispatchEvent(new Event("change", { bubbles: true }));
+              // Click Apply
+              (
+                siteWrap.querySelector(
+                  ".det-dd-footer-btn.primary",
+                ) as HTMLElement | null
+              )?.click();
+              return selectedId;
+            }
+            return "";
+          }, siteIndex)
+          .catch((err) => {
+            console.warn(`[clickDetailSiteFilter] evaluate failed: ${err}`);
+            return "";
+          });
+        await cfdPage.page
+          .waitForLoadState("networkidle", { timeout: 15000 })
+          .catch(() => {});
         return siteId;
       };
 
@@ -1578,46 +1617,63 @@ test.describe("CFD ID Tests", () => {
       const clickDetailRuleFilter = async (
         ruleIndex: number,
       ): Promise<{ ruleId: string; ruleLabel: string }> => {
-        const result = await cfdPage.page.evaluate((idx) => {
-          const iframes = Array.from(document.querySelectorAll("iframe"));
-          for (const f of iframes) {
-            const doc = (f as HTMLIFrameElement).contentDocument;
-            if (!doc || !doc.querySelector("table.log-table")) continue;
-            const ddWraps = Array.from(doc.querySelectorAll(".det-dd-wrap"));
-            const ruleWrap = ddWraps[1] as HTMLElement | undefined;
-            if (!ruleWrap) continue;
-            // Open dropdown
-            (
-              ruleWrap.querySelector(".det-dd-btn") as HTMLElement | null
-            )?.click();
-            // Check the nth checkbox
-            const checkboxes = Array.from(
-              ruleWrap.querySelectorAll('input[type="checkbox"]'),
-            ) as HTMLInputElement[];
-            const cb = checkboxes[idx];
-            if (!cb) continue;
-            const ruleLabel = (cb.parentElement?.textContent ?? "").trim();
-            // Prefer explicit value/data attrs; fall back to leading number in label
-            const rawId =
-              cb.value ||
-              cb.dataset.value ||
-              cb.dataset.ruleId ||
-              cb.dataset.id ||
-              "";
-            const ruleId = rawId || (ruleLabel.match(/^(\d+)/) ?? [])[1] || "";
-            cb.checked = true;
-            cb.dispatchEvent(new Event("change", { bubbles: true }));
-            // Click Apply
-            (
-              ruleWrap.querySelector(
-                ".det-dd-footer-btn.primary",
-              ) as HTMLElement | null
-            )?.click();
-            return { ruleId, ruleLabel };
-          }
-          return { ruleId: "", ruleLabel: "" };
-        }, ruleIndex);
-        await cfdPage.page.waitForLoadState("networkidle");
+        const result = await cfdPage.page
+          .evaluate((idx) => {
+            const iframes = Array.from(document.querySelectorAll("iframe"));
+            for (const f of iframes) {
+              const doc = (f as HTMLIFrameElement).contentDocument;
+              if (!doc || !doc.querySelector("table.log-table")) continue;
+              const ddWraps = Array.from(doc.querySelectorAll(".det-dd-wrap"));
+              const ruleWrap = ddWraps[1] as HTMLElement | undefined;
+              if (!ruleWrap) continue;
+              // Open dropdown
+              (
+                ruleWrap.querySelector(".det-dd-btn") as HTMLElement | null
+              )?.click();
+              // Check the nth checkbox
+              const checkboxes = Array.from(
+                ruleWrap.querySelectorAll('input[type="checkbox"]'),
+              ) as HTMLInputElement[];
+              const cb = checkboxes[idx];
+              if (!cb) continue;
+              const ruleLabel = (cb.parentElement?.textContent ?? "").trim();
+              // Prefer explicit value/data attrs; fall back to leading number in label
+              // Try data attributes first (primary selector), then value, then fallback to label
+              const ruleId =
+                cb.dataset.ruleId ||
+                cb.dataset.id ||
+                cb.value ||
+                cb.dataset.value ||
+                (ruleLabel.match(/^(\d+)/) ?? [])[1] ||
+                "";
+              if (!ruleId) {
+                console.warn(
+                  `[clickDetailRuleFilter] Could not extract rule ID from checkbox at index ${idx}. Label: "${ruleLabel}", cb.value: "${cb.value}", cb.dataset: ${JSON.stringify(cb.dataset)}`,
+                );
+              } else {
+                console.log(
+                  `[clickDetailRuleFilter] Rule ${idx}: ID="${ruleId}", Label="${ruleLabel}"`,
+                );
+              }
+              cb.checked = true;
+              cb.dispatchEvent(new Event("change", { bubbles: true }));
+              // Click Apply
+              (
+                ruleWrap.querySelector(
+                  ".det-dd-footer-btn.primary",
+                ) as HTMLElement | null
+              )?.click();
+              return { ruleId, ruleLabel };
+            }
+            return { ruleId: "", ruleLabel: "" };
+          }, ruleIndex)
+          .catch((err) => {
+            console.warn(`[clickDetailRuleFilter] evaluate failed: ${err}`);
+            return { ruleId: "", ruleLabel: "" };
+          });
+        await cfdPage.page
+          .waitForLoadState("networkidle", { timeout: 15000 })
+          .catch(() => {});
         return result;
       };
 
@@ -1736,21 +1792,27 @@ test.describe("CFD ID Tests", () => {
         expect(total).toBeGreaterThan(0);
 
         // Change page size to 100 inside the detail iframe
-        await cfdPage.page.evaluate(() => {
-          const iframes = Array.from(document.querySelectorAll("iframe"));
-          for (const f of iframes) {
-            const doc = (f as HTMLIFrameElement).contentDocument;
-            if (!doc || !doc.querySelector("table.log-table")) continue;
-            const sel = doc.querySelector(
-              "select.det-ps",
-            ) as HTMLSelectElement | null;
-            if (!sel) continue;
-            sel.value = "100";
-            sel.dispatchEvent(new Event("change", { bubbles: true }));
-            return;
-          }
-        });
-        await cfdPage.page.waitForLoadState("networkidle");
+        await cfdPage.page
+          .evaluate(() => {
+            const iframes = Array.from(document.querySelectorAll("iframe"));
+            for (const f of iframes) {
+              const doc = (f as HTMLIFrameElement).contentDocument;
+              if (!doc || !doc.querySelector("table.log-table")) continue;
+              const sel = doc.querySelector(
+                "select.det-ps",
+              ) as HTMLSelectElement | null;
+              if (!sel) continue;
+              sel.value = "100";
+              sel.dispatchEvent(new Event("change", { bubbles: true }));
+              return;
+            }
+          })
+          .catch((err) => {
+            console.warn(`[setPaginationSize] evaluate failed: ${err}`);
+          });
+        await cfdPage.page
+          .waitForLoadState("networkidle", { timeout: 15000 })
+          .catch(() => {});
 
         const updatedData = await getDetailData();
         const expectedPages = Math.ceil(total / 100);
@@ -1800,9 +1862,20 @@ test.describe("CFD ID Tests", () => {
         console.log(
           `[IP Search "${ipTerm}"] total=${total} rowsShown=${rows.length}`,
         );
+        console.log(
+          `[IP Search] First 3 rows: ${rows
+            .slice(0, 3)
+            .map((r) => `IP=${r.ip}`)
+            .join(", ")}`,
+        );
         expect(total).toBeGreaterThan(0);
         expect(rows.length).toBeGreaterThan(0);
         for (const row of rows) {
+          if (!row.ip.includes(ipTerm)) {
+            console.error(
+              `[IP Search] Row mismatch: got IP "${row.ip}", expected to contain "${ipTerm}"`,
+            );
+          }
           expect(
             row.ip,
             `Row IP "${row.ip}" should contain "${ipTerm}"`,
@@ -2204,16 +2277,26 @@ test.describe("CFD ID Tests", () => {
                   // Try CSS selectors for a named risk pill across multiple candidate cells
                   for (const cell of [cells[7], cells[8]]) {
                     if (!cell) continue;
-                    const pill = cell.querySelector(
-                      ".siip-pill, .risk-pill, .siip-risk, .risk-label, [class*='risk'], [class*='pill']",
+                    // Primary selectors (most recent UI structure)
+                    let pill = cell.querySelector(
+                      ".siip-pill, .siip-risk, .risk-label",
                     );
+                    // Fallback to risk-pill or attribute match
+                    if (!pill)
+                      pill = cell.querySelector(".risk-pill, [class*='risk']");
+
                     if (pill) {
                       const txt =
                         pill.textContent?.trim() ||
                         pill.getAttribute("aria-label") ||
                         pill.getAttribute("title") ||
                         "";
-                      if (txt && /[a-z]/i.test(txt)) return txt;
+                      if (txt && /[a-z]/i.test(txt)) {
+                        console.log(
+                          `[SiipRowRisk] Found risk via selector, cell=${cells.indexOf(cell)}, text=${txt}`,
+                        );
+                        return txt;
+                      }
                     }
                     const dataRisk =
                       cell.getAttribute("data-risk") ||
