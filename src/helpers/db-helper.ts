@@ -95,7 +95,7 @@ export interface DashboardMetrics {
   totalClicks: number;
   legitimateClicks: number;
   blockedFraud: number;
-  suspicious: number;
+  warning: number;
 }
 
 /**
@@ -112,7 +112,7 @@ export async function getDashboardMetrics(
     SELECT
       SUM(total_clicks)                                              AS "totalClicks",
       SUM(total_block_count)                                         AS "blockedFraud",
-      SUM(total_warning_count)                                       AS "suspicious",
+      SUM(total_warning_count)                                       AS "warning",
       SUM(total_clicks - total_block_count - total_warning_count)    AS "legitimateClicks"
     FROM hourly_summary
     WHERE request_date = $1
@@ -122,7 +122,7 @@ export async function getDashboardMetrics(
     totalClicks: Number(row.totalClicks),
     legitimateClicks: Number(row.legitimateClicks),
     blockedFraud: Number(row.blockedFraud),
-    suspicious: Number(row.suspicious),
+    warning: Number(row.warning),
   };
 }
 
@@ -136,7 +136,7 @@ export async function getDashboardMetricsDelta(
   totalClicks: number | null;
   legitimateClicks: number | null;
   blockedFraud: number | null;
-  suspicious: number | null;
+  warning: number | null;
 }> {
   const yest = await getDashboardMetrics(yesterday(), country);
   const prev = await getDashboardMetrics(daysAgo(2), country);
@@ -150,7 +150,7 @@ export async function getDashboardMetricsDelta(
     totalClicks: pct(yest.totalClicks, prev.totalClicks),
     legitimateClicks: pct(yest.legitimateClicks, prev.legitimateClicks),
     blockedFraud: pct(yest.blockedFraud, prev.blockedFraud),
-    suspicious: pct(yest.suspicious, prev.suspicious),
+    warning: pct(yest.warning, prev.warning),
   };
 }
 
@@ -183,10 +183,11 @@ export async function getFraudDetectionSummary(
         2
       )                                                                           AS "fraudRate",
       (
-        SELECT COUNT(DISTINCT campaign_id)
-        FROM click_events
-        WHERE DATE(request_date) BETWEEN $1 AND $2
-          AND final_action_name != 'ALLOW'
+      SELECT
+        COUNT(DISTINCT campaign_id)  AS campaign_count
+        FROM campaign_summary
+        WHERE request_date BETWEEN $1 AND $2
+        AND total_violation_count > 0
       )                                                                           AS "campaignsAffected"
     FROM hourly_summary
     WHERE request_date BETWEEN $1 AND $2
@@ -218,22 +219,15 @@ export async function getTopThreatVectors(
   country: Country = "id",
 ): Promise<ThreatVectorRow[]> {
   const sql = `
-    WITH rule_counts AS (
-      SELECT
-        group_rule_name,
-        'R' || CAST(rule_id AS text)  AS rule_id_text,
-        SUM(violation_count)          AS affected_clicks
-      FROM rule_summary
-      WHERE request_date = $1
-      GROUP BY group_rule_name, rule_id
-    )
     SELECT
-      group_rule_name                                                       AS "category",
-      STRING_AGG(rule_id_text, ', ' ORDER BY affected_clicks DESC, rule_id_text) AS "triggeredShortcodes",
-      SUM(affected_clicks)                                                  AS "total_violating_clicks"
-    FROM rule_counts
+    group_rule_name  AS "category",
+    STRING_AGG('R' || rule_id::text, ', ' ORDER BY rule_id) AS "triggeredShortcodes",
+    SUM(violation_count) AS "total_violating_clicks"
+    FROM rule_summary
+    WHERE request_date = $1
     GROUP BY group_rule_name
-    ORDER BY "total_violating_clicks" DESC, "category"
+    HAVING SUM(violation_count) > 0
+    ORDER BY "total_violating_clicks" DESC, "category";
   `;
   const rows = await query<{
     category: string;
@@ -252,8 +246,8 @@ export async function getTopThreatVectors(
 export interface FraudSourceRow {
   siteId: string;
   publisherName: string;
-  blocks: number;
-  blockRate: number; // 0-100
+  frauds: number;
+  fraudRate: number; // 0-100
 }
 
 /**
@@ -269,29 +263,30 @@ export async function getTopFraudSources(
   const sql = `
     SELECT
       site_id                                                    AS "siteId",
-      publisher_name                                                  AS "publisherName",
-      COUNT(*) FILTER (WHERE final_action_name = 'BLOCK')                  AS "blocks",
-      ROUND(
-        100.0 * COUNT(*) FILTER (WHERE final_action_name = 'BLOCK')
-               / NULLIF(COUNT(*), 0)
-      )                                                          AS "blockRate"
-    FROM click_events
+      publisher_name                                             AS "publisherName",
+      SUM(total_violation_count) AS total_fraud,
+	    ROUND(
+        SUM(total_violation_count)
+        / NULLIF(SUM(total_clicks), 0)
+        * 100
+      , 2)                                                       AS "fraudRate"
+    FROM site_summary
     WHERE DATE(request_date) = $1
     GROUP BY site_id, publisher_name
-    ORDER BY "blocks" DESC
+    ORDER BY "total_fraud" DESC
     LIMIT $2
   `;
   const rows = await query<{
     siteId: string;
     publisherName: string;
-    blocks: string;
-    blockRate: string;
+    totalFraud: string;
+    fraudRate: string;
   }>(sql, [date, limit], country);
   return rows.map((r) => ({
     siteId: r.siteId,
     publisherName: r.publisherName,
-    blocks: Number(r.blocks),
-    blockRate: Number(r.blockRate),
+    frauds: Number(r.totalFraud),
+    fraudRate: Number(r.fraudRate),
   }));
 }
 
@@ -335,8 +330,8 @@ export function withinTolerance(
 export interface TrendHourRow {
   hourBucket: string; // ISO format "YYYY-MM-DDTHH:MI:SS" to match chart x values
   totalClicks: number;
-  totalBlocked: number;
-  blockedRatePct: number;
+  totalFrauds: number;
+  fraudRatePct: number;
 }
 
 /**
@@ -351,11 +346,11 @@ export async function getTrendHourly(
     SELECT
       to_char(hour_bucket, 'YYYY-MM-DD"T"HH24:MI:SS') AS "hourBucket",
       total_clicks                                       AS "totalClicks",
-      total_block_count                                  AS "totalBlocked",
+      total_violation_count                                  AS "totalFrauds",
       ROUND(
-        total_block_count * 100.0 / NULLIF(total_clicks, 0),
+        total_violation_count * 100.0 / NULLIF(total_clicks, 0),
         2
-      )                                                  AS "blockedRatePct"
+      )                                                  AS "fraudRatePct"
     FROM hourly_summary
     WHERE request_date = $1
     ORDER BY hour_bucket ASC
@@ -363,22 +358,22 @@ export async function getTrendHourly(
   const rows = await query<{
     hourBucket: string;
     totalClicks: string;
-    totalBlocked: string;
-    blockedRatePct: string;
+    totalFrauds: string;
+    fraudRatePct: string;
   }>(sql, [date], country);
   return rows.map((r) => ({
     hourBucket: r.hourBucket,
     totalClicks: Number(r.totalClicks),
-    totalBlocked: Number(r.totalBlocked),
-    blockedRatePct: Number(r.blockedRatePct),
+    totalFrauds: Number(r.totalFrauds),
+    fraudRatePct: Number(r.fraudRatePct),
   }));
 }
 
 export interface TrendDayRow {
   requestDate: string; // YYYY-MM-DD
   totalClicks: number;
-  totalBlocked: number;
-  blockedRatePct: number;
+  totalFrauds: number;
+  fraudRatePct: number;
 }
 
 /**
@@ -394,11 +389,11 @@ export async function getTrendData(
     SELECT
       request_date::text                                                          AS "requestDate",
       SUM(total_clicks)                                                           AS "totalClicks",
-      SUM(total_block_count)                                                      AS "totalBlocked",
+      SUM(total_violation_count)                                                  AS "totalFrauds",
       ROUND(
-        SUM(total_block_count) * 100.0 / NULLIF(SUM(total_clicks), 0),
+        SUM(total_violation_count) * 100.0 / NULLIF(SUM(total_clicks), 0),
         2
-      )                                                                           AS "blockedRatePct"
+      )                                                                           AS "fraudRatePct"
     FROM hourly_summary
     WHERE request_date BETWEEN $1 AND $2
     GROUP BY request_date
@@ -407,14 +402,14 @@ export async function getTrendData(
   const rows = await query<{
     requestDate: string;
     totalClicks: string;
-    totalBlocked: string;
-    blockedRatePct: string;
+    totalFrauds: string;
+    fraudRatePct: string;
   }>(sql, [fromDate, toDate], country);
   return rows.map((r) => ({
     requestDate: r.requestDate,
     totalClicks: Number(r.totalClicks),
-    totalBlocked: Number(r.totalBlocked),
-    blockedRatePct: Number(r.blockedRatePct),
+    totalFrauds: Number(r.totalFrauds),
+    fraudRatePct: Number(r.fraudRatePct),
   }));
 }
 
@@ -429,11 +424,11 @@ export async function getTrendLast7Days(
     SELECT
       request_date::text                                                          AS "requestDate",
       SUM(total_clicks)                                                           AS "totalClicks",
-      SUM(total_block_count)                                                      AS "totalBlocked",
+      SUM(total_violation_count)                                                  AS "totalFrauds",
       ROUND(
-        SUM(total_block_count) * 100.0 / NULLIF(SUM(total_clicks), 0),
+        SUM(total_violation_count) * 100.0 / NULLIF(SUM(total_clicks), 0),
         2
-      )                                                                           AS "blockedRatePct"
+      )                                                                           AS "fraudRatePct"
     FROM hourly_summary
     WHERE request_date BETWEEN CURRENT_DATE - 7 AND CURRENT_DATE - 1
     GROUP BY request_date
@@ -442,14 +437,14 @@ export async function getTrendLast7Days(
   const rows = await query<{
     requestDate: string;
     totalClicks: string;
-    totalBlocked: string;
-    blockedRatePct: string;
+    totalFrauds: string;
+    fraudRatePct: string;
   }>(sql, [], country);
   return rows.map((r) => ({
     requestDate: r.requestDate,
     totalClicks: Number(r.totalClicks),
-    totalBlocked: Number(r.totalBlocked),
-    blockedRatePct: Number(r.blockedRatePct),
+    totalFrauds: Number(r.totalFrauds),
+    fraudRatePct: Number(r.fraudRatePct),
   }));
 }
 
@@ -461,7 +456,7 @@ export function daysAgo(n: number): string {
 }
 
 /**
- * Returns the number of click_events rows between two dates (inclusive).
+ * Returns the number of hourly_summary rows between two dates (inclusive).
  * Used to decide whether to skip data-dependent tests when the DB is empty.
  */
 export async function getClickCountForRange(
@@ -470,7 +465,7 @@ export async function getClickCountForRange(
   country: Country = "id",
 ): Promise<number> {
   const row = await queryOne<{ count: string }>(
-    `SELECT COUNT(*) AS count FROM click_events
+    `SELECT COUNT(total_clicks) AS count FROM hourly_summary
      WHERE DATE(request_date) BETWEEN $1 AND $2`,
     [from, to],
     country,
@@ -487,6 +482,7 @@ export interface FraudDetectionTableRow {
   fraudDetections: number;
   totalClicks: number;
   fraudPct: number; // integer %, e.g. 100, 99, 33
+  maxScore: number;
 }
 
 /**
@@ -500,21 +496,32 @@ export async function getFraudDetectionTablePage1(
 ): Promise<FraudDetectionTableRow[]> {
   const sql = `
     SELECT
-      campaign_id::text                                                           AS "campaignId",
-      campaign_name                                                               AS "campaignName",
-      COUNT(DISTINCT site_id)                                                     AS "siteQuantity",
-      COUNT(*) FILTER (WHERE final_action_name != 'ALLOW')                       AS "fraudDetections",
-      COUNT(*)                                                                    AS "totalClicks",
+      cs.campaign_id::text                                                           AS "campaignId",
+      cs.campaign_name                                                               AS "campaignName",
+      detail.site_count                                                              AS "siteQuantity",
+      SUM(cs.total_violation_count)                                                  AS "fraudDetections",
+      SUM(cs.total_clicks)                                                           AS "totalClicks",
       ROUND(
-        COUNT(*) FILTER (WHERE final_action_name != 'ALLOW') * 100.0
-        / NULLIF(COUNT(*), 0)
-      )                                                                           AS "fraudPct"
-    FROM click_events
-    WHERE DATE(request_date) BETWEEN $1 AND $2
-    GROUP BY campaign_id, campaign_name
-    HAVING COUNT(*) FILTER (WHERE final_action_name != 'ALLOW') > 0
+        SUM(cs.total_violation_count) * 100.0 / NULLIF(SUM(cs.total_clicks), 0),
+        2
+      )                                                                               AS "fraudPct",
+      detail.max_score                                                             AS "maxScore"
+    FROM campaign_summary cs
+    LEFT JOIN (
+      SELECT
+        campaign_site_summary.campaign_id,
+        COUNT(DISTINCT campaign_site_summary.site_id)  AS site_count,
+        MAX(campaign_site_summary.max_score) * 100.0        AS max_score
+      FROM campaign_site_summary
+      WHERE campaign_site_summary.request_date BETWEEN $1 AND $2
+      AND campaign_site_summary.total_violation_count > 0
+      GROUP BY campaign_site_summary.campaign_id
+    ) detail ON detail.campaign_id = cs.campaign_id
+    WHERE DATE(cs.request_date) BETWEEN $1 AND $2
+      AND cs.total_violation_count > 0
+    GROUP BY cs.campaign_id, cs.campaign_name, detail.site_count, detail.max_score
     ORDER BY "fraudDetections" DESC
-    LIMIT 10
+    LIMIT 50
   `;
   const rows = await query<{
     campaignId: string;
@@ -523,6 +530,7 @@ export async function getFraudDetectionTablePage1(
     fraudDetections: string;
     totalClicks: string;
     fraudPct: string;
+    maxScore: string;
   }>(sql, [fromDate, toDate], country);
   return rows.map((r) => ({
     campaignId: r.campaignId,
@@ -531,6 +539,7 @@ export async function getFraudDetectionTablePage1(
     fraudDetections: Number(r.fraudDetections),
     totalClicks: Number(r.totalClicks),
     fraudPct: Number(r.fraudPct),
+    maxScore: Number(r.maxScore),
   }));
 }
 
@@ -585,23 +594,43 @@ export async function getCampaignDetailKPIs(
 ): Promise<CampaignDetailKPIs> {
   const sql1 = `
     SELECT
-      COUNT(*)                                                           FILTER (WHERE final_action_name != 'ALLOW')             AS "totalFraud",
-      COUNT(*)                                                           FILTER (WHERE final_action_name = 'BLOCK')              AS "blocked",
-      COUNT(*)                                                           FILTER (WHERE final_action_name NOT IN ('ALLOW','BLOCK')) AS "warned",
-      COUNT(DISTINCT site_id)                                            FILTER (WHERE final_action_name != 'ALLOW')             AS "uniqueSites"
-    FROM click_events
-    WHERE campaign_id::text = $1
-      AND DATE(request_date) BETWEEN $2 AND $3
+      SUM(cs.total_violation_count)  AS "totalFraud",
+      SUM(cs.total_block_count)      AS "blocked",
+      SUM(cs.total_warning_count)    AS "warned",
+      MAX(detail.site_count)         AS "uniqueSites"
+    FROM campaign_summary cs
+    LEFT JOIN (
+    SELECT
+        campaign_site_summary.campaign_id,
+        COUNT(DISTINCT campaign_site_summary.site_id)  AS "site_count",
+        MAX(campaign_site_summary.max_score) * 100.0   AS "max_score"
+        FROM campaign_site_summary
+        WHERE campaign_site_summary.request_date BETWEEN $2 AND $3
+        AND campaign_site_summary.total_violation_count > 0
+        GROUP BY campaign_site_summary.campaign_id
+    ) detail ON detail.campaign_id = cs.campaign_id
+    WHERE cs.campaign_id::text = $1
+      AND DATE(cs.request_date) BETWEEN $2 AND $3
   `;
   const sql2 = `
     SELECT
-      COUNT(*)                                                           FILTER (WHERE final_action_name != 'ALLOW')             AS "totalFraud",
-      COUNT(*)                                                           FILTER (WHERE final_action_name = 'BLOCK')              AS "blocked",
-      COUNT(*)                                                           FILTER (WHERE final_action_name NOT IN ('ALLOW','BLOCK')) AS "warned",
-      COUNT(DISTINCT site_id)                                                         AS "uniqueSites"
-    FROM click_events
-    WHERE campaign_id::text = $1
-      AND DATE(request_date) BETWEEN $2 AND $3
+      SUM(cs.total_violation_count)  AS "totalFraud",
+      SUM(cs.total_block_count)      AS "blocked",
+      SUM(cs.total_warning_count)    AS "warned",
+      MAX(detail.site_count)         AS "uniqueSites"
+    FROM campaign_summary cs
+    LEFT JOIN (
+    SELECT
+        campaign_site_summary.campaign_id,
+        COUNT(DISTINCT campaign_site_summary.site_id)  AS "site_count",
+        MAX(campaign_site_summary.max_score) * 100.0   AS "max_score"
+        FROM campaign_site_summary
+        WHERE campaign_site_summary.request_date BETWEEN $2 AND $3
+        AND campaign_site_summary.total_violation_count > 0
+        GROUP BY campaign_site_summary.campaign_id
+    ) detail ON detail.campaign_id = cs.campaign_id
+    WHERE cs.campaign_id::text = $1
+      AND DATE(cs.request_date) BETWEEN $2 AND $3
   `;
   const sql = query === "default" ? sql1 : sql2;
   const row = await queryOne<{
