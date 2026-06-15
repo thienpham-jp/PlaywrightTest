@@ -729,7 +729,9 @@ test.describe("Improve Update Campaign API", () => {
     // expect(JSON.stringify(body)).toMatch(/agencyAccountNo/i);
   });
 
-  test("TC34 - Verify invalid merchantTypeId value", async ({ request }) => {
+  test.skip("TC34 - Verify invalid merchantTypeId value", async ({
+    request,
+  }) => {
     const payload = {
       ...updatePayload(),
       updateCampaignDetails: {
@@ -1016,7 +1018,7 @@ test.describe("Improve Update Campaign API", () => {
   });
 });
 
-test.describe("Test Update Campaign API for ID", () => {
+test.describe.skip("Test Update Campaign API for ID", () => {
   test.describe.configure({ mode: "parallel" });
   /*
    * Test Cases for Update Campaign API

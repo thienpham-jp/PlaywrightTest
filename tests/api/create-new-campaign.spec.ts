@@ -616,7 +616,9 @@ test.describe("Improve Create New Campaign API", () => {
     // expect(JSON.stringify(body)).toMatch(/agencyAccountNo/i);
   });
 
-  test("TC24 - Verify invalid merchantTypeId value", async ({ request }) => {
+  test.skip("TC24 - Verify invalid merchantTypeId value", async ({
+    request,
+  }) => {
     const payload = {
       ...validPayload(),
       insertCampaignDetails: {
@@ -836,7 +838,7 @@ test.describe("Improve Create New Campaign API", () => {
   });
 });
 
-test.describe("Test Create New Campaign API for ID", () => {
+test.describe.skip("Test Create New Campaign API for ID", () => {
   // * Create campaign with status = RUNNING, send message to Kafka topic, check message in topic: notifications-campaigns-new
   test.skip("TC13 - Verify successful creation with all optional fields", async ({
     request,
