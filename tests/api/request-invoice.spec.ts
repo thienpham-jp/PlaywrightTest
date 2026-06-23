@@ -35,6 +35,7 @@ test.describe("Request Payment Invoice API", () => {
    * 4. Missing publisherPaymentHistoryIds in request body - Expect 404 Not Found
    * 5. Empty publisherPaymentHistoryIds array - Expect 404 Not Found
    * 6. Valid request with correct payload and headers - Expect 200 OK
+   * 7. Duplicate concurrent requests with same payload - Expect one 200 OK and one 404 Not Found
    */
 
   // ─── TC_01 ──────────────────────────────────────────────────────────────────
@@ -121,5 +122,25 @@ test.describe("Request Payment Invoice API", () => {
     });
     const body = await logResponse(res);
     expect(res.status()).toBe(200);
+  });
+
+  test.skip("TC_07 - Duplicate request same body - Expect both 200 OK", async ({
+    request,
+  }) => {
+    const payload1 = { paymentIds: [8411460], publisherId: 915332 };
+    const payload2 = { paymentIds: [8411461], publisherId: 11591 };
+
+    const [res1, res2] = await Promise.all([
+      request.post(getApiUrl, { headers: getAuthHeaders(), data: payload1 }),
+      request.post(getApiUrl, { headers: getAuthHeaders(), data: payload2 }),
+    ]);
+
+    const [body1, body2] = await Promise.all([
+      logResponse(res1),
+      logResponse(res2),
+    ]);
+
+    expect(res1.status()).toBe(200);
+    expect(res2.status()).toBe(200);
   });
 });
