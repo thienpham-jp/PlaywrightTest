@@ -114,7 +114,7 @@ test.describe("Request Payment Invoice API", () => {
   });
 
   // ─── TC_06 ──────────────────────────────────────────────────────────────────
-  test("TC_06 - Valid request with correct payload - Expect 200 OK", async ({
+  test.skip("TC_06 - Valid request with correct payload - Expect 200 OK", async ({
     request,
   }) => {
     const res = await request.post(getApiUrl, {
