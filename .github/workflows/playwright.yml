@@ -53,6 +53,14 @@ jobs:
         run: npx playwright test
         continue-on-error: true
 
+      - name: Ensure report directory exists
+        if: always()
+        run: |
+          if [ ! -f "playwright-report/index.html" ]; then
+            mkdir -p playwright-report
+            echo '<html><body><h1>No report generated</h1><p>Tests may have timed out or crashed before report was written.</p></body></html>' > playwright-report/index.html
+          fi
+
       - name: Upload Playwright report artifact
         if: always()
         uses: actions/upload-artifact@v4
@@ -69,7 +77,7 @@ jobs:
 
   deploy:
     needs: test
-    if: always()
+    if: always() && needs.test.result != 'skipped'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
