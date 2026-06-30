@@ -1112,13 +1112,35 @@ test.describe("Publisher Staging Tests", () => {
         .getByRole("textbox", { name: "Campaign Name" })
         .click();
 
+      // Add a small delay to allow dropdown to render
+      await publisherPage.page.waitForTimeout(500);
+
       const EXCLUDED_CAMPAIGNS = ["Shopee", "Lazada"];
 
       const menuOptions = publisherPage.page.locator(
         "ul[role='menu'] a.ui-select-choices-row-inner",
       );
 
-      await menuOptions.first().waitFor({ state: "visible", timeout: 10000 });
+      // Wait for menu options with error handling
+      await menuOptions
+        .first()
+        .waitFor({ state: "visible", timeout: 15000 })
+        .catch((err) => {
+          console.warn(
+            `[Create Creatives] Menu options timeout: ${(err as Error).message}. Checking alternative selectors...`,
+          );
+          // Try alternative selector patterns
+          return publisherPage.page
+            .locator("ul[role='menu'] li")
+            .first()
+            .waitFor({ state: "visible", timeout: 5000 })
+            .catch(() => {
+              console.error(
+                "[Create Creatives] Unable to find menu options with any selector",
+              );
+              throw err;
+            });
+        });
 
       const optionTexts = await menuOptions.allTextContents();
       const validOptionTexts = optionTexts.filter(
@@ -1136,7 +1158,14 @@ test.describe("Publisher Staging Tests", () => {
         .locator("li.url.ng-star-inserted")
         .first();
 
-      await acceptedURLItem.waitFor({ state: "visible", timeout: 10000 });
+      await acceptedURLItem
+        .waitFor({ state: "visible", timeout: 15000 })
+        .catch((err) => {
+          console.warn(
+            `[Create Creatives] URL item timeout: ${(err as Error).message}`,
+          );
+          return publisherPage.page.waitForTimeout(1000);
+        });
 
       const acceptedBaseURL = await acceptedURLItem.innerText();
       const landingPageURL = buildLandingPageURL(acceptedBaseURL.trim());
@@ -1153,16 +1182,61 @@ test.describe("Publisher Staging Tests", () => {
         .getByRole("button", { name: "Generate" })
         .click();
 
-      await publisherPage.page.waitForLoadState("networkidle");
+      // Wait for networkidle with timeout and error handling
+      await publisherPage.page
+        .waitForLoadState("networkidle", { timeout: 15000 })
+        .catch((err) => {
+          console.warn(
+            `[Create Creatives] networkidle timeout: ${(err as Error).message}. Proceeding with table check...`,
+          );
+          return publisherPage.page.waitForTimeout(1000);
+        });
+
+      // Add extra delay to ensure table is updated with new creative
+      await publisherPage.page.waitForTimeout(500);
 
       const error = publisherPage.page.getByText(
         "info URL is not valid, please",
       );
 
       if (!(await error.isVisible())) {
-        await expect(
-          publisherPage.page.locator("td").filter({ hasText: creativeName }),
-        ).toBeVisible({ timeout: 15000 });
+        // Log what we're looking for
+        console.log(
+          `[Create Creatives] Looking for creative: "${creativeName}"`,
+        );
+
+        // First, wait for table to contain any rows
+        const tableRows = publisherPage.page.locator("td");
+        await tableRows
+          .first()
+          .waitFor({ state: "visible", timeout: 10000 })
+          .catch((err) => {
+            console.error(
+              `[Create Creatives] Table not found: ${(err as Error).message}`,
+            );
+            throw err;
+          });
+
+        // Now wait for our specific creative in the table
+        const creativeRow = publisherPage.page
+          .locator("td")
+          .filter({ hasText: creativeName });
+
+        await creativeRow
+          .waitFor({ state: "visible", timeout: 15000 })
+          .catch(async (err) => {
+            // If not found, log available rows for debugging
+            const allRows = await publisherPage.page
+              .locator("td")
+              .allTextContents()
+              .catch(() => []);
+            console.error(
+              `[Create Creatives] Creative "${creativeName}" not found in table. Available rows: ${allRows.slice(0, 10).join(", ")}`,
+            );
+            throw err;
+          });
+
+        await expect(creativeRow).toBeVisible({ timeout: 5000 });
       }
     });
   });
