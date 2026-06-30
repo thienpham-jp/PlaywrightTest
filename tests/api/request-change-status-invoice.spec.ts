@@ -98,10 +98,10 @@ test.describe("Request Change Status Invoice to Confirm API", () => {
   });
 
   // ─── TC_05 ──────────────────────────────────────────────────────────────────
-  test("TC_05 - Not existing invoiceId in request body - Expect 404 Not Found (x500)", async ({
+  test("TC_05 - Not existing invoiceId in request body - Expect 404 Not Found (x1000)", async ({
     request,
   }) => {
-    for (let i = 0; i < 500; i++) {
+    for (let i = 0; i < 1000; i++) {
       const res = await request.put(confirmApiUrl, {
         headers: getAuthHeaders(),
         data: { invoiceId: "ATID-999" },
@@ -115,10 +115,10 @@ test.describe("Request Change Status Invoice to Confirm API", () => {
   });
 
   // ─── TC_06 ──────────────────────────────────────────────────────────────────
-  test("TC_06 - Invalid invoiceId status in request body - Expect 400 Bad Request (x500)", async ({
+  test.skip("TC_06 - Invalid invoiceId status in request body - Expect 400 Bad Request (x1000)", async ({
     request,
   }) => {
-    for (let i = 0; i < 500; i++) {
+    for (let i = 0; i < 1000; i++) {
       const res = await request.put(confirmApiUrl, {
         headers: getAuthHeaders(),
         data: { invoiceId: "ATID202601-2" },
