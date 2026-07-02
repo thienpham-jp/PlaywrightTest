@@ -14,7 +14,7 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests",
   testIgnore: [
-    "**/publisher/PublisherPageTest.spec.ts",
+    "**/publisher/PublisherStagTest.spec.ts",
     "**/istools/**",
     "**/cfd/**",
   ],
