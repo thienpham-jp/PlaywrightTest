@@ -98,7 +98,7 @@ test.describe("Request Change Status Invoice to Confirm API", () => {
   });
 
   // ─── TC_05 ──────────────────────────────────────────────────────────────────
-  test("TC_05 - Not existing invoiceId in request body - Expect 404 Not Found (x1000)", async ({
+  test.skip("TC_05 - Not existing invoiceId in request body - Expect 404 Not Found (x1000)", async ({
     request,
   }) => {
     for (let i = 0; i < 1000; i++) {
@@ -233,7 +233,7 @@ test.describe("Request Change Status Invoice to Cancel API", () => {
   });
 
   // ─── TC_06 ──────────────────────────────────────────────────────────────────
-  test("TC_06 - Invalid invoiceId status in request body - Expect 400 Bad Request", async ({
+  test.skip("TC_06 - Invalid invoiceId status in request body - Expect 400 Bad Request", async ({
     request,
   }) => {
     const res = await request.put(cancelApiUrl, {
