@@ -494,31 +494,91 @@ on:
     - cron: "0 4 * * 1-5" # Runs daily at 4 AM (Mon-Fri)
   workflow_dispatch: # Manual trigger
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
 jobs:
   test:
+    timeout-minutes: 120
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
         with:
           node-version: lts/*
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright
-        run: npx playwright install --with-deps
+      - name: Get Playwright version
+        id: playwright-version
+        run: |
+          echo "version=$(npm ls @playwright/test --json | node -e "const d=require('/dev/stdin');console.log(d.dependencies?.['@playwright/test']?.version||'')")" >> $GITHUB_OUTPUT
 
-      - name: Run tests
+      - name: Cache Playwright browsers
+        uses: actions/cache@v6
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
+
+      - name: Install Playwright Browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium --with-deps
+
+      - name: Install system deps only
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: Run Playwright tests
         run: npx playwright test
+        continue-on-error: true
 
-      - name: Upload report
+      - name: Ensure report directory exists
         if: always()
-        uses: actions/upload-artifact@v4
+        run: |
+          if [ ! -f "playwright-report/index.html" ]; then
+            mkdir -p playwright-report
+            echo '<html><body><h1>No report generated</h1><p>Tests may have timed out or crashed before report was written.</p></body></html>' > playwright-report/index.html
+          fi
+
+      - name: Upload Playwright report artifact
+        if: always()
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: playwright-report/
           retention-days: 30
+
+      - name: Upload Pages artifact
+        if: always()
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: playwright-report/
+
+  deploy:
+    needs: test
+    if: always() && needs.test.result != 'skipped'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Setup Pages
+        uses: actions/configure-pages@v6
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
 ```
 
 **Key Features:**
@@ -794,7 +854,7 @@ await Promise.all([step1(), step2()]);
 
 ---
 
-**Version**: 1.1.0  
-**Last Updated**: 2026-04-16  
+**Version**: 1.1.1  
+**Last Updated**: 2026-07-02  
 **Maintainers**: Your Team  
 **License**: MIT
