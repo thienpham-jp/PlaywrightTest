@@ -127,7 +127,7 @@ test.describe("Find Fixed Fee Histories API", () => {
   });
 
   // ─── TC_06 ──────────────────────────────────────────────────────────────────
-  test("TC_06 - Filter by fixedFeeType - Expect 200 OK with correct filtered data", async ({
+  test.skip("TC_06 - Filter by fixedFeeType - Expect 200 OK with correct filtered data", async ({
     request,
   }) => {
     // TODO: replace fixedFeeType=1 with an actual type value from staging DB

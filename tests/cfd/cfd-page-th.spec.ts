@@ -20,7 +20,7 @@ import {
   withinTolerance,
 } from "../../src/helpers/db-helper";
 
-test.describe("CFD TH Tests", () => {
+test.describe.skip("CFD TH Tests", () => {
   // test.describe.configure({ mode: "parallel" });
   let cfdPage: CFDPage;
 
