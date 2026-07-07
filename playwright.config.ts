@@ -30,7 +30,7 @@ export default defineConfig({
   timeout: process.env.CI ? 30000 : 120000,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: process.env.CI
-    ? [["html", { open: "never" }]]
+    ? [["html", { open: "never" }], ["allure-playwright"], ["list"]]
     : [
         ["html", { open: "never" }],
         ["allure-playwright", { outputFolder: "allure-results" }],
