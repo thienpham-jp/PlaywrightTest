@@ -50,12 +50,15 @@ jobs:
         run: npx playwright install-deps chromium
 
       # ── Restore Allure history từ lần chạy trước (để có Trend) ──
+      # dùng action bên thứ 3 vì actions/download-artifact chính chủ sẽ FAIL cứng
+      # khi chưa từng có artifact nào (ví dụ ở lần chạy đầu tiên).
       - name: Download previous Allure history
-        uses: actions/download-artifact@v7
+        uses: dawidd6/action-download-artifact@v9
         with:
           name: allure-history
           path: allure-results/history
-        continue-on-error: true
+          workflow_conclusion: completed
+          if_no_artifact_found: warn
 
       # ── Chạy test: config CI tự sinh cả playwright-report/ (html) và allure-results/ ──
       - name: Run Playwright tests
