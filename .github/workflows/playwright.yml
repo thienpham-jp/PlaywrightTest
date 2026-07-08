@@ -69,11 +69,20 @@ jobs:
           path: playwright-report/
           retention-days: 30
 
+      # ── Pages chỉ deploy được 1 site → dùng Allure làm trang chính, kèm HTML report ở subfolder ──
+      - name: Combine reports for Pages
+        if: always()
+        run: |
+          mkdir -p pages-deploy
+          cp -r allure-report/. pages-deploy/
+          mkdir -p pages-deploy/playwright-report
+          cp -r playwright-report/. pages-deploy/playwright-report/
+
       - name: Upload Pages artifact
         if: always()
         uses: actions/upload-pages-artifact@v5
         with:
-          path: playwright-report/
+          path: pages-deploy/
 
   deploy:
     needs: test
