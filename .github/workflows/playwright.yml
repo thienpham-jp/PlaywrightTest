@@ -2,7 +2,7 @@ name: Playwright Tests
 
 on:
   schedule:
-    - cron: "0 4 * * 1-5"
+    - cron: "0 7 * * 1-5"
   workflow_dispatch:
 
 permissions:
@@ -69,12 +69,9 @@ jobs:
           path: playwright-report/
           retention-days: 30
 
-      # ── Pages chỉ deploy được 1 site → dùng Allure làm trang chính, kèm HTML report ở subfolder ──
-      - name: Combine reports for Pages
+      - name: Prepare Pages directory
         if: always()
         run: |
-          mkdir -p pages-deploy
-          cp -r allure-report/. pages-deploy/
           mkdir -p pages-deploy/playwright-report
           cp -r playwright-report/. pages-deploy/playwright-report/
 
