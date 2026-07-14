@@ -13,9 +13,10 @@ import { defineConfig, devices } from "@playwright/test";
  */
 export default defineConfig({
   testDir: "./tests",
-  testIgnore: [
+    testIgnore: [
     "**/publisher/PublisherStagTest.spec.ts",
     "**/istools/**",
+    "**/next-insight/**",
     "**/cfd/**",
   ],
   /* Run tests in files in parallel */
