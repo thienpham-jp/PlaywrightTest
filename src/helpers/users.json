@@ -22,24 +22,5 @@
   "secretKeyVN": {
     "user": "llt5mqx11xxl291lta91aqaaaalxxq67",
     "key": "8qbcc2zzzzbz0ezs20e9jjz90cbxls22"
-  },
-  "cfdUser": {
-    "username": "cfd_admin",
-    "password": "CFD-Dash#2026!secure"
-  },
-  "cfd-db": {
-    "host": "172.31.80.162",
-    "port": 31721,
-    "user": "cfd_user_id",
-    "password": "CFD@12345678"
-  },
-  "cfd-id-db": {
-    "database": "cfd-id"
-  },
-  "cfd-th-db": {
-    "database": "cfd-th"
-  },
-  "qase": {
-    "token": "e3d2672d48c1354c0e43559f815a82715469e5e6bb3e5fdb7852931f64f74887"
   }
 }
