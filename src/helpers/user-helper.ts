@@ -15,9 +15,7 @@ const USER_UID_VN = users.secretKeyVN.user;
 const SECRET_KEY_VN = users.secretKeyVN.key;
 
 // CFD User Credentials
-export const CFD_USERNAME = users.cfdUser.username;
-export const CFD_PASSWORD = users.cfdUser.password;
-
-export const QASE_TOKEN = users.qase.token;
+// export const CFD_USERNAME = users.cfdUser.username;
+// export const CFD_PASSWORD = users.cfdUser.password;
 
 export { users, USER_UID, SECRET_KEY, USER_UID_VN, SECRET_KEY_VN };
