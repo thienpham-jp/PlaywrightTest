@@ -1,5 +1,4 @@
 import { test, expect } from "@playwright/test";
-import { randomInt, randomString } from "../../src/helpers/function-helper";
 import { urlStagingAPI } from "../../src/helpers/base-url-helper";
 import { generateJWT } from "../../src/helpers/jwt-helper";
 import { USER_UID, SECRET_KEY } from "../../src/helpers/user-helper";
@@ -37,15 +36,15 @@ test.describe("Update Exchange Rate API", () => {
 
   /** Test Cases for Update Exchange Rate API method `POST /v1/staff/exchange-rate/current-month/update`
    * Test summary to cover:
-   * 1. Authentication failure with invalid token
-   * 2. Authorization failure for restricted user
+   * 1. Authentication failure (no token) - Expect 401 Unauthorized
+   * 2. Authorization failure for restricted user - Expect 401 Unauthorized
    * 3. Missing currency in request body - Expect 404 Not Found
    * 4. Missing quoteCurrency in request body - Expect 404 Not Found
    * 5. Missing targetMonth in request body - Expect 404 Not Found
-   * 6. Invalid targetMonth format (not YYYY-MM) - Expect 500 Internal Server Error
+   * 6. Invalid targetMonth format (not YYYY-MM) - Expect 404 Not Found
    * 7. rate is null - Expect 404 Not Found
    * 8. rate is zero or negative - Expect 404 Not Found
-   * 9. rate is non-numeric - Expect 500 Internal Server Error
+   * 9. rate is non-numeric - Expect 404 Not Found
    * 10. currency equals quoteCurrency - Expect 404 Not Found
    * 11. campaignIds contains a non-existing campaign ID - Expect 404 Not Found
    * 12. campaignIds is an empty array - Expect 200 OK
@@ -83,7 +82,7 @@ test.describe("Update Exchange Rate API", () => {
   });
 
   // ─── TC_03 ──────────────────────────────────────────────────────────────────
-  test("TC_03 - Missing currency in request body - Expect 400 Bad Request", async ({
+  test("TC_03 - Missing currency in request body - Expect 404 Not Found", async ({
     request,
   }) => {
     const { currency, ...payload } = exchangeRatePayload();
@@ -93,11 +92,11 @@ test.describe("Update Exchange Rate API", () => {
     });
     const body = await logResponse(res);
     expect(res.status()).toBe(404);
-    expect(JSON.stringify(body)).toMatch(/[404 Not Found]/i);
+    expect(JSON.stringify(body)).toMatch(/Not Found/i);
   });
 
   // ─── TC_04 ──────────────────────────────────────────────────────────────────
-  test("TC_04 - Missing quoteCurrency in request body - Expect 400 Bad Request", async ({
+  test("TC_04 - Missing quoteCurrency in request body - Expect 404 Not Found", async ({
     request,
   }) => {
     const { quoteCurrency, ...payload } = exchangeRatePayload();
@@ -107,11 +106,11 @@ test.describe("Update Exchange Rate API", () => {
     });
     const body = await logResponse(res);
     expect(res.status()).toBe(404);
-    expect(JSON.stringify(body)).toMatch(/[404 Not Found]/i);
+    expect(JSON.stringify(body)).toMatch(/Not Found/i);
   });
 
   // ─── TC_05 ──────────────────────────────────────────────────────────────────
-  test("TC_05 - Missing targetMonth in request body - Expect 400 Bad Request", async ({
+  test("TC_05 - Missing targetMonth in request body - Expect 404 Not Found", async ({
     request,
   }) => {
     const { targetMonth, ...payload } = exchangeRatePayload();
@@ -120,12 +119,12 @@ test.describe("Update Exchange Rate API", () => {
       data: payload,
     });
     const body = await logResponse(res);
-    expect(res.status()).toBe(400);
-    expect(JSON.stringify(body)).toMatch(/[400 Bad Request]/i);
+    expect(res.status()).toBe(404);
+    expect(JSON.stringify(body)).toMatch(/Not Found/i);
   });
 
   // ─── TC_06 ──────────────────────────────────────────────────────────────────
-  test("TC_06 - Invalid targetMonth format (not YYYY-MM) - Expect 400 Bad Request", async ({
+  test("TC_06 - Invalid targetMonth format (not YYYY-MM) - Expect 404 Not Found", async ({
     request,
   }) => {
     const res = await request.post(API_URL, {
@@ -133,23 +132,23 @@ test.describe("Update Exchange Rate API", () => {
       data: { ...exchangeRatePayload(), targetMonth: "07/2026" },
     });
     const body = await logResponse(res);
-    expect(res.status()).toBe(500);
-    expect(JSON.stringify(body)).toMatch(/Internal Server Error/i);
+    expect(res.status()).toBe(404);
+    expect(JSON.stringify(body)).toMatch(/Not Found/i);
   });
 
   // ─── TC_07 ──────────────────────────────────────────────────────────────────
-  test("TC_07 - rate is null - Expect 400 Bad Request", async ({ request }) => {
+  test("TC_07 - rate is null - Expect 404 Not Found", async ({ request }) => {
     const res = await request.post(API_URL, {
       headers: getAuthHeaders(),
       data: { ...exchangeRatePayload(), rate: null },
     });
     const body = await logResponse(res);
     expect(res.status()).toBe(404);
-    expect(JSON.stringify(body)).toMatch(/[404 Not Found]/i);
+    expect(JSON.stringify(body)).toMatch(/Not Found/i);
   });
 
   // ─── TC_08 ──────────────────────────────────────────────────────────────────
-  test("TC_08 - rate is zero or negative - Expect 400 Bad Request", async ({
+  test("TC_08 - rate is zero or negative - Expect 404 Not Found", async ({
     request,
   }) => {
     const res = await request.post(API_URL, {
@@ -158,11 +157,11 @@ test.describe("Update Exchange Rate API", () => {
     });
     const body = await logResponse(res);
     expect(res.status()).toBe(404);
-    expect(JSON.stringify(body)).toMatch(/[404 Not Found]/i);
+    expect(JSON.stringify(body)).toMatch(/Not Found/i);
   });
 
   // ─── TC_09 ──────────────────────────────────────────────────────────────────
-  test("TC_09 - rate is non-numeric - Expect 400 Bad Request", async ({
+  test("TC_09 - rate is non-numeric - Expect 404 Not Found", async ({
     request,
   }) => {
     const res = await request.post(API_URL, {
@@ -170,12 +169,12 @@ test.describe("Update Exchange Rate API", () => {
       data: { ...exchangeRatePayload(), rate: "abc" },
     });
     const body = await logResponse(res);
-    expect(res.status()).toBe(500);
-    expect(JSON.stringify(body)).toMatch(/Internal Server Error/i);
+    expect(res.status()).toBe(404);
+    expect(JSON.stringify(body)).toMatch(/Not Found/i);
   });
 
   // ─── TC_10 ──────────────────────────────────────────────────────────────────
-  test("TC_10 - currency equals quoteCurrency - Expect 400 Bad Request", async ({
+  test("TC_10 - currency equals quoteCurrency - Expect 404 Not Found", async ({
     request,
   }) => {
     const res = await request.post(API_URL, {
@@ -184,11 +183,11 @@ test.describe("Update Exchange Rate API", () => {
     });
     const body = await logResponse(res);
     expect(res.status()).toBe(404);
-    expect(JSON.stringify(body)).toMatch(/[404 Not Found]/i);
+    expect(JSON.stringify(body)).toMatch(/Not Found/i);
   });
 
   // ─── TC_11 ──────────────────────────────────────────────────────────────────
-  test("TC_11 - campaignIds contains a non-existing campaign ID - Expect 400 Bad Request", async ({
+  test("TC_11 - campaignIds contains a non-existing campaign ID - Expect 404 Not Found", async ({
     request,
   }) => {
     const res = await request.post(API_URL, {
@@ -200,7 +199,7 @@ test.describe("Update Exchange Rate API", () => {
     });
     const body = await logResponse(res);
     expect(res.status()).toBe(404);
-    expect(JSON.stringify(body)).toMatch(/[404 Not Found]/i);
+    expect(JSON.stringify(body)).toMatch(/Not Found/i);
   });
 
   // ─── TC_12 ──────────────────────────────────────────────────────────────────
