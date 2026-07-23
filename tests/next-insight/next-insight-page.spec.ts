@@ -5,7 +5,7 @@ import { ADMIN_PASSWORD, ADMIN_USERNAME } from "../../src/helpers/user-helper";
 const BASE_URL = "https://st-next-insight.accesstrade.co.id";
 
 // ── Test suite ───────────────────────────────────────────────
-test.describe("Next Insight Production Tests", () => {
+test.describe("Next Insight Staging Tests", () => {
   test.describe.configure({ mode: "parallel" });
   let nextInsightPage: NextInsightPage;
 
@@ -23,6 +23,16 @@ test.describe("Next Insight Production Tests", () => {
 
   test("Dashboard - URL verification", async () => {
     await expect(nextInsightPage.page).toHaveURL(`${BASE_URL}/istools`);
+    await expect(
+      nextInsightPage.page.getByRole("heading", { name: /Welcome to/ }),
+    ).toBeVisible();
+  });
+
+  test("Sign Out - Redirect Sign In page", async () => {
+    await nextInsightPage.page.locator("span", { hasText: "Sign Out" }).click();
+    await expect(nextInsightPage.page).toHaveURL(
+      `${BASE_URL}/sign-in?returnUrl=%2Fistools`,
+    );
   });
 
   test.afterEach(async ({ page }) => {
