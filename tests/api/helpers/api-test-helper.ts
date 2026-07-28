@@ -16,6 +16,17 @@ export const createStaffHeaders = (token: string): Record<string, string> => ({
 });
 
 /**
+ * Returns standard publisher request headers for the given bearer token.
+ */
+export const createPublisherHeaders = (
+  token: string,
+): Record<string, string> => ({
+  "Content-Type": "application/json",
+  "X-Accesstrade-User-Type": "publisher",
+  Authorization: token,
+});
+
+/**
  * Returns a fresh Bearer token for the default staff user.
  */
 export const getStaffToken = (): string =>
