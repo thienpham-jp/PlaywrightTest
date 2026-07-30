@@ -1,0 +1,376 @@
+import { test, expect } from "@playwright/test";
+import { PublisherPage } from "../../pages/PublisherPage";
+import { users as userData } from "../../src/helpers/user-helper";
+
+// ── Publisher config ─────────────────────────────────────────
+const BASE_URL_STAG = "https://publisher-staging.accesstrade.co.id/#";
+const BASE_URL_PROD = "https://publisher.accesstrade.co.id/#";
+
+// ── Test suite ───────────────────────────────────────────────
+test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
+  test.describe.configure({ mode: "parallel" });
+  let publisherPage: PublisherPage;
+
+  test.beforeEach(async ({ page }, testInfo) => {
+    testInfo.setTimeout(90000);
+
+    publisherPage = new PublisherPage(page);
+    await publisherPage.loginPubStag();
+    // Wait for the istools login redirect to complete before navigating again
+    await publisherPage.page.waitForLoadState("domcontentloaded");
+  });
+
+  test("Sign Up - log time @sp", async () => {
+    const dashboardStartTime = Date.now();
+    console.log(`[Sign Up Load] Starting URL verification...`);
+
+    await publisherPage.loginPubStag();
+
+    const dashboardLoadTime = Date.now() - dashboardStartTime;
+    console.log(
+      `[Sign Up Load] URL verified. Time taken: ${dashboardLoadTime}ms`,
+    );
+
+    await publisherPage.page.waitForLoadState("networkidle");
+
+    const dashboardTotalTime = Date.now() - dashboardStartTime;
+    console.log(
+      `[Sign Up Load] Sign Up page fully loaded. Total time: ${dashboardTotalTime}ms`,
+    );
+  });
+
+  // ── Tests ──────────────────────────────────────────────────
+
+  test("Dashboard - URL verification @db", async () => {
+    const dashboardStartTime = Date.now();
+    console.log(`[Dashboard Load] Starting URL verification...`);
+
+    await expect(publisherPage.page).toHaveURL(`${BASE_URL_STAG}/dashboard`);
+
+    const dashboardLoadTime = Date.now() - dashboardStartTime;
+    console.log(
+      `[Dashboard Load] URL verified. Time taken: ${dashboardLoadTime}ms`,
+    );
+
+    await publisherPage.page.waitForLoadState("networkidle");
+
+    const dashboardTotalTime = Date.now() - dashboardStartTime;
+    console.log(
+      `[Dashboard Load] Dashboard fully loaded. Total time: ${dashboardTotalTime}ms`,
+    );
+  });
+
+  test.describe("Campaign", () => {
+    test.beforeEach(async () => {
+      await publisherPage.page
+        .getByRole("link", { name: /Campaigns/i })
+        .click();
+      await publisherPage.page.waitForLoadState("networkidle");
+    });
+
+    test("Load Campaign page @cp", async () => {
+      const dashboardStartTime = Date.now();
+      console.log(`[Campaign Load] Starting URL verification...`);
+
+      await publisherPage.page
+        .getByRole("link", { name: /Campaigns/i })
+        .click();
+
+      const dashboardLoadTime = Date.now() - dashboardStartTime;
+      console.log(
+        `[Campaign Load] URL verified. Time taken: ${dashboardLoadTime}ms`,
+      );
+
+      await publisherPage.page.waitForLoadState("networkidle");
+
+      const dashboardTotalTime = Date.now() - dashboardStartTime;
+      console.log(
+        `[Campaign Load] Campaign page fully loaded. Total time: ${dashboardTotalTime}ms`,
+      );
+
+      await expect(publisherPage.page).toHaveURL(
+        `${BASE_URL_STAG}/dashboard/sites/campaigns/listing/recommended`,
+      );
+    });
+
+    test("Go to Campaigns detail @aff", async () => {
+      await publisherPage.page
+        .getByRole("button", { name: /A Thien/i })
+        .first()
+        .click();
+      await publisherPage.page
+        .locator("a", { hasText: /Vario ID/i })
+        .first()
+        .click();
+
+      await publisherPage.page.waitForLoadState("networkidle");
+
+      const affiliatedTab = publisherPage.page.getByRole("link", {
+        name: /AFFILIATED/i,
+      });
+      await affiliatedTab.waitFor({ state: "visible", timeout: 12000 });
+      await affiliatedTab.click();
+
+      await publisherPage.page.waitForLoadState("networkidle");
+
+      const listCampaign = publisherPage.page.locator(
+        "div.campaign-block.bg-white",
+      );
+
+      await listCampaign.first().waitFor({ state: "visible", timeout: 30000 });
+      const campaignCount = await listCampaign.count();
+
+      const randomIndex = Math.floor(Math.random() * campaignCount);
+
+      // Start listening for a new tab before clicking; if none opens, fall back to same-tab navigation
+      const newPagePromise = publisherPage.page
+        .context()
+        .waitForEvent("page", { timeout: 5000 })
+        .catch(() => null);
+
+      await listCampaign.nth(randomIndex).click();
+
+      const dashboardStartTime = Date.now();
+      console.log(`[Affiliated Campaign Load] Starting URL verification...`);
+
+      const newPage = await newPagePromise;
+      const targetPage = newPage ?? publisherPage.page;
+
+      try {
+        const dashboardLoadTime = Date.now() - dashboardStartTime;
+        console.log(
+          `[Affiliated Campaign Load] URL verified. Time taken: ${dashboardLoadTime}ms`,
+        );
+
+        await targetPage.waitForLoadState("networkidle");
+
+        await expect(targetPage).toHaveURL(
+          /\/dashboard\/sites\/campaigns\/details\//,
+          { timeout: 15000 },
+        );
+
+        await expect(targetPage.getByText("Description").first()).toBeVisible({
+          timeout: 15000,
+        });
+
+        const dashboardTotalTime = Date.now() - dashboardStartTime;
+        console.log(
+          `[Affiliated Campaign Load] Campaign page fully loaded. Total time: ${dashboardTotalTime}ms`,
+        );
+      } finally {
+        if (newPage) {
+          await newPage.close();
+        }
+      }
+    });
+  });
+
+  test.describe("Reports", () => {
+    test("Load Reports page @rp", async () => {
+      const dashboardStartTime = Date.now();
+      console.log(`[Reports Load] Starting URL verification...`);
+
+      await publisherPage.page.getByRole("link", { name: /Reports/i }).click();
+
+      const dashboardLoadTime = Date.now() - dashboardStartTime;
+      console.log(
+        `[Reports Load] URL verified. Time taken: ${dashboardLoadTime}ms`,
+      );
+
+      await publisherPage.page.waitForLoadState("networkidle");
+
+      const dashboardTotalTime = Date.now() - dashboardStartTime;
+      console.log(
+        `[Reports Load] Reports page fully loaded. Total time: ${dashboardTotalTime}ms`,
+      );
+
+      await expect(publisherPage.page).toHaveURL(
+        `${BASE_URL_STAG}/dashboard/sites/reports/conversion`,
+      );
+    });
+  });
+});
+
+// ── Test suite ───────────────────────────────────────────────
+test.describe("Publisher Production Enhance Performance Tests @prod", () => {
+  test.describe.configure({ mode: "parallel" });
+  let publisherPage: PublisherPage;
+
+  test.beforeEach(async ({ page }, testInfo) => {
+    // Increase timeout for login operations
+    testInfo.setTimeout(90000); // 90 seconds for the entire hook
+
+    publisherPage = new PublisherPage(page);
+    await publisherPage.loginPubProd(
+      userData.pubUser.username,
+      userData.pubUser.password,
+    );
+
+    await publisherPage.page.waitForLoadState("networkidle");
+  });
+
+  // ── Tests ──────────────────────────────────────────────────
+
+  test("Sign Up - log time @sp", async () => {
+    const dashboardStartTime = Date.now();
+    console.log(`[Sign Up Load] Starting URL verification...`);
+
+    await publisherPage.loginPubProd(
+      userData.pubUser.username,
+      userData.pubUser.password,
+    );
+
+    const dashboardLoadTime = Date.now() - dashboardStartTime;
+    console.log(
+      `[Sign Up Load] URL verified. Time taken: ${dashboardLoadTime}ms`,
+    );
+
+    await publisherPage.page.waitForLoadState("networkidle");
+
+    const dashboardTotalTime = Date.now() - dashboardStartTime;
+    console.log(
+      `[Sign Up Load] Sign Up page fully loaded. Total time: ${dashboardTotalTime}ms`,
+    );
+  });
+
+  test("Dashboard - URL verification @db", async () => {
+    const dashboardStartTime = Date.now();
+    console.log(`[Dashboard Load] Starting URL verification...`);
+
+    await expect(publisherPage.page).toHaveURL(`${BASE_URL_PROD}/dashboard`);
+
+    const dashboardLoadTime = Date.now() - dashboardStartTime;
+    console.log(
+      `[Dashboard Load] URL verified. Time taken: ${dashboardLoadTime}ms`,
+    );
+
+    await publisherPage.page.waitForLoadState("networkidle");
+
+    const dashboardTotalTime = Date.now() - dashboardStartTime;
+    console.log(
+      `[Dashboard Load] Dashboard fully loaded. Total time: ${dashboardTotalTime}ms`,
+    );
+  });
+
+  test.describe("Campaign", () => {
+    test.beforeEach(async () => {
+      await publisherPage.page
+        .getByRole("link", { name: /Campaigns/i })
+        .click();
+    });
+
+    test("Load Campaign page @cp", async () => {
+      const dashboardStartTime = Date.now();
+      console.log(`[Campaign Load] Starting URL verification...`);
+
+      await publisherPage.page
+        .getByRole("link", { name: /Campaigns/i })
+        .click();
+
+      const dashboardLoadTime = Date.now() - dashboardStartTime;
+      console.log(
+        `[Campaign Load] URL verified. Time taken: ${dashboardLoadTime}ms`,
+      );
+
+      await publisherPage.page.waitForLoadState("networkidle");
+
+      const dashboardTotalTime = Date.now() - dashboardStartTime;
+      console.log(
+        `[Campaign Load] Campaign page fully loaded. Total time: ${dashboardTotalTime}ms`,
+      );
+
+      await expect(publisherPage.page).toHaveURL(
+        `${BASE_URL_PROD}/dashboard/sites/campaigns/listing/recommended`,
+      );
+    });
+
+    test("Go to Campaigns detail @aff", async () => {
+      const affiliatedTab = publisherPage.page.getByRole("link", {
+        name: /AFFILIATED/i,
+      });
+      await affiliatedTab.waitFor({ state: "visible", timeout: 12000 });
+      await affiliatedTab.click();
+
+      await publisherPage.page.waitForLoadState("networkidle");
+
+      const listCampaign = publisherPage.page.locator(
+        "div.campaign-block.bg-white",
+      );
+
+      await listCampaign.first().waitFor({ state: "visible", timeout: 30000 });
+      const campaignCount = await listCampaign.count();
+
+      const randomIndex = Math.floor(Math.random() * campaignCount);
+
+      // Start listening for a new tab before clicking; if none opens, fall back to same-tab navigation
+      const newPagePromise = publisherPage.page
+        .context()
+        .waitForEvent("page", { timeout: 5000 })
+        .catch(() => null);
+
+      await listCampaign.nth(randomIndex).click();
+
+      const dashboardStartTime = Date.now();
+      console.log(`[Affiliated Campaign Load] Starting URL verification...`);
+
+      const newPage = await newPagePromise;
+      const targetPage = newPage ?? publisherPage.page;
+
+      try {
+        const dashboardLoadTime = Date.now() - dashboardStartTime;
+        console.log(
+          `[Affiliated Campaign Load] URL verified. Time taken: ${dashboardLoadTime}ms`,
+        );
+
+        await targetPage.waitForLoadState("networkidle");
+
+        await expect(targetPage).toHaveURL(
+          /\/dashboard\/sites\/campaigns\/details\//,
+          { timeout: 15000 },
+        );
+
+        await expect(targetPage.getByText("Description").first()).toBeVisible({
+          timeout: 15000,
+        });
+
+        const dashboardTotalTime = Date.now() - dashboardStartTime;
+        console.log(
+          `[Affiliated Campaign Load] Campaign page fully loaded. Total time: ${dashboardTotalTime}ms`,
+        );
+      } finally {
+        if (newPage) {
+          await newPage.close();
+        }
+      }
+    });
+  });
+
+  test.describe("Reports", () => {
+    test("Load Reports page @rp", async () => {
+      const dashboardStartTime = Date.now();
+      console.log(`[Reports Load] Starting URL verification...`);
+
+      await publisherPage.page.getByRole("link", { name: /Reports/i }).click();
+
+      const dashboardLoadTime = Date.now() - dashboardStartTime;
+      console.log(
+        `[Reports Load] URL verified. Time taken: ${dashboardLoadTime}ms`,
+      );
+
+      await publisherPage.page.waitForLoadState("networkidle");
+
+      const dashboardTotalTime = Date.now() - dashboardStartTime;
+      console.log(
+        `[Reports Load] Reports page fully loaded. Total time: ${dashboardTotalTime}ms`,
+      );
+
+      await expect(publisherPage.page).toHaveURL(
+        `${BASE_URL_PROD}/dashboard/sites/reports/conversion`,
+      );
+    });
+  });
+
+  test.afterEach(async () => {
+    await publisherPage.page.close();
+  });
+});

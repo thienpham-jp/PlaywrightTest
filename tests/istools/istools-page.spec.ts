@@ -56,7 +56,146 @@ test.describe("Istools Tests", () => {
     });
   }
 
-  test.afterEach(async ({ page }) => {
-    await page.close();
+  test.describe.skip("Direct Navigation CFD Tests", () => {
+    // Direct to Fraud Guard page
+    test("Direct to Fraud Guard page", async ({}) => {
+      const credentials = resolveCredentials({
+        label: "Direct to Fraud Guard page",
+        userType: "admin",
+        expectedUrl:
+          "https://st-next-insight.accesstrade.co.id/istools/fraud-guard",
+      });
+      await istoolsPage.login(credentials.username, credentials.password);
+
+      await istoolsPage.page.getByRole("link", { name: /Click/ }).click();
+
+      // Start listening for a new tab before clicking; if none opens, fall back to same-tab navigation
+      const newPagePromise = istoolsPage.page
+        .context()
+        .waitForEvent("page", { timeout: 5000 })
+        .catch(() => null);
+
+      await istoolsPage.page.getByRole("link", { name: /Fraud Guard/ }).click();
+
+      const newPage = await newPagePromise;
+      const targetPage = newPage ?? istoolsPage.page;
+
+      try {
+        await targetPage.waitForLoadState("networkidle");
+
+        await expect(targetPage).toHaveURL(
+          /\/stag-cfd-db-id\.asean-accesstrade\.net\/\?_t/,
+          { timeout: 15000 },
+        );
+
+        await expect(
+          targetPage
+            .getByRole("heading", { name: /Executive Dashboard/ })
+            .first(),
+        ).toBeVisible({
+          timeout: 15000,
+        });
+      } finally {
+        if (newPage) {
+          await newPage.close();
+        }
+      }
+    });
+
+    // Direct to Fraud Watch page
+    test("Direct to Fraud Watch page", async ({}) => {
+      const credentials = resolveCredentials({
+        label: "Direct to Fraud Watch page",
+        userType: "admin",
+        expectedUrl:
+          "https://st-next-insight.accesstrade.co.id/istools/fraud-watch",
+      });
+      await istoolsPage.login(credentials.username, credentials.password);
+
+      await istoolsPage.page.getByRole("link", { name: /Click/ }).click();
+
+      // Start listening for a new tab before clicking; if none opens, fall back to same-tab navigation
+      const newPagePromise = istoolsPage.page
+        .context()
+        .waitForEvent("page", { timeout: 5000 })
+        .catch(() => null);
+
+      await istoolsPage.page
+        .getByRole("link", { name: /Fraud Watch Workspace/ })
+        .click();
+
+      const newPage = await newPagePromise;
+      const targetPage = newPage ?? istoolsPage.page;
+
+      try {
+        await targetPage.waitForLoadState("networkidle");
+
+        await expect(targetPage).toHaveURL(
+          /\/stag-cfd-fraudwatch-id\.asean-accesstrade\.net\//,
+          { timeout: 15000 },
+        );
+
+        await expect(
+          targetPage.getByRole("tab", { name: /Operational/ }).first(),
+        ).toBeVisible({
+          timeout: 15000,
+        });
+      } finally {
+        if (newPage) {
+          await newPage.close();
+        }
+      }
+    });
+
+    // Direct to Publisher Click Trend page
+    test("Direct to Publisher Click Trend page", async ({}) => {
+      const credentials = resolveCredentials({
+        label: "Direct to Publisher Click Trend page",
+        userType: "admin",
+        expectedUrl:
+          "https://st-next-insight.accesstrade.co.id/istools/publisher-click-trend",
+      });
+      await istoolsPage.login(credentials.username, credentials.password);
+
+      await istoolsPage.page.getByRole("link", { name: /Click/ }).click();
+
+      // Start listening for a new tab before clicking; if none opens, fall back to same-tab navigation
+      const newPagePromise = istoolsPage.page
+        .context()
+        .waitForEvent("page", { timeout: 5000 })
+        .catch(() => null);
+
+      await istoolsPage.page
+        .getByRole("link", { name: /Publisher Click Trend/ })
+        .click();
+
+      const newPage = await newPagePromise;
+      const targetPage = newPage ?? istoolsPage.page;
+
+      try {
+        await targetPage.waitForLoadState("networkidle");
+
+        await expect(targetPage).toHaveURL(
+          /\/stag-cfd-click-trend-id\.asean-accesstrade\.net\//,
+          { timeout: 15000 },
+        );
+
+        await expect(
+          targetPage
+            .getByRole("heading", { name: /Publisher Click Trends/ })
+            .first(),
+        ).toBeVisible({
+          timeout: 15000,
+        });
+      } finally {
+        if (newPage) {
+          await newPage.close();
+        }
+      }
+    });
+
+    test.afterEach(async ({ page }) => {
+      await page.close();
+    });
   });
 });
