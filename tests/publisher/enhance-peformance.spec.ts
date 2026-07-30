@@ -20,22 +20,22 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
     await publisherPage.page.waitForLoadState("domcontentloaded");
   });
 
-  test("Sign Up - log time @sp", async () => {
+  test("Sign In - log time @sp", async () => {
     const dashboardStartTime = Date.now();
-    console.log(`[Sign Up Load] Starting URL verification...`);
+    console.log(`[Sign In Load] Starting URL verification...`);
 
     await publisherPage.loginPubStag();
 
     const dashboardLoadTime = Date.now() - dashboardStartTime;
     console.log(
-      `[Sign Up Load] URL verified. Time taken: ${dashboardLoadTime}ms`,
+      `[Sign In Load] URL verified. Time taken: ${dashboardLoadTime}ms`,
     );
 
     await publisherPage.page.waitForLoadState("networkidle");
 
     const dashboardTotalTime = Date.now() - dashboardStartTime;
     console.log(
-      `[Sign Up Load] Sign Up page fully loaded. Total time: ${dashboardTotalTime}ms`,
+      `[Sign In Load] Sign In page fully loaded. Total time: ${dashboardTotalTime}ms`,
     );
   });
 
@@ -211,9 +211,9 @@ test.describe("Publisher Production Enhance Performance Tests @prod", () => {
 
   // ── Tests ──────────────────────────────────────────────────
 
-  test("Sign Up - log time @sp", async () => {
+  test("Sign In - log time @sp", async () => {
     const dashboardStartTime = Date.now();
-    console.log(`[Sign Up Load] Starting URL verification...`);
+    console.log(`[Sign In Load] Starting URL verification...`);
 
     await publisherPage.loginPubProd(
       userData.pubUser.username,
@@ -222,14 +222,14 @@ test.describe("Publisher Production Enhance Performance Tests @prod", () => {
 
     const dashboardLoadTime = Date.now() - dashboardStartTime;
     console.log(
-      `[Sign Up Load] URL verified. Time taken: ${dashboardLoadTime}ms`,
+      `[Sign In Load] URL verified. Time taken: ${dashboardLoadTime}ms`,
     );
 
     await publisherPage.page.waitForLoadState("networkidle");
 
     const dashboardTotalTime = Date.now() - dashboardStartTime;
     console.log(
-      `[Sign Up Load] Sign Up page fully loaded. Total time: ${dashboardTotalTime}ms`,
+      `[Sign In Load] Sign In page fully loaded. Total time: ${dashboardTotalTime}ms`,
     );
   });
 
