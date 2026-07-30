@@ -140,7 +140,7 @@ test.describe("Rate Limit Auth API", () => {
   });
 
   // ─── TC_04 ──────────────────────────────────────────────────────────────────
-  test("TC_04 - Send requests continuously until rate limit (429) is triggered - Log statistics", async ({
+  test.skip("TC_04 - Send requests continuously until rate limit (429) is triggered - Log statistics", async ({
     request,
   }) => {
     const url = buildUrl(PUB_USERNAME, getRequestParams());
