@@ -93,7 +93,70 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
       );
     });
 
-    test("Go to Campaigns detail @aff", async () => {
+    test("Go to Recommended Campaigns detail  @rcm", async () => {
+      await publisherPage.page
+        .getByRole("button", { name: /A Thien/i })
+        .first()
+        .click();
+      await publisherPage.page
+        .locator("a", { hasText: /Vario ID/i })
+        .first()
+        .click();
+
+      await publisherPage.page.waitForLoadState("networkidle");
+
+      const listCampaign = publisherPage.page.locator(
+        "div.campaign-block.bg-white",
+      );
+
+      await listCampaign.first().waitFor({ state: "visible", timeout: 30000 });
+      const campaignCount = await listCampaign.count();
+
+      const randomIndex = Math.floor(Math.random() * campaignCount);
+
+      // Start listening for a new tab before clicking; if none opens, fall back to same-tab navigation
+      const newPagePromise = publisherPage.page
+        .context()
+        .waitForEvent("page", { timeout: 5000 })
+        .catch(() => null);
+
+      await listCampaign.nth(randomIndex).click();
+
+      const dashboardStartTime = Date.now();
+      console.log(`[Rcm Campaign Load] Starting URL verification...`);
+
+      const newPage = await newPagePromise;
+      const targetPage = newPage ?? publisherPage.page;
+
+      try {
+        const dashboardLoadTime = Date.now() - dashboardStartTime;
+        console.log(
+          `[Rcm Campaign Load] URL verified. Time taken: ${dashboardLoadTime}ms`,
+        );
+
+        await targetPage.waitForLoadState("networkidle");
+
+        await expect(targetPage).toHaveURL(
+          /\/dashboard\/sites\/campaigns\/details\//,
+          { timeout: 15000 },
+        );
+
+        await expect(targetPage.getByText("Description").first()).toBeVisible({
+          timeout: 15000,
+        });
+
+        const dashboardTotalTime = Date.now() - dashboardStartTime;
+        console.log(
+          `[Rcm Campaign Load] Rcm Campaign page fully loaded. Total time: ${dashboardTotalTime}ms`,
+        );
+      } finally {
+        if (newPage) {
+          await newPage.close();
+        }
+      }
+    });
+
+    test("Go to Aff Campaigns detail @aff", async () => {
       await publisherPage.page
         .getByRole("button", { name: /A Thien/i })
         .first()
@@ -155,7 +218,7 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
 
         const dashboardTotalTime = Date.now() - dashboardStartTime;
         console.log(
-          `[Affiliated Campaign Load] Campaign page fully loaded. Total time: ${dashboardTotalTime}ms`,
+          `[Affiliated Campaign Load] Aff Campaign page fully loaded. Total time: ${dashboardTotalTime}ms`,
         );
       } finally {
         if (newPage) {
@@ -284,7 +347,61 @@ test.describe("Publisher Production Enhance Performance Tests @prod", () => {
       );
     });
 
-    test("Go to Campaigns detail @aff", async () => {
+    test("Go to Recommended Campaigns detail  @rcm", async () => {
+      await publisherPage.page.waitForLoadState("networkidle");
+
+      const listCampaign = publisherPage.page.locator(
+        "div.campaign-block.bg-white",
+      );
+
+      await listCampaign.first().waitFor({ state: "visible", timeout: 30000 });
+      const campaignCount = await listCampaign.count();
+
+      const randomIndex = Math.floor(Math.random() * campaignCount);
+
+      // Start listening for a new tab before clicking; if none opens, fall back to same-tab navigation
+      const newPagePromise = publisherPage.page
+        .context()
+        .waitForEvent("page", { timeout: 5000 })
+        .catch(() => null);
+
+      await listCampaign.nth(randomIndex).click();
+
+      const dashboardStartTime = Date.now();
+      console.log(`[Rcm Campaign Load] Starting URL verification...`);
+
+      const newPage = await newPagePromise;
+      const targetPage = newPage ?? publisherPage.page;
+
+      try {
+        const dashboardLoadTime = Date.now() - dashboardStartTime;
+        console.log(
+          `[Rcm Campaign Load] URL verified. Time taken: ${dashboardLoadTime}ms`,
+        );
+
+        await targetPage.waitForLoadState("networkidle");
+
+        await expect(targetPage).toHaveURL(
+          /\/dashboard\/sites\/campaigns\/details\//,
+          { timeout: 15000 },
+        );
+
+        await expect(targetPage.getByText("Description").first()).toBeVisible({
+          timeout: 15000,
+        });
+
+        const dashboardTotalTime = Date.now() - dashboardStartTime;
+        console.log(
+          `[Rcm Campaign Load] Rcm Campaign page fully loaded. Total time: ${dashboardTotalTime}ms`,
+        );
+      } finally {
+        if (newPage) {
+          await newPage.close();
+        }
+      }
+    });
+
+    test("Go to Aff Campaigns detail @aff", async () => {
       const affiliatedTab = publisherPage.page.getByRole("link", {
         name: /AFFILIATED/i,
       });
@@ -335,7 +452,7 @@ test.describe("Publisher Production Enhance Performance Tests @prod", () => {
 
         const dashboardTotalTime = Date.now() - dashboardStartTime;
         console.log(
-          `[Affiliated Campaign Load] Campaign page fully loaded. Total time: ${dashboardTotalTime}ms`,
+          `[Affiliated Campaign Load] Aff Campaign page fully loaded. Total time: ${dashboardTotalTime}ms`,
         );
       } finally {
         if (newPage) {
