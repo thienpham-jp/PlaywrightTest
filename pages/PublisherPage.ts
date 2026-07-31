@@ -1,5 +1,5 @@
 import { IstoolsPage } from "./istools-page";
-
+import { PUB_USERNAME, PUB_PASSWORD } from "../src/helpers/user-helper";
 export class PublisherPage extends IstoolsPage {
   usernameTextBox = "input[type='text']";
   passwordTextBox = "input[type='password']";
@@ -23,6 +23,35 @@ export class PublisherPage extends IstoolsPage {
       await page.waitForURL("**/dashboard**", { timeout: 90000 });
     } catch (error) {
       console.error("❌ Failed to reach dashboard:", error);
+      console.log("📸 Current URL:", page.url());
+      throw error;
+    }
+  }
+
+  async loginPubStag() {
+    const page = this.page;
+    const signInUrl = `https://publisher-staging.accesstrade.co.id/#/sign-in`;
+
+    try {
+      await page.goto(signInUrl, {
+        waitUntil: "networkidle",
+        timeout: 60000,
+      });
+    } catch (error) {
+      console.error("❌ Failed to navigate to sign-in page:", error);
+      throw error;
+    }
+
+    try {
+      await this.fill(this.usernameTextBox, PUB_USERNAME);
+      await this.fill(this.passwordTextBox, PUB_PASSWORD);
+      await this.click(this.signInButton);
+
+      await page.waitForLoadState("networkidle");
+
+      await page.waitForURL("**/dashboard**", { timeout: 60000 });
+    } catch (error) {
+      console.error("❌ Login failed:", error);
       console.log("📸 Current URL:", page.url());
       throw error;
     }
