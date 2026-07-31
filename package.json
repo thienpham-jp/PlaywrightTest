@@ -19,7 +19,6 @@
     "allure-commandline": "^2.42.0",
     "allure-playwright": "^3.0.0",
     "pg": "^8.20.0",
-    "playwright-qase-reporter": "^2.5.6",
     "typescript": "^5.0.0"
   }
 }

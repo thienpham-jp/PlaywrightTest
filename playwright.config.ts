@@ -1,5 +1,4 @@
 import { defineConfig, devices } from "@playwright/test";
-import { QASE_TOKEN } from "./src/helpers/user-helper";
 
 /**
  * Read environment variables from file.
@@ -15,10 +14,10 @@ import { QASE_TOKEN } from "./src/helpers/user-helper";
 export default defineConfig({
   testDir: "./tests",
   testIgnore: [
-    // "**/publisher/PublisherStagTest.spec.ts",
-    // "**/istools/**",
-    // "**/next-insight/**",
-    // "**/cfd/**",
+    "**/publisher/PublisherStagTest.spec.ts",
+    "**/istools/**",
+    "**/next-insight/**",
+    "**/cfd/**",
   ],
   /* Run tests in files in parallel */
   fullyParallel: true,
@@ -27,51 +26,16 @@ export default defineConfig({
   /* Retry on CI only */
   retries: process.env.CI ? 1 : 0,
   /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 2 : 2,
+  workers: process.env.CI ? 2 : 1,
   /* Increase test timeout for complex forms */
   timeout: process.env.CI ? 30000 : 120000,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: process.env.CI
-    ? [
-        ["html", { open: "never" }],
-        // ["allure-playwright"],
-        // ["list"],
-        // [
-        //   "playwright-qase-reporter",
-        //   {
-        //     mode: process.env.QASE_MODE || "off",
-        //     testops: {
-        //       api: {
-        //         token: process.env.QASE_TESTOPS_API_TOKEN,
-        //       },
-        //       project: process.env.QASE_TESTOPS_PROJECT,
-        //       uploadAttachments: true,
-        //       run: {
-        //         complete: true,
-        //       },
-        //     },
-        //   },
-        // ],
-      ]
+    ? [["html", { open: "never" }], ["allure-playwright"], ["list"]]
     : [
         ["html", { open: "never" }],
         ["allure-playwright", { outputFolder: "allure-results" }],
         ["./scripts/allure-trigger-reporter.ts"],
-        // [
-        //   "playwright-qase-reporter",
-        //   {
-        //     mode: "testops",
-        //     testops: {
-        //       api: {
-        //         token: QASE_TOKEN,
-        //       },
-        //       project: "QP", // Ví dụ: 'PROJ'
-        //       run: {
-        //         complete: true,
-        //       },
-        //     },
-        //   },
-        // ],
       ],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
