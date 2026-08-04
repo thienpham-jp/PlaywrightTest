@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { generateJWT } from "../src/helpers/jwt-helper";
 import { SECRET_KEY, USER_UID } from "../src/helpers/user-helper";
+import { logResponse } from "./api/helpers/api-test-helper";
 
 test.describe("Example Tests", () => {
   test.beforeEach(async ({ page }) => {
@@ -29,5 +30,44 @@ test.describe("Example Tests", () => {
 
     const token = `Bearer ${jwtToken}`;
     console.log(token);
+  });
+
+  test("Get access token from Keycloak", async ({ request }) => {
+    const response = await request.post(
+      "https://dev-keycloak.asean-accesstrade.net/realms/indonesia-staging/protocol/openid-connect/token",
+      {
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        form: {
+          grant_type: "client_credentials",
+          client_id: "cfd-client",
+          client_secret: "crdjOikyQPEIPi6MmuITw52Ibi0nPHp3",
+        },
+      },
+    );
+    const body = await logResponse(response, false);
+    expect(response.status()).toBe(200);
+
+    const userID = "e9e16714-9c25-4c05-8da2-0fe553b89ca3";
+
+    const res2 = await request.post(
+      "https://dev-keycloak.asean-accesstrade.net/realms/indonesia-staging/protocol/openid-connect/token",
+      {
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        form: {
+          grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
+          client_id: "cfd-client",
+          client_secret: "crdjOikyQPEIPi6MmuITw52Ibi0nPHp3",
+          subject_token: body.access_token,
+          requested_subject: userID,
+        },
+      },
+    );
+    const body2 = await logResponse(res2, false);
+    console.log(body2.access_token);
+    expect(res2.status()).toBe(200);
   });
 });
