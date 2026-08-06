@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { PublisherPage } from "../../pages/PublisherPage";
 import { users as userData } from "../../src/helpers/user-helper";
+import { openRandomCampaignDetails } from "../../pages/PublisherPage";
 
 // ── Publisher config ─────────────────────────────────────────
 const BASE_URL_STAG = "https://publisher-staging.accesstrade.co.id/#";
@@ -109,24 +110,13 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
         "div.campaign-block.bg-white",
       );
 
-      await listCampaign.first().waitFor({ state: "visible", timeout: 30000 });
-      const campaignCount = await listCampaign.count();
-
-      const randomIndex = Math.floor(Math.random() * campaignCount);
-
-      // Start listening for a new tab before clicking; if none opens, fall back to same-tab navigation
-      const newPagePromise = publisherPage.page
-        .context()
-        .waitForEvent("page", { timeout: 5000 })
-        .catch(() => null);
-
-      await listCampaign.nth(randomIndex).click();
-
       const dashboardStartTime = Date.now();
       console.log(`[Rcm Campaign Load] Starting URL verification...`);
 
-      const newPage = await newPagePromise;
-      const targetPage = newPage ?? publisherPage.page;
+      const { newPage, targetPage } = await openRandomCampaignDetails(
+        publisherPage.page,
+        listCampaign,
+      );
 
       try {
         const dashboardLoadTime = Date.now() - dashboardStartTime;
@@ -180,24 +170,13 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
         "div.campaign-block.bg-white",
       );
 
-      await listCampaign.first().waitFor({ state: "visible", timeout: 30000 });
-      const campaignCount = await listCampaign.count();
-
-      const randomIndex = Math.floor(Math.random() * campaignCount);
-
-      // Start listening for a new tab before clicking; if none opens, fall back to same-tab navigation
-      const newPagePromise = publisherPage.page
-        .context()
-        .waitForEvent("page", { timeout: 5000 })
-        .catch(() => null);
-
-      await listCampaign.nth(randomIndex).click();
-
       const dashboardStartTime = Date.now();
       console.log(`[Affiliated Campaign Load] Starting URL verification...`);
 
-      const newPage = await newPagePromise;
-      const targetPage = newPage ?? publisherPage.page;
+      const { newPage, targetPage } = await openRandomCampaignDetails(
+        publisherPage.page,
+        listCampaign,
+      );
 
       try {
         const dashboardLoadTime = Date.now() - dashboardStartTime;
@@ -354,24 +333,13 @@ test.describe("Publisher Production Enhance Performance Tests @prod", () => {
         "div.campaign-block.bg-white",
       );
 
-      await listCampaign.first().waitFor({ state: "visible", timeout: 30000 });
-      const campaignCount = await listCampaign.count();
-
-      const randomIndex = Math.floor(Math.random() * campaignCount);
-
-      // Start listening for a new tab before clicking; if none opens, fall back to same-tab navigation
-      const newPagePromise = publisherPage.page
-        .context()
-        .waitForEvent("page", { timeout: 5000 })
-        .catch(() => null);
-
-      await listCampaign.nth(randomIndex).click();
-
       const dashboardStartTime = Date.now();
       console.log(`[Rcm Campaign Load] Starting URL verification...`);
 
-      const newPage = await newPagePromise;
-      const targetPage = newPage ?? publisherPage.page;
+      const { newPage, targetPage } = await openRandomCampaignDetails(
+        publisherPage.page,
+        listCampaign,
+      );
 
       try {
         const dashboardLoadTime = Date.now() - dashboardStartTime;
@@ -414,24 +382,13 @@ test.describe("Publisher Production Enhance Performance Tests @prod", () => {
         "div.campaign-block.bg-white",
       );
 
-      await listCampaign.first().waitFor({ state: "visible", timeout: 30000 });
-      const campaignCount = await listCampaign.count();
-
-      const randomIndex = Math.floor(Math.random() * campaignCount);
-
-      // Start listening for a new tab before clicking; if none opens, fall back to same-tab navigation
-      const newPagePromise = publisherPage.page
-        .context()
-        .waitForEvent("page", { timeout: 5000 })
-        .catch(() => null);
-
-      await listCampaign.nth(randomIndex).click();
-
       const dashboardStartTime = Date.now();
       console.log(`[Affiliated Campaign Load] Starting URL verification...`);
 
-      const newPage = await newPagePromise;
-      const targetPage = newPage ?? publisherPage.page;
+      const { newPage, targetPage } = await openRandomCampaignDetails(
+        publisherPage.page,
+        listCampaign,
+      );
 
       try {
         const dashboardLoadTime = Date.now() - dashboardStartTime;
