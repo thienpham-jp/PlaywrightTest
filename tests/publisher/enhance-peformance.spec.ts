@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { PublisherPage } from "../../pages/PublisherPage";
 import { users as userData } from "../../src/helpers/user-helper";
+import { openRandomCampaignDetails } from "../../pages/PublisherPage";
 
 // ── Publisher config ─────────────────────────────────────────
 const BASE_URL_STAG = "https://publisher-staging.accesstrade.co.id/#";
@@ -108,25 +109,17 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
       const listCampaign = publisherPage.page.locator(
         "div.campaign-block.bg-white",
       );
-
-      await listCampaign.first().waitFor({ state: "visible", timeout: 30000 });
-      const campaignCount = await listCampaign.count();
-
-      const randomIndex = Math.floor(Math.random() * campaignCount);
-
-      // Start listening for a new tab before clicking; if none opens, fall back to same-tab navigation
-      const newPagePromise = publisherPage.page
-        .context()
-        .waitForEvent("page", { timeout: 5000 })
-        .catch(() => null);
-
-      await listCampaign.nth(randomIndex).click();
+      // Wait specifically for the campaign list to populate
+      await listCampaign.first().waitFor({ state: "visible", timeout: 15000 });
+      await publisherPage.page.waitForTimeout(1000);
 
       const dashboardStartTime = Date.now();
       console.log(`[Rcm Campaign Load] Starting URL verification...`);
 
-      const newPage = await newPagePromise;
-      const targetPage = newPage ?? publisherPage.page;
+      const { newPage, targetPage } = await openRandomCampaignDetails(
+        publisherPage.page,
+        listCampaign,
+      );
 
       try {
         const dashboardLoadTime = Date.now() - dashboardStartTime;
@@ -150,8 +143,12 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
           `[Rcm Campaign Load] Rcm Campaign page fully loaded. Total time: ${dashboardTotalTime}ms`,
         );
       } finally {
-        if (newPage) {
-          await newPage.close();
+        if (newPage && !newPage.isClosed?.()) {
+          try {
+            await newPage.close();
+          } catch (e) {
+            console.error("Failed to close new page:", e);
+          }
         }
       }
     });
@@ -176,28 +173,20 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
 
       await publisherPage.page.waitForLoadState("networkidle");
 
+      // Wait specifically for the campaign list to populate after tab switch
       const listCampaign = publisherPage.page.locator(
         "div.campaign-block.bg-white",
       );
-
-      await listCampaign.first().waitFor({ state: "visible", timeout: 30000 });
-      const campaignCount = await listCampaign.count();
-
-      const randomIndex = Math.floor(Math.random() * campaignCount);
-
-      // Start listening for a new tab before clicking; if none opens, fall back to same-tab navigation
-      const newPagePromise = publisherPage.page
-        .context()
-        .waitForEvent("page", { timeout: 5000 })
-        .catch(() => null);
-
-      await listCampaign.nth(randomIndex).click();
+      await listCampaign.first().waitFor({ state: "visible", timeout: 15000 });
+      await publisherPage.page.waitForTimeout(1000);
 
       const dashboardStartTime = Date.now();
       console.log(`[Affiliated Campaign Load] Starting URL verification...`);
 
-      const newPage = await newPagePromise;
-      const targetPage = newPage ?? publisherPage.page;
+      const { newPage, targetPage } = await openRandomCampaignDetails(
+        publisherPage.page,
+        listCampaign,
+      );
 
       try {
         const dashboardLoadTime = Date.now() - dashboardStartTime;
@@ -221,8 +210,12 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
           `[Affiliated Campaign Load] Aff Campaign page fully loaded. Total time: ${dashboardTotalTime}ms`,
         );
       } finally {
-        if (newPage) {
-          await newPage.close();
+        if (newPage && !newPage.isClosed?.()) {
+          try {
+            await newPage.close();
+          } catch (e) {
+            console.error("Failed to close new page:", e);
+          }
         }
       }
     });
@@ -249,6 +242,81 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
 
       await expect(publisherPage.page).toHaveURL(
         `${BASE_URL_STAG}/dashboard/sites/reports/conversion`,
+      );
+    });
+
+    test("Load Conversion Reports page @cv", async () => {
+      const page = publisherPage.page;
+
+      // --- Navigate to Reports ---
+      await page.getByRole("link", { name: /Reports/i }).click();
+
+      const userMenuButton = page
+        .getByRole("button", { name: /A Thien/i })
+        .first();
+      await userMenuButton.waitFor({ state: "visible", timeout: 10000 });
+      await userMenuButton.click();
+
+      const varioIdLink = page.locator("a", { hasText: /Vario ID/i }).first();
+      await varioIdLink.waitFor({ state: "visible", timeout: 10000 });
+      await varioIdLink.click();
+
+      // --- Filter by date range ---
+      await page.getByRole("textbox").click();
+
+      const lastMonthOption = page
+        .getByRole("listitem")
+        .filter({ hasText: "Last Month" });
+      await lastMonthOption.waitFor({ state: "visible", timeout: 10000 });
+      await lastMonthOption.click();
+
+      await page.getByRole("button", { name: "Search" }).click();
+      await page.waitForLoadState("networkidle");
+
+      // --- Select a specific row / filter ---
+      const targetRow = page.getByRole("table").getByText("Shopee ID NON KOL");
+      await targetRow.waitFor({ state: "visible", timeout: 15000 });
+      await targetRow.click();
+
+      const dashboardStartTime = Date.now();
+      console.log(`[Conversion Reports Load] Starting URL verification...`);
+
+      // --- Change page size: 10 -> 100 ---
+      const pageSize10Button = page.getByRole("button", { name: "10" });
+      await pageSize10Button.click();
+
+      const pageSize100Button = page.getByRole("button", { name: "100" });
+      await pageSize100Button.waitFor({ state: "visible", timeout: 5000 });
+      await pageSize100Button.click();
+
+      await page.waitForLoadState("networkidle");
+
+      // Assert table actually re-rendered with new page size, not just network idle
+      await expect(page.getByRole("table")).toBeVisible({ timeout: 15000 });
+
+      const dashboardLoadTimeP1 = Date.now() - dashboardStartTime;
+      console.log(
+        `[Conversion Reports Load page 1] Page size updated to 100. Time taken: ${dashboardLoadTimeP1}ms`,
+      );
+
+      // --- Go to page 2 of pagination ---
+      const page2StartTime = Date.now();
+
+      const page2Button = page.getByRole("button", { name: "2" });
+      await page2Button.waitFor({ state: "visible", timeout: 10000 });
+      await page2Button.click();
+
+      await page.waitForLoadState("networkidle");
+      await expect(page.getByRole("table")).toBeVisible({ timeout: 15000 });
+
+      const dashboardLoadTimeP2 = Date.now() - page2StartTime;
+      console.log(
+        `[Conversion Reports Load page 2] Load page 2. Time taken: ${dashboardLoadTimeP2}ms`,
+      );
+
+      const dashboardTotalTime = Date.now() - dashboardStartTime;
+      console.log(
+        `[Conversion Reports Load] Reports page fully loaded. Total time: ${dashboardTotalTime}ms`,
       );
     });
   });
@@ -353,25 +421,17 @@ test.describe("Publisher Production Enhance Performance Tests @prod", () => {
       const listCampaign = publisherPage.page.locator(
         "div.campaign-block.bg-white",
       );
-
-      await listCampaign.first().waitFor({ state: "visible", timeout: 30000 });
-      const campaignCount = await listCampaign.count();
-
-      const randomIndex = Math.floor(Math.random() * campaignCount);
-
-      // Start listening for a new tab before clicking; if none opens, fall back to same-tab navigation
-      const newPagePromise = publisherPage.page
-        .context()
-        .waitForEvent("page", { timeout: 5000 })
-        .catch(() => null);
-
-      await listCampaign.nth(randomIndex).click();
+      // Wait specifically for the campaign list to populate
+      await listCampaign.first().waitFor({ state: "visible", timeout: 15000 });
+      await publisherPage.page.waitForTimeout(1000);
 
       const dashboardStartTime = Date.now();
       console.log(`[Rcm Campaign Load] Starting URL verification...`);
 
-      const newPage = await newPagePromise;
-      const targetPage = newPage ?? publisherPage.page;
+      const { newPage, targetPage } = await openRandomCampaignDetails(
+        publisherPage.page,
+        listCampaign,
+      );
 
       try {
         const dashboardLoadTime = Date.now() - dashboardStartTime;
@@ -395,8 +455,12 @@ test.describe("Publisher Production Enhance Performance Tests @prod", () => {
           `[Rcm Campaign Load] Rcm Campaign page fully loaded. Total time: ${dashboardTotalTime}ms`,
         );
       } finally {
-        if (newPage) {
-          await newPage.close();
+        if (newPage && !newPage.isClosed?.()) {
+          try {
+            await newPage.close();
+          } catch (e) {
+            console.error("Failed to close new page:", e);
+          }
         }
       }
     });
@@ -410,28 +474,20 @@ test.describe("Publisher Production Enhance Performance Tests @prod", () => {
 
       await publisherPage.page.waitForLoadState("networkidle");
 
+      // Wait specifically for the campaign list to populate after tab switch
       const listCampaign = publisherPage.page.locator(
         "div.campaign-block.bg-white",
       );
-
-      await listCampaign.first().waitFor({ state: "visible", timeout: 30000 });
-      const campaignCount = await listCampaign.count();
-
-      const randomIndex = Math.floor(Math.random() * campaignCount);
-
-      // Start listening for a new tab before clicking; if none opens, fall back to same-tab navigation
-      const newPagePromise = publisherPage.page
-        .context()
-        .waitForEvent("page", { timeout: 5000 })
-        .catch(() => null);
-
-      await listCampaign.nth(randomIndex).click();
+      await listCampaign.first().waitFor({ state: "visible", timeout: 15000 });
+      await publisherPage.page.waitForTimeout(1000);
 
       const dashboardStartTime = Date.now();
       console.log(`[Affiliated Campaign Load] Starting URL verification...`);
 
-      const newPage = await newPagePromise;
-      const targetPage = newPage ?? publisherPage.page;
+      const { newPage, targetPage } = await openRandomCampaignDetails(
+        publisherPage.page,
+        listCampaign,
+      );
 
       try {
         const dashboardLoadTime = Date.now() - dashboardStartTime;
@@ -455,8 +511,12 @@ test.describe("Publisher Production Enhance Performance Tests @prod", () => {
           `[Affiliated Campaign Load] Aff Campaign page fully loaded. Total time: ${dashboardTotalTime}ms`,
         );
       } finally {
-        if (newPage) {
-          await newPage.close();
+        if (newPage && !newPage.isClosed?.()) {
+          try {
+            await newPage.close();
+          } catch (e) {
+            console.error("Failed to close new page:", e);
+          }
         }
       }
     });
