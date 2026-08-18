@@ -109,6 +109,9 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
       const listCampaign = publisherPage.page.locator(
         "div.campaign-block.bg-white",
       );
+      // Wait specifically for the campaign list to populate
+      await listCampaign.first().waitFor({ state: "visible", timeout: 15000 });
+      await publisherPage.page.waitForTimeout(1000);
 
       const dashboardStartTime = Date.now();
       console.log(`[Rcm Campaign Load] Starting URL verification...`);
@@ -140,8 +143,12 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
           `[Rcm Campaign Load] Rcm Campaign page fully loaded. Total time: ${dashboardTotalTime}ms`,
         );
       } finally {
-        if (newPage) {
-          await newPage.close();
+        if (newPage && !newPage.isClosed?.()) {
+          try {
+            await newPage.close();
+          } catch (e) {
+            console.error("Failed to close new page:", e);
+          }
         }
       }
     });
@@ -166,9 +173,12 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
 
       await publisherPage.page.waitForLoadState("networkidle");
 
+      // Wait specifically for the campaign list to populate after tab switch
       const listCampaign = publisherPage.page.locator(
         "div.campaign-block.bg-white",
       );
+      await listCampaign.first().waitFor({ state: "visible", timeout: 15000 });
+      await publisherPage.page.waitForTimeout(1000);
 
       const dashboardStartTime = Date.now();
       console.log(`[Affiliated Campaign Load] Starting URL verification...`);
@@ -200,8 +210,12 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
           `[Affiliated Campaign Load] Aff Campaign page fully loaded. Total time: ${dashboardTotalTime}ms`,
         );
       } finally {
-        if (newPage) {
-          await newPage.close();
+        if (newPage && !newPage.isClosed?.()) {
+          try {
+            await newPage.close();
+          } catch (e) {
+            console.error("Failed to close new page:", e);
+          }
         }
       }
     });
@@ -407,6 +421,9 @@ test.describe("Publisher Production Enhance Performance Tests @prod", () => {
       const listCampaign = publisherPage.page.locator(
         "div.campaign-block.bg-white",
       );
+      // Wait specifically for the campaign list to populate
+      await listCampaign.first().waitFor({ state: "visible", timeout: 15000 });
+      await publisherPage.page.waitForTimeout(1000);
 
       const dashboardStartTime = Date.now();
       console.log(`[Rcm Campaign Load] Starting URL verification...`);
@@ -438,8 +455,12 @@ test.describe("Publisher Production Enhance Performance Tests @prod", () => {
           `[Rcm Campaign Load] Rcm Campaign page fully loaded. Total time: ${dashboardTotalTime}ms`,
         );
       } finally {
-        if (newPage) {
-          await newPage.close();
+        if (newPage && !newPage.isClosed?.()) {
+          try {
+            await newPage.close();
+          } catch (e) {
+            console.error("Failed to close new page:", e);
+          }
         }
       }
     });
@@ -453,9 +474,12 @@ test.describe("Publisher Production Enhance Performance Tests @prod", () => {
 
       await publisherPage.page.waitForLoadState("networkidle");
 
+      // Wait specifically for the campaign list to populate after tab switch
       const listCampaign = publisherPage.page.locator(
         "div.campaign-block.bg-white",
       );
+      await listCampaign.first().waitFor({ state: "visible", timeout: 15000 });
+      await publisherPage.page.waitForTimeout(1000);
 
       const dashboardStartTime = Date.now();
       console.log(`[Affiliated Campaign Load] Starting URL verification...`);
@@ -487,8 +511,12 @@ test.describe("Publisher Production Enhance Performance Tests @prod", () => {
           `[Affiliated Campaign Load] Aff Campaign page fully loaded. Total time: ${dashboardTotalTime}ms`,
         );
       } finally {
-        if (newPage) {
-          await newPage.close();
+        if (newPage && !newPage.isClosed?.()) {
+          try {
+            await newPage.close();
+          } catch (e) {
+            console.error("Failed to close new page:", e);
+          }
         }
       }
     });

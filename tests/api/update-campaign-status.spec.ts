@@ -144,7 +144,7 @@ test.describe("Update Campaign Status API", () => {
     request,
   }) => {
     const res = await request.put(
-      `${baseURL}/v1/staff/campaigns//update-status`,
+      `${baseURL}/v1/staff/campaigns/update-status`,
       {
         headers: getAuthHeaders(),
         data: validPayload(),
