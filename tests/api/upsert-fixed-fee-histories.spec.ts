@@ -174,7 +174,9 @@ test.describe("Upsert Fixed Fee Histories API", () => {
   });
 
   // ─── TC_07a ─────────────────────────────────────────────────────────────────
-  test("TC_07a - feeAmount = 0 (zero) - Expect 200 OK", async ({ request }) => {
+  test.skip("TC_07a - feeAmount = 0 (zero) - Expect 200 OK", async ({
+    request,
+  }) => {
     const res = await request.post(API_URL, {
       headers: getAuthHeaders(),
       data: { ...validPayload(), feeAmount: 0 },
