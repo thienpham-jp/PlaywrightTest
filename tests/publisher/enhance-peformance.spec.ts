@@ -283,6 +283,7 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
 
       // --- Change page size: 10 -> 100 ---
       const pageSize10Button = page.getByRole("button", { name: "10" });
+      await pageSize10Button.waitFor({ state: "visible", timeout: 15000 });
       await pageSize10Button.click();
 
       const pageSize100Button = page.getByRole("button", { name: "100" });
@@ -290,6 +291,7 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
       await pageSize100Button.click();
 
       await page.waitForLoadState("networkidle");
+      await page.waitForTimeout(2000);
 
       // Assert table actually re-rendered with new page size, not just network idle
       await expect(page.getByRole("table")).toBeVisible({ timeout: 15000 });
