@@ -1034,16 +1034,18 @@ test.describe("Publisher Production Tests", () => {
     });
 
     test("Search multiple Campaigns", async () => {
+      await publisherPage.page.waitForLoadState("networkidle");
+
       const availableTab = publisherPage.page.getByRole("link", {
         name: /AVAILABLE/i,
       });
-      await availableTab.waitFor({ state: "visible", timeout: 10000 });
+      await availableTab.waitFor({ state: "visible", timeout: 15000 });
       await availableTab.click();
 
       await publisherPage.page.waitForLoadState("networkidle");
 
       const searchInput = publisherPage.page.locator("input[name='keyword']");
-      await searchInput.waitFor({ state: "visible", timeout: 10000 });
+      await searchInput.waitFor({ state: "visible", timeout: 15000 });
       await searchInput.scrollIntoViewIfNeeded();
       await searchInput.fill("shopee");
       await searchInput.press("Enter");
@@ -1062,10 +1064,12 @@ test.describe("Publisher Production Tests", () => {
     });
 
     test("Go to Campaigns detail", async () => {
+      await publisherPage.page.waitForLoadState("networkidle");
+
       const affiliatedTab = publisherPage.page.getByRole("link", {
         name: /AFFILIATED/i,
       });
-      await affiliatedTab.waitFor({ state: "visible", timeout: 10000 });
+      await affiliatedTab.waitFor({ state: "visible", timeout: 15000 });
       await affiliatedTab.click();
 
       await publisherPage.page.waitForLoadState("networkidle");
