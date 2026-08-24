@@ -8,17 +8,18 @@ const BASE_URL_STAG = "https://publisher-staging.accesstrade.co.id/#";
 const BASE_URL_PROD = "https://publisher.accesstrade.co.id/#";
 
 // ── Test suite ───────────────────────────────────────────────
-test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
+test.describe("Publisher Staging Enhance Performance Tests @stag", () => {
   test.describe.configure({ mode: "parallel" });
   let publisherPage: PublisherPage;
 
   test.beforeEach(async ({ page }, testInfo) => {
-    testInfo.setTimeout(90000);
+    testInfo.setTimeout(120000);
 
     publisherPage = new PublisherPage(page);
     await publisherPage.loginPubStag();
     // Wait for the istools login redirect to complete before navigating again
     await publisherPage.page.waitForLoadState("domcontentloaded");
+    await publisherPage.page.waitForLoadState("networkidle");
   });
 
   test("Sign In - log time @sp", async () => {
@@ -95,14 +96,17 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
     });
 
     test("Go to Recommended Campaigns detail  @rcm", async () => {
-      await publisherPage.page
+      const userMenuButton = publisherPage.page
         .getByRole("button", { name: /A Thien/i })
-        .first()
-        .click();
-      await publisherPage.page
+        .first();
+      await userMenuButton.waitFor({ state: "visible", timeout: 15000 });
+      await userMenuButton.click();
+
+      const varioIdLink = publisherPage.page
         .locator("a", { hasText: /Vario ID/i })
-        .first()
-        .click();
+        .first();
+      await varioIdLink.waitFor({ state: "visible", timeout: 15000 });
+      await varioIdLink.click();
 
       await publisherPage.page.waitForLoadState("networkidle");
 
@@ -154,14 +158,17 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
     });
 
     test("Go to Aff Campaigns detail @aff", async () => {
-      await publisherPage.page
+      const userMenuButton = publisherPage.page
         .getByRole("button", { name: /A Thien/i })
-        .first()
-        .click();
-      await publisherPage.page
+        .first();
+      await userMenuButton.waitFor({ state: "visible", timeout: 15000 });
+      await userMenuButton.click();
+
+      const varioIdLink = publisherPage.page
         .locator("a", { hasText: /Vario ID/i })
-        .first()
-        .click();
+        .first();
+      await varioIdLink.waitFor({ state: "visible", timeout: 15000 });
+      await varioIdLink.click();
 
       await publisherPage.page.waitForLoadState("networkidle");
 
@@ -254,11 +261,11 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
       const userMenuButton = page
         .getByRole("button", { name: /A Thien/i })
         .first();
-      await userMenuButton.waitFor({ state: "visible", timeout: 10000 });
+      await userMenuButton.waitFor({ state: "visible", timeout: 15000 });
       await userMenuButton.click();
 
       const varioIdLink = page.locator("a", { hasText: /Vario ID/i }).first();
-      await varioIdLink.waitFor({ state: "visible", timeout: 10000 });
+      await varioIdLink.waitFor({ state: "visible", timeout: 15000 });
       await varioIdLink.click();
 
       // --- Filter by date range ---
