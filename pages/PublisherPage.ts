@@ -47,7 +47,7 @@ export class PublisherPage extends IstoolsPage {
 
     try {
       await page.goto(signInUrl, {
-        waitUntil: "networkidle",
+        waitUntil: "load",
         timeout: 60000,
       });
     } catch (error) {
@@ -60,7 +60,7 @@ export class PublisherPage extends IstoolsPage {
       await this.fill(this.passwordTextBox, PUB_PASSWORD);
       await this.click(this.signInButton);
 
-      await page.waitForLoadState("networkidle");
+      await page.waitForLoadState("load");
 
       await page.waitForURL("**/dashboard**", { timeout: 60000 });
     } catch (error) {
@@ -76,7 +76,7 @@ export class PublisherPage extends IstoolsPage {
 
     try {
       await page.goto(signInUrl, {
-        waitUntil: "networkidle",
+        waitUntil: "load",
         timeout: 60000,
       });
     } catch (error) {
@@ -89,7 +89,7 @@ export class PublisherPage extends IstoolsPage {
       await this.fill(this.passwordTextBox, password);
       await this.click(this.signInButton);
 
-      await page.waitForLoadState("networkidle");
+      await page.waitForLoadState("load");
 
       await page.waitForURL("**/dashboard**", { timeout: 60000 });
     } catch (error) {
