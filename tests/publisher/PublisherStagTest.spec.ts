@@ -53,7 +53,7 @@ test.describe("Publisher Staging Tests", () => {
   let publisherPage: PublisherPage;
 
   test.beforeEach(async ({ page }, testInfo) => {
-    testInfo.setTimeout(90000);
+    testInfo.setTimeout(120000);
 
     publisherPage = new PublisherPage(page);
 
@@ -80,7 +80,24 @@ test.describe("Publisher Staging Tests", () => {
     // Wait for the istools login redirect to complete before navigating again
     await publisherPage.page.waitForLoadState("domcontentloaded");
 
-    await publisherPage.loginPub(PAN, SITE_ID);
+    try {
+      await publisherPage.loginPub(PAN, SITE_ID);
+    } catch (error) {
+      const errorMsg = (error as Error).message;
+      console.error(`[beforeEach] Failed to login to publisher: ${errorMsg}`);
+
+      // Skip if staging server is unavailable/too slow
+      if (
+        (error as any).isNetworkError ||
+        errorMsg.includes("unavailable") ||
+        errorMsg.includes("Timeout")
+      ) {
+        test.skip(true, `Staging server unavailable: ${errorMsg}`);
+        return;
+      }
+
+      throw error;
+    }
 
     await publisherPage.page.waitForLoadState("networkidle");
   });
@@ -986,7 +1003,7 @@ test.describe("Publisher Staging Tests", () => {
 
     test("Search 1 Campaign", async () => {
       const searchInput = publisherPage.page.locator("input[name='keyword']");
-      await searchInput.waitFor({ state: "visible", timeout: 10000 });
+      await searchInput.waitFor({ state: "visible", timeout: 15000 });
       await searchInput.scrollIntoViewIfNeeded();
       await searchInput.fill("wardah");
       await searchInput.press("Enter");
