@@ -27,11 +27,11 @@ const validPayload = () => ({
   merchantCampaignNo: [],
   partnerAccountNo: [],
   partnerSiteNo: [],
-  periodBase: "MONTH",
-  fromMonth: "2026-05-01",
+  periodBase: "CONVERSION_DATE",
+  fromMonth: "2026-07-01",
   toMonth: "2026-08-26",
   countryCode: "ID",
-  statuses: ["NEW", "HOLD"],
+  statuses: ["New", "Hold"],
 });
 
 test.describe("Find Action Approval List by Conditions API", () => {
@@ -301,12 +301,12 @@ test.describe("Find Action Approval List by Conditions API", () => {
   });
 
   // ─── TC12: Valid date range - both endpoints ────────────────────────────────
-  test("TC12 - Both endpoints: Filter by periodBase=MONTH with valid date range", async ({
+  test("TC12 - Both endpoints: Filter by periodBase=CONVERSION_DATE with valid date range", async ({
     request,
   }) => {
     const payload = {
       ...validPayload(),
-      periodBase: "MONTH",
+      periodBase: "CONVERSION_DATE",
       fromMonth: "2026-08-01",
       toMonth: "2026-08-26",
     };
@@ -375,11 +375,11 @@ test.describe("Find Action Approval List by Conditions API", () => {
     expect([400, 404]).toContain(countRes.status());
   });
 
-  // ─── TC16: Filter by single status (APPROVED) - both endpoints ─────────────
-  test("TC16 - Both endpoints: Filter by single status (APPROVED)", async ({
+  // ─── TC16: Filter by single status (Approved) - both endpoints ─────────────
+  test("TC16 - Both endpoints: Filter by single status (Approved)", async ({
     request,
   }) => {
-    const payload = { ...validPayload(), statuses: ["APPROVED"] };
+    const payload = { ...validPayload(), statuses: ["Approved"] };
 
     const [listRes, countRes] = await Promise.all([
       request.post(API_URL, { headers: getAuthHeaders(), data: payload }),
@@ -396,11 +396,11 @@ test.describe("Find Action Approval List by Conditions API", () => {
     expect(countBody.count > 0).toBe(true);
   });
 
-  // ─── TC17: Filter by single status (HOLD) - both endpoints ─────────────
-  test("TC17 - Both endpoints: Filter by single status (HOLD)", async ({
+  // ─── TC17: Filter by single status (Hold) - both endpoints ─────────────
+  test("TC17 - Both endpoints: Filter by single status (Hold)", async ({
     request,
   }) => {
-    const payload = { ...validPayload(), statuses: ["HOLD"] };
+    const payload = { ...validPayload(), statuses: ["Hold"] };
 
     const [listRes, countRes] = await Promise.all([
       request.post(API_URL, { headers: getAuthHeaders(), data: payload }),
@@ -421,7 +421,7 @@ test.describe("Find Action Approval List by Conditions API", () => {
   test("TC18 - Both endpoints: Filter by multiple statuses", async ({
     request,
   }) => {
-    const payload = { ...validPayload(), statuses: ["HOLD", "APPROVED"] };
+    const payload = { ...validPayload(), statuses: ["Hold", "Approved"] };
 
     const [listRes, countRes] = await Promise.all([
       request.post(API_URL, { headers: getAuthHeaders(), data: payload }),
@@ -442,7 +442,7 @@ test.describe("Find Action Approval List by Conditions API", () => {
   test("TC19 - Both endpoints: Invalid status value returns 400", async ({
     request,
   }) => {
-    const payload = { ...validPayload(), statuses: ["INVALID_STATUS"] };
+    const payload = { ...validPayload(), statuses: ["Invalid"] };
 
     const [listRes, countRes] = await Promise.all([
       request.post(API_URL, { headers: getAuthHeaders(), data: payload }),
@@ -529,11 +529,11 @@ test.describe("Find Action Approval List by Conditions API", () => {
       merchantCampaignNo: [],
       partnerAccountNo: [],
       partnerSiteNo: [],
-      periodBase: "MONTH",
+      periodBase: "CONVERSION_DATE",
       fromMonth: "2026-05-01",
       toMonth: "2026-08-26",
       countryCode: "ID",
-      statuses: ["REJECTED", "HOLD"],
+      statuses: ["Rejected", "Hold"],
     };
 
     const [listRes, countRes] = await Promise.all([
@@ -634,11 +634,11 @@ test.describe("Find Action Approval List by Conditions API", () => {
       merchantCampaignNo: [],
       partnerAccountNo: [],
       partnerSiteNo: [],
-      periodBase: "MONTH",
+      periodBase: "CONVERSION_DATE",
       fromMonth: "2026-08-01",
       toMonth: "2026-08-26",
       countryCode: "ID",
-      statuses: ["APPROVED"],
+      statuses: ["Approved"],
     };
 
     const [listRes, countRes] = await Promise.all([
@@ -684,8 +684,8 @@ test.describe("Find Action Approval List by Conditions API", () => {
       ]);
 
       if (listRes && countRes) {
-        expect([200, 408, 504, 500, 503]).toContain(listRes.status());
-        expect([200, 408, 504, 500, 503]).toContain(countRes.status());
+        expect([408, 504, 500, 503]).toContain(listRes.status());
+        expect([408, 504, 500, 503]).toContain(countRes.status());
       }
     } catch (error: any) {
       expect(error.message).toMatch(
