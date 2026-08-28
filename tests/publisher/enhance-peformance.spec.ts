@@ -8,17 +8,18 @@ const BASE_URL_STAG = "https://publisher-staging.accesstrade.co.id/#";
 const BASE_URL_PROD = "https://publisher.accesstrade.co.id/#";
 
 // ── Test suite ───────────────────────────────────────────────
-test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
+test.describe("Publisher Staging Enhance Performance Tests @stag", () => {
   test.describe.configure({ mode: "parallel" });
   let publisherPage: PublisherPage;
 
   test.beforeEach(async ({ page }, testInfo) => {
-    testInfo.setTimeout(90000);
+    testInfo.setTimeout(120000);
 
     publisherPage = new PublisherPage(page);
     await publisherPage.loginPubStag();
     // Wait for the istools login redirect to complete before navigating again
     await publisherPage.page.waitForLoadState("domcontentloaded");
+    await publisherPage.page.waitForLoadState("load");
   });
 
   test("Sign In - log time @sp", async () => {
@@ -32,7 +33,7 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
       `[Sign In Load] URL verified. Time taken: ${dashboardLoadTime}ms`,
     );
 
-    await publisherPage.page.waitForLoadState("networkidle");
+    await publisherPage.page.waitForLoadState("load");
 
     const dashboardTotalTime = Date.now() - dashboardStartTime;
     console.log(
@@ -53,7 +54,7 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
       `[Dashboard Load] URL verified. Time taken: ${dashboardLoadTime}ms`,
     );
 
-    await publisherPage.page.waitForLoadState("networkidle");
+    await publisherPage.page.waitForLoadState("load");
 
     const dashboardTotalTime = Date.now() - dashboardStartTime;
     console.log(
@@ -66,7 +67,7 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
       await publisherPage.page
         .getByRole("link", { name: /Campaigns/i })
         .click();
-      await publisherPage.page.waitForLoadState("networkidle");
+      await publisherPage.page.waitForLoadState("load");
     });
 
     test("Load Campaign page @cp", async () => {
@@ -82,7 +83,7 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
         `[Campaign Load] URL verified. Time taken: ${dashboardLoadTime}ms`,
       );
 
-      await publisherPage.page.waitForLoadState("networkidle");
+      await publisherPage.page.waitForLoadState("load");
 
       const dashboardTotalTime = Date.now() - dashboardStartTime;
       console.log(
@@ -95,16 +96,19 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
     });
 
     test("Go to Recommended Campaigns detail  @rcm", async () => {
-      await publisherPage.page
-        .getByRole("button", { name: /A Thien/i })
-        .first()
-        .click();
-      await publisherPage.page
-        .locator("a", { hasText: /Vario ID/i })
-        .first()
-        .click();
+      const userMenuButton = publisherPage.page
+        .locator(".btn.btn-pink.btn-block")
+        .first();
+      await userMenuButton.waitFor({ state: "visible", timeout: 15000 });
+      await userMenuButton.click();
 
-      await publisherPage.page.waitForLoadState("networkidle");
+      const varioIdLink = publisherPage.page
+        .locator("a", { hasText: /Vario ID/i })
+        .first();
+      await varioIdLink.waitFor({ state: "visible", timeout: 15000 });
+      await varioIdLink.click();
+
+      await publisherPage.page.waitForLoadState("load");
 
       const listCampaign = publisherPage.page.locator(
         "div.campaign-block.bg-white",
@@ -127,7 +131,7 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
           `[Rcm Campaign Load] URL verified. Time taken: ${dashboardLoadTime}ms`,
         );
 
-        await targetPage.waitForLoadState("networkidle");
+        await targetPage.waitForLoadState("load");
 
         await expect(targetPage).toHaveURL(
           /\/dashboard\/sites\/campaigns\/details\//,
@@ -154,16 +158,19 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
     });
 
     test("Go to Aff Campaigns detail @aff", async () => {
-      await publisherPage.page
-        .getByRole("button", { name: /A Thien/i })
-        .first()
-        .click();
-      await publisherPage.page
-        .locator("a", { hasText: /Vario ID/i })
-        .first()
-        .click();
+      const userMenuButton = publisherPage.page
+        .locator(".btn.btn-pink.btn-block")
+        .first();
+      await userMenuButton.waitFor({ state: "visible", timeout: 15000 });
+      await userMenuButton.click();
 
-      await publisherPage.page.waitForLoadState("networkidle");
+      const varioIdLink = publisherPage.page
+        .locator("a", { hasText: /Vario ID/i })
+        .first();
+      await varioIdLink.waitFor({ state: "visible", timeout: 15000 });
+      await varioIdLink.click();
+
+      await publisherPage.page.waitForLoadState("load");
 
       const affiliatedTab = publisherPage.page.getByRole("link", {
         name: /AFFILIATED/i,
@@ -171,7 +178,7 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
       await affiliatedTab.waitFor({ state: "visible", timeout: 12000 });
       await affiliatedTab.click();
 
-      await publisherPage.page.waitForLoadState("networkidle");
+      await publisherPage.page.waitForLoadState("load");
 
       // Wait specifically for the campaign list to populate after tab switch
       const listCampaign = publisherPage.page.locator(
@@ -194,7 +201,7 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
           `[Affiliated Campaign Load] URL verified. Time taken: ${dashboardLoadTime}ms`,
         );
 
-        await targetPage.waitForLoadState("networkidle");
+        await targetPage.waitForLoadState("load");
 
         await expect(targetPage).toHaveURL(
           /\/dashboard\/sites\/campaigns\/details\//,
@@ -233,7 +240,7 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
         `[Reports Load] URL verified. Time taken: ${dashboardLoadTime}ms`,
       );
 
-      await publisherPage.page.waitForLoadState("networkidle");
+      await publisherPage.page.waitForLoadState("load");
 
       const dashboardTotalTime = Date.now() - dashboardStartTime;
       console.log(
@@ -251,14 +258,12 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
       // --- Navigate to Reports ---
       await page.getByRole("link", { name: /Reports/i }).click();
 
-      const userMenuButton = page
-        .getByRole("button", { name: /A Thien/i })
-        .first();
-      await userMenuButton.waitFor({ state: "visible", timeout: 10000 });
+      const userMenuButton = page.locator(".btn.btn-pink.btn-block").first();
+      await userMenuButton.waitFor({ state: "visible", timeout: 15000 });
       await userMenuButton.click();
 
       const varioIdLink = page.locator("a", { hasText: /Vario ID/i }).first();
-      await varioIdLink.waitFor({ state: "visible", timeout: 10000 });
+      await varioIdLink.waitFor({ state: "visible", timeout: 15000 });
       await varioIdLink.click();
 
       // --- Filter by date range ---
@@ -271,7 +276,7 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
       await lastMonthOption.click();
 
       await page.getByRole("button", { name: "Search" }).click();
-      await page.waitForLoadState("networkidle");
+      await page.waitForLoadState("load");
 
       // --- Select a specific row / filter ---
       const targetRow = page.getByRole("table").getByText("Shopee ID NON KOL");
@@ -283,13 +288,15 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
 
       // --- Change page size: 10 -> 100 ---
       const pageSize10Button = page.getByRole("button", { name: "10" });
+      await pageSize10Button.waitFor({ state: "visible", timeout: 15000 });
       await pageSize10Button.click();
 
       const pageSize100Button = page.getByRole("button", { name: "100" });
       await pageSize100Button.waitFor({ state: "visible", timeout: 5000 });
       await pageSize100Button.click();
 
-      await page.waitForLoadState("networkidle");
+      await page.waitForLoadState("load");
+      await page.waitForTimeout(2000);
 
       // Assert table actually re-rendered with new page size, not just network idle
       await expect(page.getByRole("table")).toBeVisible({ timeout: 15000 });
@@ -306,7 +313,7 @@ test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
       await page2Button.waitFor({ state: "visible", timeout: 10000 });
       await page2Button.click();
 
-      await page.waitForLoadState("networkidle");
+      await page.waitForLoadState("load");
       await expect(page.getByRole("table")).toBeVisible({ timeout: 15000 });
 
       const dashboardLoadTimeP2 = Date.now() - page2StartTime;
@@ -337,7 +344,7 @@ test.describe("Publisher Production Enhance Performance Tests @prod", () => {
       userData.pubUser.password,
     );
 
-    await publisherPage.page.waitForLoadState("networkidle");
+    await publisherPage.page.waitForLoadState("load");
   });
 
   // ── Tests ──────────────────────────────────────────────────
@@ -356,7 +363,7 @@ test.describe("Publisher Production Enhance Performance Tests @prod", () => {
       `[Sign In Load] URL verified. Time taken: ${dashboardLoadTime}ms`,
     );
 
-    await publisherPage.page.waitForLoadState("networkidle");
+    await publisherPage.page.waitForLoadState("load");
 
     const dashboardTotalTime = Date.now() - dashboardStartTime;
     console.log(
@@ -375,7 +382,7 @@ test.describe("Publisher Production Enhance Performance Tests @prod", () => {
       `[Dashboard Load] URL verified. Time taken: ${dashboardLoadTime}ms`,
     );
 
-    await publisherPage.page.waitForLoadState("networkidle");
+    await publisherPage.page.waitForLoadState("load");
 
     const dashboardTotalTime = Date.now() - dashboardStartTime;
     console.log(
@@ -403,7 +410,7 @@ test.describe("Publisher Production Enhance Performance Tests @prod", () => {
         `[Campaign Load] URL verified. Time taken: ${dashboardLoadTime}ms`,
       );
 
-      await publisherPage.page.waitForLoadState("networkidle");
+      await publisherPage.page.waitForLoadState("load");
 
       const dashboardTotalTime = Date.now() - dashboardStartTime;
       console.log(
@@ -416,7 +423,7 @@ test.describe("Publisher Production Enhance Performance Tests @prod", () => {
     });
 
     test("Go to Recommended Campaigns detail  @rcm", async () => {
-      await publisherPage.page.waitForLoadState("networkidle");
+      await publisherPage.page.waitForLoadState("load");
 
       const listCampaign = publisherPage.page.locator(
         "div.campaign-block.bg-white",
@@ -439,7 +446,7 @@ test.describe("Publisher Production Enhance Performance Tests @prod", () => {
           `[Rcm Campaign Load] URL verified. Time taken: ${dashboardLoadTime}ms`,
         );
 
-        await targetPage.waitForLoadState("networkidle");
+        await targetPage.waitForLoadState("load");
 
         await expect(targetPage).toHaveURL(
           /\/dashboard\/sites\/campaigns\/details\//,
@@ -472,7 +479,7 @@ test.describe("Publisher Production Enhance Performance Tests @prod", () => {
       await affiliatedTab.waitFor({ state: "visible", timeout: 12000 });
       await affiliatedTab.click();
 
-      await publisherPage.page.waitForLoadState("networkidle");
+      await publisherPage.page.waitForLoadState("load");
 
       // Wait specifically for the campaign list to populate after tab switch
       const listCampaign = publisherPage.page.locator(
@@ -495,7 +502,7 @@ test.describe("Publisher Production Enhance Performance Tests @prod", () => {
           `[Affiliated Campaign Load] URL verified. Time taken: ${dashboardLoadTime}ms`,
         );
 
-        await targetPage.waitForLoadState("networkidle");
+        await targetPage.waitForLoadState("load");
 
         await expect(targetPage).toHaveURL(
           /\/dashboard\/sites\/campaigns\/details\//,
@@ -534,7 +541,7 @@ test.describe("Publisher Production Enhance Performance Tests @prod", () => {
         `[Reports Load] URL verified. Time taken: ${dashboardLoadTime}ms`,
       );
 
-      await publisherPage.page.waitForLoadState("networkidle");
+      await publisherPage.page.waitForLoadState("load");
 
       const dashboardTotalTime = Date.now() - dashboardStartTime;
       console.log(

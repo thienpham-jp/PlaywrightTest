@@ -13,16 +13,27 @@ export class PublisherPage extends IstoolsPage {
 
     try {
       await page.goto(loginUrl, {
-        waitUntil: "domcontentloaded",
-        timeout: 90000,
+        waitUntil: "commit",
+        timeout: 60000,
       });
     } catch (error) {
-      console.error("❌ Failed to navigate to partner portal:", error);
+      const errorMsg = (error as Error).message;
+      console.error("❌ Failed to navigate to partner portal:", errorMsg);
+
+      // If it's a network/timeout issue, throw a specific error for graceful handling
+      if (errorMsg.includes("Timeout") || errorMsg.includes("net::ERR_")) {
+        const skipError = new Error(
+          `Staging server unavailable or too slow: ${errorMsg}`,
+        );
+        (skipError as any).isNetworkError = true;
+        throw skipError;
+      }
+
       throw error;
     }
 
     try {
-      await page.waitForURL("**/dashboard**", { timeout: 90000 });
+      await page.waitForURL("**/dashboard**", { timeout: 60000 });
     } catch (error) {
       console.error("❌ Failed to reach dashboard:", error);
       console.log("📸 Current URL:", page.url());
@@ -36,7 +47,7 @@ export class PublisherPage extends IstoolsPage {
 
     try {
       await page.goto(signInUrl, {
-        waitUntil: "networkidle",
+        waitUntil: "load",
         timeout: 60000,
       });
     } catch (error) {
@@ -49,7 +60,7 @@ export class PublisherPage extends IstoolsPage {
       await this.fill(this.passwordTextBox, PUB_PASSWORD);
       await this.click(this.signInButton);
 
-      await page.waitForLoadState("networkidle");
+      await page.waitForLoadState("load");
 
       await page.waitForURL("**/dashboard**", { timeout: 60000 });
     } catch (error) {
@@ -65,7 +76,7 @@ export class PublisherPage extends IstoolsPage {
 
     try {
       await page.goto(signInUrl, {
-        waitUntil: "networkidle",
+        waitUntil: "load",
         timeout: 60000,
       });
     } catch (error) {
@@ -78,7 +89,7 @@ export class PublisherPage extends IstoolsPage {
       await this.fill(this.passwordTextBox, password);
       await this.click(this.signInButton);
 
-      await page.waitForLoadState("networkidle");
+      await page.waitForLoadState("load");
 
       await page.waitForURL("**/dashboard**", { timeout: 60000 });
     } catch (error) {
