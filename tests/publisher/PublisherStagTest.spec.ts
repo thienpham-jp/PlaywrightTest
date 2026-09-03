@@ -1162,7 +1162,7 @@ test.describe("Publisher Staging Tests", () => {
       );
 
       try {
-        await targetPage.waitForLoadState("networkidle");
+        await targetPage.waitForLoadState("load");
 
         await expect(targetPage).toHaveURL(
           /\/dashboard\/sites\/campaigns\/details\//,
@@ -1207,7 +1207,8 @@ test.describe("Publisher Staging Tests", () => {
       );
 
       try {
-        await targetPage.waitForLoadState("networkidle");
+        // Use 'load' instead of 'networkidle' as some pages have background requests
+        await targetPage.waitForLoadState("load");
 
         // FIX: replaced fragile escaped BASE_URL regex with a simple path pattern
         await expect(targetPage).toHaveURL(
@@ -1245,7 +1246,7 @@ test.describe("Publisher Staging Tests", () => {
           return;
         }
 
-        await targetPage.waitForLoadState("networkidle");
+        await targetPage.waitForLoadState("load");
 
         const acceptedURLItem = targetPage
           .locator("li.url.ng-star-inserted")
@@ -1308,7 +1309,7 @@ test.describe("Publisher Staging Tests", () => {
 
         await generateButton.click();
 
-        await targetPage.waitForLoadState("networkidle");
+        await targetPage.waitForLoadState("load");
 
         const error = targetPage.getByText("info URL is not valid, please");
         const errorVisible = await error
