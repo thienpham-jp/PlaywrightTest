@@ -57,6 +57,7 @@ test.describe("Find Action Approval List by Conditions API", () => {
    * TC26: Filter identifier
    * TC27: Combined filters (AND logic)
    * TC28: API connection failure or response timeout exceeding configured limit
+   * TC29: Large dataset without filters (special test)
    */
 
   // ─── TC01: Valid payload - both endpoints ──────────────────────────────────────
@@ -692,5 +693,35 @@ test.describe("Find Action Approval List by Conditions API", () => {
         /timeout|timed out|ETIMEDOUT|ECONNREFUSED|ENOTFOUND|connection/i,
       );
     }
+  });
+
+  // ─── TC29: Large dataset without filters - both endpoints (special test) ───────
+  test.skip("TC29 - Both endpoints: Load with approximate 1 million records", async ({
+    request,
+  }) => {
+    const payload = {
+      identifier: [],
+      conversionId: [],
+      merchantAccountNo: [],
+      merchantCampaignNo: [],
+      partnerAccountNo: [],
+      partnerSiteNo: [],
+      periodBase: "CONVERSION_DATE",
+      fromMonth: "2026-01-01",
+      toMonth: "2026-08-26",
+      countryCode: "ID",
+      statuses: ["New", "Hold"],
+    };
+
+    const [listRes, countRes] = await Promise.all([
+      request.post(API_URL, { headers: getAuthHeaders(), data: payload }),
+      request.post(API_URL_2, { headers: getAuthHeaders(), data: payload }),
+    ]);
+
+    await logResponse(listRes);
+    await logResponse(countRes);
+
+    expect(listRes.status()).toBe(504);
+    expect(countRes.status()).toBe(504);
   });
 });

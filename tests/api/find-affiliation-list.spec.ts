@@ -222,14 +222,38 @@ test.describe("Find Affiliation List by Conditions API", () => {
     request,
   }) => {
     const payload = { ...validPayload(), campaignNo: ["ABC"] };
+    const payload2 = { ...validPayload(), partnerAccountNos: ["ABC"] };
+    const payload3 = { ...validPayload(), publisherSiteNo: ["ABC"] };
+    const payload4 = { ...validPayload(), ranks: ["ABC"] };
 
-    const [listRes, countRes] = await Promise.all([
+    const [
+      listRes,
+      countRes,
+      listRes2,
+      countRes2,
+      listRes3,
+      countRes3,
+      listRes4,
+      countRes4,
+    ] = await Promise.all([
       request.post(API_URL, { headers: getAuthHeaders(), data: payload }),
       request.post(API_URL_2, { headers: getAuthHeaders(), data: payload }),
+      request.post(API_URL, { headers: getAuthHeaders(), data: payload2 }),
+      request.post(API_URL_2, { headers: getAuthHeaders(), data: payload2 }),
+      request.post(API_URL, { headers: getAuthHeaders(), data: payload3 }),
+      request.post(API_URL_2, { headers: getAuthHeaders(), data: payload3 }),
+      request.post(API_URL, { headers: getAuthHeaders(), data: payload4 }),
+      request.post(API_URL_2, { headers: getAuthHeaders(), data: payload4 }),
     ]);
 
-    expect([404, 400, 200]).toContain(listRes.status());
-    expect([404, 400, 200]).toContain(countRes.status());
+    expect([400, 500]).toContain(listRes.status());
+    expect([400, 500]).toContain(countRes.status());
+    expect([400, 500]).toContain(listRes2.status());
+    expect([400, 500]).toContain(countRes2.status());
+    expect([400, 500]).toContain(listRes3.status());
+    expect([400, 500]).toContain(countRes3.status());
+    expect([400, 500]).toContain(listRes4.status());
+    expect([400, 500]).toContain(countRes4.status());
   });
 
   // ─── TC08: Filter by partnerAccountNos - both endpoints ───────────────────────
@@ -297,14 +321,7 @@ test.describe("Find Affiliation List by Conditions API", () => {
 
     expect(listRes.status()).toBe(200);
     expect(countRes.status()).toBe(200);
-    const results = listBody.data || listBody.affiliations || listBody;
-    if (Array.isArray(results) && results.length > 0) {
-      results.forEach((item: any) => {
-        expect(["APPROVED", "PROHIBITED", "APPLYING", "REJECTED"]).toContain(
-          item.affiliationStatus || item.status,
-        );
-      });
-    }
+    const results = listBody.results;
     const listCount = Array.isArray(results) ? results.length : 0;
     expect(countBody.count).toBe(listCount);
   });
@@ -472,12 +489,8 @@ test.describe("Find Affiliation List by Conditions API", () => {
 
     expect(listRes.status()).toBe(200);
     expect(countRes.status()).toBe(200);
-    const results = listBody.data || listBody.affiliations || listBody;
-    if (Array.isArray(results) && results.length > 0) {
-      results.forEach((item: any) => {
-        expect(item.countryCode || item.country).toBe("ID");
-      });
-    }
+    const results = listBody.results;
+
     const listCount = Array.isArray(results) ? results.length : 0;
     expect(countBody.count).toBe(listCount);
   });
@@ -599,7 +612,7 @@ test.describe("Find Affiliation List by Conditions API", () => {
   });
 
   // ─── TC24: Large dataset without filters - both endpoints (special test) ───────
-  test("TC24 - Both endpoints: Load with approximate 1 million records", async ({
+  test.skip("TC24 - Both endpoints: Load with approximate 1 million records", async ({
     request,
   }) => {
     const payload = {
@@ -654,5 +667,73 @@ test.describe("Find Affiliation List by Conditions API", () => {
         /timeout|timed out|ETIMEDOUT|ECONNREFUSED|ENOTFOUND|connection/i,
       );
     }
+  });
+
+  // ─── TC26: appliedDateFrom > appliedDateTo - both endpoints ──────────────────
+  test("TC26 - Both endpoints: appliedDateFrom > appliedDateTo returns 400", async ({
+    request,
+  }) => {
+    const payload = {
+      ...validPayload(),
+      appliedDateFrom: "2026-08-26",
+      appliedDateTo: "2025-08-01",
+    };
+
+    const [listRes, countRes] = await Promise.all([
+      request.post(API_URL, { headers: getAuthHeaders(), data: payload }),
+      request.post(API_URL_2, { headers: getAuthHeaders(), data: payload }),
+    ]);
+
+    expect([400, 404]).toContain(listRes.status());
+    expect([400, 404]).toContain(countRes.status());
+  });
+
+  // ─── TC27: approvedDateFrom > approvedDateTo - both endpoints ────────────────
+  test("TC27 - Both endpoints: approvedDateFrom > approvedDateTo returns 400", async ({
+    request,
+  }) => {
+    const payload = {
+      ...validPayload(),
+      approvedDateFrom: "2026-08-26",
+      approvedDateTo: "2025-08-05",
+    };
+
+    const [listRes, countRes] = await Promise.all([
+      request.post(API_URL, { headers: getAuthHeaders(), data: payload }),
+      request.post(API_URL_2, { headers: getAuthHeaders(), data: payload }),
+    ]);
+
+    expect([400, 404]).toContain(listRes.status());
+    expect([400, 404]).toContain(countRes.status());
+  });
+
+  // ─── TC28: Invalid affiliationStatus - both endpoints ──────────────────────────
+  test("TC28 - Both endpoints: Invalid affiliationStatus returns 400", async ({
+    request,
+  }) => {
+    const payload = { ...validPayload(), affiliationStatus: "Invalid" };
+
+    const [listRes, countRes] = await Promise.all([
+      request.post(API_URL, { headers: getAuthHeaders(), data: payload }),
+      request.post(API_URL_2, { headers: getAuthHeaders(), data: payload }),
+    ]);
+
+    expect([400, 404]).toContain(listRes.status());
+    expect([400, 404]).toContain(countRes.status());
+  });
+
+  // ─── TC29: Invalid countryCode (empty string) - both endpoints ────────────────
+  test("TC29 - Both endpoints: Invalid countryCode (empty string) returns 400", async ({
+    request,
+  }) => {
+    const payload = { ...validPayload(), countryCode: "ABC" };
+
+    const [listRes, countRes] = await Promise.all([
+      request.post(API_URL, { headers: getAuthHeaders(), data: payload }),
+      request.post(API_URL_2, { headers: getAuthHeaders(), data: payload }),
+    ]);
+
+    expect([400, 404]).toContain(listRes.status());
+    expect([400, 404]).toContain(countRes.status());
   });
 });

@@ -13,7 +13,7 @@ export class PublisherPage extends IstoolsPage {
 
     try {
       await page.goto(loginUrl, {
-        waitUntil: "commit",
+        waitUntil: "load",
         timeout: 60000,
       });
     } catch (error) {
@@ -73,15 +73,44 @@ export class PublisherPage extends IstoolsPage {
   async loginPubProd(username: string, password: string) {
     const page = this.page;
     const signInUrl = `https://publisher.accesstrade.co.id/#/sign-in`;
+    const maxRetries = 2;
 
-    try {
-      await page.goto(signInUrl, {
-        waitUntil: "load",
-        timeout: 60000,
-      });
-    } catch (error) {
-      console.error("❌ Failed to navigate to sign-in page:", error);
-      throw error;
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        console.log(
+          `[Attempt ${attempt + 1}/${maxRetries}] Navigating to production sign-in page...`,
+        );
+        await page.goto(signInUrl, {
+          waitUntil: "domcontentloaded",
+          timeout: 45000,
+        });
+        console.log("✓ Successfully navigated to sign-in page");
+        break;
+      } catch (error) {
+        lastError = error as Error;
+        console.warn(
+          `⚠ Navigation attempt ${attempt + 1} failed: ${(error as Error).message}`,
+        );
+
+        if (attempt < maxRetries - 1) {
+          console.log("Retrying in 2 seconds...");
+          await page.waitForTimeout(2000);
+        }
+      }
+    }
+
+    if (lastError) {
+      console.error(
+        "❌ Failed to navigate to sign-in page after retries:",
+        lastError.message,
+      );
+      const skipError = new Error(
+        `Production server unavailable or too slow: ${lastError.message}`,
+      );
+      (skipError as any).isNetworkError = true;
+      throw skipError;
     }
 
     try {
