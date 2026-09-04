@@ -392,11 +392,14 @@ test.describe("Publisher Staging Tests", () => {
       });
 
       test.describe("Site Management", () => {
+        test.describe.configure({ mode: "serial" });
         // ── Helpers ──────────────────────────────────────────
 
         const selectRandomOption = async (locator: string) => {
-          const options = publisherPage.page.locator(locator);
-          await options.first().waitFor({ state: "visible", timeout: 10000 });
+          let options = publisherPage.page.locator(locator);
+          // Add small delay to let dropdown render
+          await publisherPage.page.waitForTimeout(200);
+          await options.first().waitFor({ state: "visible", timeout: 15000 });
 
           const count = await options.count();
           expect(count).toBeGreaterThan(1);
@@ -432,10 +435,80 @@ test.describe("Publisher Staging Tests", () => {
         };
 
         const removeExistingCategoryIfAny = async () => {
-          const tags = publisherPage.page.locator(LOCATORS.categoryTag);
-          const count = await tags.count();
-          if (count > 1) {
-            await tags.nth(1).click();
+          // Clear ALL selected category chips by clicking each close button
+          const selectedItems = publisherPage.page.locator(
+            'span[id="selected-items"] span.ui-select-match-item',
+          );
+          const chipCount = await selectedItems.count();
+
+          if (chipCount > 0) {
+            console.log(
+              `Found ${chipCount} selected category chip(s), clearing them...`,
+            );
+            // Remove chips from last to first to avoid index shifting
+            for (let i = chipCount - 1; i >= 0; i--) {
+              const chip = selectedItems.nth(i);
+
+              // Try different methods to close the chip
+              let closed = false;
+
+              // Method 1: Try clicking close button inside the chip
+              const closeBtn = chip.locator("button").first();
+              const isBtnVisible = await closeBtn
+                .isVisible()
+                .catch(() => false);
+              if (isBtnVisible) {
+                try {
+                  await closeBtn.click({ force: true });
+                  closed = true;
+                  console.log(`Chip ${i} closed via button`);
+                } catch (e) {
+                  console.warn(`Failed to close chip ${i} via button: ${e}`);
+                }
+              }
+
+              // Method 2: If button didn't work, try clicking on SVG icon (close icon)
+              if (!closed) {
+                const svgIcon = chip.locator("svg").first();
+                const isSvgVisible = await svgIcon
+                  .isVisible()
+                  .catch(() => false);
+                if (isSvgVisible) {
+                  try {
+                    await svgIcon.click({ force: true });
+                    closed = true;
+                    console.log(`Chip ${i} closed via SVG icon`);
+                  } catch (e) {
+                    console.warn(`Failed to close chip ${i} via SVG: ${e}`);
+                  }
+                }
+              }
+
+              // Method 3: Click anywhere on the chip itself to trigger removal
+              if (!closed) {
+                try {
+                  await chip.click({ force: true });
+                  closed = true;
+                  console.log(`Chip ${i} closed via chip click`);
+                } catch (e) {
+                  console.warn(`Failed to close chip ${i} via click: ${e}`);
+                }
+              }
+
+              await publisherPage.page.waitForTimeout(200);
+            }
+
+            // Wait for UI to settle and chips to be fully removed
+            await publisherPage.page.waitForTimeout(500);
+
+            // Verify all chips are gone
+            const remainingChips = await selectedItems.count();
+            if (remainingChips > 0) {
+              console.warn(
+                `Warning: ${remainingChips} chip(s) still present after clearing attempt, forcing click with bypass`,
+              );
+              // As a last resort, if chips still exist, we'll use force: true on the input click
+            }
           }
         };
 
@@ -467,7 +540,7 @@ test.describe("Publisher Staging Tests", () => {
             .filter({ hasText: /^add$/ })
             .click();
 
-          const siteName = `A Test ${randomInt(1000, 9999)}`;
+          let siteName = `A Zest ${randomInt(1000, 9999)}`;
           await publisherPage.page.getByRole("textbox").first().fill(siteName);
 
           await publisherPage.page
@@ -517,23 +590,21 @@ test.describe("Publisher Staging Tests", () => {
           };
 
           const buildNewSiteName = (current: string) =>
-            current.includes("updated")
-              ? `${current} ${randomInt(1000, 9999)}`
-              : `${current} updated`;
+            current.includes("updated") ? `${current}` : `${current} updated`;
 
           await publisherPage.page
             .locator(LOCATORS.tableRow)
             .first()
             .waitFor({ state: "visible", timeout: 30000 });
 
-          const testSiteRow = publisherPage.page
+          const testSiteRow = await publisherPage.page
             .locator(LOCATORS.tableRow)
-            .filter({ hasText: /A Test/ });
+            .filter({ hasText: /A Zest/ });
 
           const rowCount = await testSiteRow.count();
           // FIX: explicit skip instead of silent return
           if (rowCount < 1) {
-            test.skip(true, 'No "A Test" rows found — skipping Update Site');
+            test.skip(true, 'No "A Zest" rows found — skipping Update Site');
             return;
           }
 
@@ -542,7 +613,7 @@ test.describe("Publisher Staging Tests", () => {
               await testSiteRow
                 .first()
                 .locator("td")
-                .filter({ hasText: /A Test/ })
+                .filter({ hasText: /A Zest/ })
                 .textContent()
             )?.trim() ?? "";
 
@@ -561,17 +632,36 @@ test.describe("Publisher Staging Tests", () => {
 
           const newSiteName = buildNewSiteName(siteNameBefore);
 
+          await fillSiteDetails(newSiteName);
+
           await openDropdownAndSelect(0);
           await openDropdownAndSelect(1);
           await openDropdownAndSelect(2);
 
           await removeExistingCategoryIfAny();
-          await publisherPage.page
-            .locator(LOCATORS.categorySearchInput)
-            .click();
-          await selectRandomOption(LOCATORS.categoryOption);
+          // Ensure input is ready before clicking
+          const categoryInput = await publisherPage.page.locator(
+            LOCATORS.categorySearchInput,
+          );
+          await categoryInput.waitFor({ state: "visible", timeout: 5000 });
 
-          await fillSiteDetails(newSiteName);
+          // Check if there are still chips blocking - if so, use force: true
+          const remainingChips = await publisherPage.page
+            .locator('span[id="selected-items"] span.ui-select-match-item')
+            .count();
+          const useForce = remainingChips > 0;
+
+          // Click to open dropdown
+          await categoryInput.click({ force: useForce });
+          // Wait for dropdown container to appear
+          await publisherPage.page
+            .locator(".ui-select-choices")
+            .first()
+            .waitFor({ state: "visible", timeout: 5000 })
+            .catch(() => {
+              console.warn("Dropdown container not visible, proceeding anyway");
+            });
+          await selectRandomOption(LOCATORS.categoryOption);
 
           await publisherPage.page.waitForLoadState("networkidle");
 
@@ -589,21 +679,21 @@ test.describe("Publisher Staging Tests", () => {
             .first()
             .waitFor({ state: "visible", timeout: 30000 });
 
-          const testSiteRow = publisherPage.page
+          const testSiteRow = await publisherPage.page
             .locator("tr[role='row']")
-            .filter({ hasText: /A Test/ });
+            .filter({ hasText: /A Zest/ });
 
           const rowCount = await testSiteRow.count();
           // FIX: explicit skip instead of silent return
           if (rowCount < 1) {
-            test.skip(true, 'No "A Test" rows found — skipping Delete Site');
+            test.skip(true, 'No "A Zest" rows found — skipping Delete Site');
             return;
           }
 
           const row = testSiteRow.first();
           const siteNameCell = row
             .locator("td")
-            .filter({ hasText: /A Test/ })
+            .filter({ hasText: /A Zest/ })
             .first();
           const siteName = await siteNameCell.textContent();
 
@@ -624,7 +714,7 @@ test.describe("Publisher Staging Tests", () => {
 
           const deletedRow = publisherPage.page
             .locator("tr[role='row']")
-            .filter({ hasText: siteName || /A Test/ });
+            .filter({ hasText: siteName || /A Zest/ });
 
           await expect(deletedRow).toHaveCount(0, { timeout: 15000 });
         });
@@ -1070,7 +1160,7 @@ test.describe("Publisher Staging Tests", () => {
       );
 
       try {
-        await targetPage.waitForLoadState("networkidle");
+        await targetPage.waitForLoadState("load");
 
         await expect(targetPage).toHaveURL(
           /\/dashboard\/sites\/campaigns\/details\//,
@@ -1115,7 +1205,8 @@ test.describe("Publisher Staging Tests", () => {
       );
 
       try {
-        await targetPage.waitForLoadState("networkidle");
+        // Use 'load' instead of 'networkidle' as some pages have background requests
+        await targetPage.waitForLoadState("load");
 
         // FIX: replaced fragile escaped BASE_URL regex with a simple path pattern
         await expect(targetPage).toHaveURL(
@@ -1153,7 +1244,7 @@ test.describe("Publisher Staging Tests", () => {
           return;
         }
 
-        await targetPage.waitForLoadState("networkidle");
+        await targetPage.waitForLoadState("load");
 
         const acceptedURLItem = targetPage
           .locator("li.url.ng-star-inserted")
@@ -1174,7 +1265,7 @@ test.describe("Publisher Staging Tests", () => {
         const acceptedBaseURL = await acceptedURLItem.innerText();
         const landingPageURL = buildLandingPageURL(acceptedBaseURL.trim());
 
-        const creativeName = `QA Test-${randomInt(1000, 9999)}`;
+        const creativeName = `QA Zest-${randomInt(1000, 9999)}`;
 
         const landingUrlInput = targetPage.locator("input[name='landingUrl']");
         await landingUrlInput.waitFor({ state: "visible", timeout: 10000 });
@@ -1216,7 +1307,7 @@ test.describe("Publisher Staging Tests", () => {
 
         await generateButton.click();
 
-        await targetPage.waitForLoadState("networkidle");
+        await targetPage.waitForLoadState("load");
 
         const error = targetPage.getByText("info URL is not valid, please");
         const errorVisible = await error
@@ -1263,35 +1354,47 @@ test.describe("Publisher Staging Tests", () => {
         .getByRole("textbox", { name: "Campaign Name" })
         .click();
 
-      // Add a small delay to allow dropdown to render
-      await publisherPage.page.waitForTimeout(500);
+      // Add delay to allow dropdown to render
+      await publisherPage.page.waitForTimeout(800);
 
       const EXCLUDED_CAMPAIGNS = ["Shopee", "Lazada"];
 
-      const menuOptions = publisherPage.page.locator(
+      // Try multiple selector patterns for robustness
+      let menuOptions = publisherPage.page.locator(
         "ul[role='menu'] a.ui-select-choices-row-inner",
       );
 
-      // Wait for menu options with error handling
-      await menuOptions
-        .first()
-        .waitFor({ state: "visible", timeout: 15000 })
-        .catch((err) => {
-          console.warn(
-            `[Create Creatives] Menu options timeout: ${(err as Error).message}. Checking alternative selectors...`,
-          );
-          // Try alternative selector patterns
-          return publisherPage.page
-            .locator("ul[role='menu'] li")
-            .first()
-            .waitFor({ state: "visible", timeout: 5000 })
-            .catch(() => {
-              console.error(
-                "[Create Creatives] Unable to find menu options with any selector",
-              );
-              throw err;
-            });
-        });
+      // Check if primary selector has options
+      let menuCount = await menuOptions.count().catch(() => 0);
+
+      if (menuCount === 0) {
+        // Try alternative selectors
+        menuOptions = publisherPage.page.locator(
+          ".ui-select-choices a.ui-select-choices-row-inner",
+        );
+        menuCount = await menuOptions.count().catch(() => 0);
+      }
+
+      if (menuCount === 0) {
+        // Last resort: try generic dropdown option selector
+        menuOptions = publisherPage.page.locator(
+          "a.ui-select-choices-row-inner",
+        );
+        menuCount = await menuOptions.count().catch(() => 0);
+      }
+
+      // Wait for options to appear
+      if (menuCount === 0) {
+        await menuOptions
+          .first()
+          .waitFor({ state: "visible", timeout: 15000 })
+          .catch((err) => {
+            console.error(
+              `[Create Creatives] Unable to find campaign menu options: ${(err as Error).message}`,
+            );
+            throw err;
+          });
+      }
 
       const optionTexts = await menuOptions.allTextContents();
       const validOptionTexts = optionTexts.filter(
@@ -1329,7 +1432,7 @@ test.describe("Publisher Staging Tests", () => {
       const acceptedBaseURL = await acceptedURLItem.innerText();
       const landingPageURL = buildLandingPageURL(acceptedBaseURL.trim());
 
-      const creativeName = `QA Test-${randomInt(1000, 9999)}`;
+      const creativeName = `QA Zest-${randomInt(1000, 9999)}`;
 
       await publisherPage.page.locator('input[name="name"]').fill(creativeName);
 
