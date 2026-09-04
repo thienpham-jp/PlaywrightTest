@@ -590,9 +590,7 @@ test.describe("Publisher Staging Tests", () => {
           };
 
           const buildNewSiteName = (current: string) =>
-            current.includes("updated")
-              ? `${current} ${randomInt(1000, 9999)}`
-              : `${current} updated`;
+            current.includes("updated") ? `${current}` : `${current} updated`;
 
           await publisherPage.page
             .locator(LOCATORS.tableRow)
@@ -642,7 +640,7 @@ test.describe("Publisher Staging Tests", () => {
 
           await removeExistingCategoryIfAny();
           // Ensure input is ready before clicking
-          const categoryInput = publisherPage.page.locator(
+          const categoryInput = await publisherPage.page.locator(
             LOCATORS.categorySearchInput,
           );
           await categoryInput.waitFor({ state: "visible", timeout: 5000 });
