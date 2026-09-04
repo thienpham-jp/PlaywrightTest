@@ -46,7 +46,7 @@ export class BasePage {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         await this.page.goto(url, {
-          waitUntil: "domcontentloaded",
+          waitUntil: "load",
           timeout: 30000,
         });
         console.log(`✓ Navigation to ${url} successful on attempt ${attempt}`);
