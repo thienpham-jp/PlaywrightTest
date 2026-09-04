@@ -64,6 +64,11 @@ test.describe("Find Affiliation List by Conditions API", () => {
    * TC23: Non-matching filters (count=0)
    * TC24: Large dataset (1 million records)
    * TC25: API connection failure or timeout exceeding configured limit
+   * TC26: Filter by multiple publisherSiteNo values
+   * TC27: Filter by multiple campaignNo values
+   * TC28: Filter by multiple partnerAccountNos values
+   * TC29: Invalid countryCode (ABC)
+   * TC30: payload with null and zero values returns 400
    */
 
   // ─── TC01: Valid payload - both endpoints ──────────────────────────────────────
@@ -218,7 +223,7 @@ test.describe("Find Affiliation List by Conditions API", () => {
   });
 
   // ─── TC07: Filter by campaignNo non-numeric - both endpoints ────────────────────
-  test("TC07 - Both endpoints: Non-numeric campaignNo returns 404", async ({
+  test("TC07 - Both endpoints: Non-numeric campaignNo returns 500", async ({
     request,
   }) => {
     const payload = { ...validPayload(), campaignNo: ["ABC"] };
@@ -722,11 +727,34 @@ test.describe("Find Affiliation List by Conditions API", () => {
     expect([400, 404]).toContain(countRes.status());
   });
 
-  // ─── TC29: Invalid countryCode (empty string) - both endpoints ────────────────
-  test("TC29 - Both endpoints: Invalid countryCode (empty string) returns 400", async ({
+  // ─── TC29: Invalid countryCode (ABC) - both endpoints ────────────────
+  test("TC29 - Both endpoints: Invalid countryCode (ABC) returns 400", async ({
     request,
   }) => {
     const payload = { ...validPayload(), countryCode: "ABC" };
+
+    const [listRes, countRes] = await Promise.all([
+      request.post(API_URL, { headers: getAuthHeaders(), data: payload }),
+      request.post(API_URL_2, { headers: getAuthHeaders(), data: payload }),
+    ]);
+
+    expect([400, 404]).toContain(listRes.status());
+    expect([400, 404]).toContain(countRes.status());
+  });
+
+  // ─── TC30: payload with null and zero values - both endpoints ────────────────
+  test("TC30 - Both endpoints: payload with null and zero values returns 400", async ({
+    request,
+  }) => {
+    const payload = {
+      countryCode: null,
+      publisherSiteNo: [0],
+      campaignNo: [0],
+      partnerAccountNos: [0],
+      ranks: [0],
+      affiliationStatus: null,
+      keyword: null,
+    };
 
     const [listRes, countRes] = await Promise.all([
       request.post(API_URL, { headers: getAuthHeaders(), data: payload }),
