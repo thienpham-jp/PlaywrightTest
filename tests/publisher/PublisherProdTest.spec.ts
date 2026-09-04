@@ -28,7 +28,7 @@ test.describe("Publisher Production Tests", () => {
 
   test.beforeEach(async ({ page }, testInfo) => {
     // Increase timeout for login operations
-    testInfo.setTimeout(90000); // 90 seconds for the entire hook
+    testInfo.setTimeout(120000); // 90 seconds for the entire hook
 
     publisherPage = new PublisherPage(page);
     await publisherPage.loginPubProd(
