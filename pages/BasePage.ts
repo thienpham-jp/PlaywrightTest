@@ -74,7 +74,7 @@ export class BasePage {
             `⚠ Navigation attempt ${attempt} failed: ${errorMessage}`,
           );
           console.log(
-            `  Retrying in ${delayMs}ms... (attempt ${attempt + 1}/${maxRetries})`,
+            `Retrying in ${delayMs}ms... (attempt ${attempt + 1}/${maxRetries})`,
           );
           await this.page.waitForTimeout(delayMs);
         } else {
