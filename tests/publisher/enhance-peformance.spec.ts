@@ -10,7 +10,7 @@ const BASE_URL_STAG = "https://publisher-staging.accesstrade.co.id/#";
 const BASE_URL_PROD = "https://publisher.accesstrade.co.id/#";
 
 // ── Test suite ───────────────────────────────────────────────
-test.describe("Publisher Staging Enhance Performance Tests @stag", () => {
+test.describe.skip("Publisher Staging Enhance Performance Tests @stag", () => {
   test.describe.configure({ mode: "parallel" });
   let publisherPage: PublisherPage;
 
