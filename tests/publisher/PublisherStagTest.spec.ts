@@ -13,6 +13,8 @@ import {
   randomString,
   randomURL,
 } from "../../src/helpers/function-helper";
+import * as fs from "fs";
+import * as path from "path";
 
 // ── Publisher config ─────────────────────────────────────────
 const PAN = "84255";
@@ -1564,6 +1566,68 @@ test.describe("Publisher Staging Tests", () => {
 
       const text = await conversion.textContent();
       expect(text?.trim()).toBe("Conversion");
+    });
+
+    test("Download Conversion Report", async ({}) => {
+      const page = publisherPage.page;
+
+      // --- Navigate to Reports ---
+      await page.getByRole("link", { name: /Reports/i }).click();
+
+      const userMenuButton = page.locator(".btn.btn-pink.btn-block").first();
+      await userMenuButton.waitFor({ state: "visible", timeout: 15000 });
+      await userMenuButton.click();
+
+      // --- Filter by date range ---
+      await page.getByRole("textbox").click();
+
+      const lastMonthOption = page
+        .getByRole("listitem")
+        .filter({ hasText: "Last Month" });
+      await lastMonthOption.waitFor({ state: "visible", timeout: 10000 });
+      await lastMonthOption.click();
+
+      await page.getByRole("button", { name: "Search" }).click();
+      await page.waitForLoadState("networkidle");
+
+      // Ensure the download button is actually ready before we arm the listener
+      const downloadButton = page
+        .getByRole("button", { name: "download", exact: true })
+        .first();
+      await downloadButton.waitFor({ state: "visible", timeout: 15000 });
+
+      // --- Download file with specified location ---
+      const downloadStartTime = Date.now();
+      console.log(`[Download Report] Starting file download...`);
+
+      // IMPORTANT: register the listener WITHOUT awaiting it first,
+      // then trigger the action, THEN await the promise.
+      const downloadPromise = page.waitForEvent("download", {
+        timeout: 30000,
+      });
+      await downloadButton.click();
+      const download = await downloadPromise;
+
+      // Ensure the target directory exists before saving
+      const downloadDir = path.resolve("./downloads");
+      fs.mkdirSync(downloadDir, { recursive: true });
+
+      const downloadPath = path.join(downloadDir, download.suggestedFilename());
+      await download.saveAs(downloadPath);
+
+      const downloadTime = Date.now() - downloadStartTime;
+      console.log(
+        `[Download Report] File downloaded successfully to ${downloadPath}. Time taken: ${downloadTime}ms`,
+      );
+
+      // Await the resolved path before asserting; also verify the file
+      // actually exists on disk with non-zero size, not just that Playwright
+      // returned a path string.
+      const resolvedPath = await download.path();
+      expect(resolvedPath).toBeTruthy();
+
+      const stats = fs.statSync(downloadPath);
+      expect(stats.size).toBeGreaterThan(0);
     });
   });
 });
