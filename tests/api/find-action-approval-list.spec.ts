@@ -200,7 +200,7 @@ test.describe.skip("Find Action Approval List by Conditions API", () => {
   test("TC07 - Both endpoints: Filter by merchantAccountNo", async ({
     request,
   }) => {
-    const payload = { ...validPayload(), merchantAccountNo: [452] };
+    const payload = { ...validPayload(), merchantAccountNo: [1030] };
 
     const [listRes, countRes] = await Promise.all([
       request.post(API_URL, { headers: getAuthHeaders(), data: payload }),
