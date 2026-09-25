@@ -11,3 +11,4 @@ node_modules/
 /playwright/.auth/
 README-readonly.md
 src/helpers/users.json
+/downloads/

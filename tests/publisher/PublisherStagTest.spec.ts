@@ -1620,11 +1620,8 @@ test.describe("Publisher Staging Tests", () => {
         `[Download Report] File downloaded successfully to ${downloadPath}. Time taken: ${downloadTime}ms`,
       );
 
-      // Await the resolved path before asserting; also verify the file
-      // actually exists on disk with non-zero size, not just that Playwright
-      // returned a path string.
-      const resolvedPath = await download.path();
-      expect(resolvedPath).toBeTruthy();
+      // File is already saved via saveAs(), just verify it exists on disk with non-zero size
+      expect(fs.existsSync(downloadPath)).toBeTruthy();
 
       const stats = fs.statSync(downloadPath);
       expect(stats.size).toBeGreaterThan(0);
