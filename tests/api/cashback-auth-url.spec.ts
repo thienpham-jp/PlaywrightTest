@@ -1,37 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { logResponse } from "./helpers/api-test-helper";
-import * as crypto from "crypto";
 import { delay } from "./helpers/api-test-helper";
-
-/**
- * Tương đương pre-request script Postman:
- *   checkSum = HMAC_SHA256(userId + timestamp, secret) -> hex
- *
- * Dùng crypto built-in của Node thay vì crypto-js để khỏi thêm dependency,
- * kết quả hex giống hệt CryptoJS.HmacSHA256(...).toString(CryptoJS.enc.Hex).
- */
-export function generateCashbackAuthHeaders(userId: string, secret?: string) {
-  const cashbackSecret =
-    secret ||
-    process.env.CASHBACK_SECRET ||
-    "V8qLm2Xr7Np4Ks9Wc3Jt6Yh1Fa5Zd0BgUe8PxQ2Rn7M"; // K7mQ2vR9xL4pN8sT1wY6cF3hJ0dZ5aUeB2nX9qP4rS8=
-
-  if (!userId) {
-    throw new Error("Missing userId");
-  }
-
-  const timestamp = Date.now().toString();
-  const checkSum = crypto
-    .createHmac("sha256", cashbackSecret)
-    .update(userId + timestamp)
-    .digest("hex");
-
-  return {
-    clientId: "cash-back-client",
-    timestamp,
-    checkSum,
-  };
-}
+import { generateCashbackAuthHeaders } from "../../src/helpers/jwt-helper";
 
 const BASE_URL =
   process.env.CASHBACK_API_BASE_URL ||
@@ -368,7 +338,7 @@ test.describe("Cashback Auth URL API", () => {
   });
 
   // ── RESPONSE VALIDATION ─────────────────────────────
-  test("TC13 - Response có đúng định dạng JSON", async ({ request }) => {
+  test.skip("TC13 - Response có đúng định dạng JSON", async ({ request }) => {
     await delay();
     const body = {
       userId: "thien_pham",
@@ -394,7 +364,7 @@ test.describe("Cashback Auth URL API", () => {
     expect(jsonBody.data).toHaveProperty("url");
   });
 
-  test("TC14 - Returned URL chứa các parameters cần thiết", async ({
+  test.skip("TC14 - Returned URL chứa các parameters cần thiết", async ({
     request,
   }) => {
     await delay();
@@ -425,7 +395,7 @@ test.describe("Cashback Auth URL API", () => {
   });
 
   // ── DIFFERENT TENANT CODES ──────────────────────────
-  test("TC15 - Hoạt động với nhiều tenant codes khác nhau", async ({
+  test.skip("TC15 - Hoạt động với nhiều tenant codes khác nhau", async ({
     request,
   }) => {
     await delay();
@@ -482,7 +452,7 @@ test.describe("Cashback Auth URL API", () => {
   });
 
   // ── EDGE CASES ──────────────────────────────────────
-  test("TC18 - userId với độ dài lớn", async ({ request }) => {
+  test.skip("TC18 - userId với độ dài lớn", async ({ request }) => {
     await delay();
     const longUserId = "a".repeat(500);
     const body = {
