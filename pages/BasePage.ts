@@ -33,7 +33,7 @@ export class BasePage {
   }
 
   async getText(locator: string) {
-    return await this.page.locator(locator).innerText();
+    return await (await this.page.locator(locator).innerText()).trim();
   }
 
   async hover(locator: string) {

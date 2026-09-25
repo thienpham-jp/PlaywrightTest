@@ -14,7 +14,7 @@ export function generateCashbackAuthHeaders(userId: string, secret?: string) {
   const cashbackSecret =
     secret ||
     process.env.CASHBACK_SECRET ||
-    "V8qLm2Xr7Np4Ks9Wc3Jt6Yh1Fa5Zd0BgUe8PxQ2Rn7M";
+    "V8qLm2Xr7Np4Ks9Wc3Jt6Yh1Fa5Zd0BgUe8PxQ2Rn7M"; // K7mQ2vR9xL4pN8sT1wY6cF3hJ0dZ5aUeB2nX9qP4rS8=
 
   if (!userId) {
     throw new Error("Missing userId");
@@ -40,6 +40,30 @@ const BASE_URL =
 const ENDPOINT = "/v1/cashback/auth/generate-auth-url";
 
 test.describe("Cashback Auth URL API", () => {
+  /*
+   ? Test Cases for Cashback Auth URL API method `POST /v1/cashback/auth/generate-auth-url`
+   * Test summary to cover:
+    - TC01: Happy path with valid userId and tenantCode
+    - TC02: Missing required field userId
+    - TC03: Missing required field tenantCode
+    - TC04: Invalid/empty value for userId
+    - TC05: Invalid/empty value for tenantCode  
+    - TC06: Invalid/empty values for both userId and tenantCode
+    - TC07: Invalid/empty values for all fields (userId and tenantCode)
+    - TC08: Extra unexpected fields in the request body
+    - TC09: Invalid HTTP method
+    - TC10: Invalid headers (missing or incorrect clientId, timestamp, or checkSum)
+    - TC11: Server error or unexpected response
+    - TC12: Response time and performance testing
+    - TC13: Edge cases and boundary testing
+    - TC14: Security testing (e.g., SQL injection, XSS)
+    - TC15: Combination of edge cases and security testing
+    - TC16: Rate limiting and throttling testing
+    - TC17: Internationalization and localization testing
+    - TC18: Combination of all previous edge cases and stress testing
+    - TC19: Combination of all previous edge cases and security testing
+   */
+
   // ── HAPPY PATH ──────────────────────────────────────
   test.describe.configure({ mode: "parallel" });
 
