@@ -48,7 +48,9 @@ export function generateCashbackAuthHeaders(userId: string, secret?: string) {
   const cashbackSecret =
     secret ||
     process.env.CASHBACK_SECRET ||
-    "V8qLm2Xr7Np4Ks9Wc3Jt6Yh1Fa5Zd0BgUe8PxQ2Rn7M"; // K7mQ2vR9xL4pN8sT1wY6cF3hJ0dZ5aUeB2nX9qP4rS8=
+    // "V8qLm2Xr7Np4Ks9Wc3Jt6Yh1Fa5Zd0BgUe8PxQ2Rn7M"; // vp
+    // "K7mQ2vR9xL4pN8sT1wY6cF3hJ0dZ5aUeB2nX9qP4rS8="; // mb
+    "a0f001af45424530a444e59e6951d22a0adae2c41b4743df92de9dae582a2aed"; // techcom
 
   if (!userId) {
     throw new Error("Missing userId");
