@@ -12,3 +12,7 @@ node_modules/
 README-readonly.md
 src/helpers/users.json
 /downloads/
+/.claude/
+/.serena/
+/.github/
+/.vscode/
