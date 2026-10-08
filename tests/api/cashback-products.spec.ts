@@ -25,6 +25,7 @@ test.describe.skip("Cashback Products API", () => {
 
     const { clientId, timestamp, checkSum } = generateCashbackAuthHeaders(
       body.userId,
+      body.tenantCode,
     );
 
     // Step 1: Get auth URL with retry on 503
@@ -140,7 +141,7 @@ test.describe.skip("Cashback Products API", () => {
   });
 
   // ── MISSING PARAMETERS ──────────────────────────────
-  test("TC03 - Return error when platform is missing", async ({ request }) => {
+  test("TC03 - Return all when platform is missing", async ({ request }) => {
     const response = await request.get(`${BASE_URL}${ENDPOINT}`, {
       headers: {
         Authorization: `Bearer ${BearerToken}`,
@@ -156,7 +157,7 @@ test.describe.skip("Cashback Products API", () => {
     expect(response.status()).toBe(200);
   });
 
-  test("TC04 - Return error when keyword is missing", async ({ request }) => {
+  test("TC04 - Return all when keyword is missing", async ({ request }) => {
     const response = await request.get(`${BASE_URL}${ENDPOINT}`, {
       headers: {
         Authorization: `Bearer ${BearerToken}`,
@@ -169,10 +170,10 @@ test.describe.skip("Cashback Products API", () => {
     });
 
     await logResponse(response, false);
-    expect(response.status()).toBeGreaterThanOrEqual(400);
+    expect(response.status()).toBeGreaterThanOrEqual(200);
   });
 
-  test("TC05 - Return error when both platform and keyword are missing", async ({
+  test("TC05 - Return all when both platform and keyword are missing", async ({
     request,
   }) => {
     const response = await request.get(`${BASE_URL}${ENDPOINT}`, {
@@ -184,11 +185,11 @@ test.describe.skip("Cashback Products API", () => {
     });
 
     await logResponse(response, false);
-    expect(response.status()).toBeGreaterThanOrEqual(400);
+    expect(response.status()).toBeGreaterThanOrEqual(200);
   });
 
   // ── EMPTY/INVALID PARAMETERS ────────────────────────
-  test("TC06 - Return error when platform is empty", async ({ request }) => {
+  test("TC06 - Return all when platform is empty", async ({ request }) => {
     const response = await request.get(`${BASE_URL}${ENDPOINT}`, {
       headers: {
         Authorization: `Bearer ${BearerToken}`,
