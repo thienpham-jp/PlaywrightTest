@@ -47,6 +47,7 @@ test.describe.skip("Cashback Auth URL API", () => {
 
     const { clientId, timestamp, checkSum } = generateCashbackAuthHeaders(
       body.userId,
+      body.tenantCode,
     );
 
     let response;
@@ -89,8 +90,10 @@ test.describe.skip("Cashback Auth URL API", () => {
       tenantCode: "vp_bank",
     };
 
-    const { clientId, timestamp, checkSum } =
-      generateCashbackAuthHeaders("default_user");
+    const { clientId, timestamp, checkSum } = generateCashbackAuthHeaders(
+      "default",
+      body.tenantCode,
+    );
 
     const response = await request.post(`${BASE_URL}${ENDPOINT}`, {
       data: body,
@@ -142,8 +145,10 @@ test.describe.skip("Cashback Auth URL API", () => {
       tenantCode: "vp_bank",
     };
 
-    const { clientId, timestamp, checkSum } =
-      generateCashbackAuthHeaders("default");
+    const { clientId, timestamp, checkSum } = generateCashbackAuthHeaders(
+      body.userId,
+      body.tenantCode,
+    );
 
     const response = await request.post(`${BASE_URL}${ENDPOINT}`, {
       data: body,
@@ -167,6 +172,7 @@ test.describe.skip("Cashback Auth URL API", () => {
 
     const { clientId, timestamp, checkSum } = generateCashbackAuthHeaders(
       body.userId,
+      body.tenantCode,
     );
 
     const response = await request.post(`${BASE_URL}${ENDPOINT}`, {
@@ -217,7 +223,10 @@ test.describe.skip("Cashback Auth URL API", () => {
       tenantCode: "vp_bank",
     };
 
-    const { timestamp, checkSum } = generateCashbackAuthHeaders(body.userId);
+    const { timestamp, checkSum } = generateCashbackAuthHeaders(
+      body.userId,
+      body.tenantCode,
+    );
 
     const response = await request.post(`${BASE_URL}${ENDPOINT}`, {
       data: body,
@@ -238,7 +247,10 @@ test.describe.skip("Cashback Auth URL API", () => {
       tenantCode: "vp_bank",
     };
 
-    const { clientId, timestamp } = generateCashbackAuthHeaders(body.userId);
+    const { clientId, timestamp } = generateCashbackAuthHeaders(
+      body.userId,
+      body.tenantCode,
+    );
 
     let response;
     let retries = 0;
@@ -275,7 +287,10 @@ test.describe.skip("Cashback Auth URL API", () => {
       tenantCode: "vp_bank",
     };
 
-    const { clientId, checkSum } = generateCashbackAuthHeaders(body.userId);
+    const { clientId, checkSum } = generateCashbackAuthHeaders(
+      body.userId,
+      body.tenantCode,
+    );
 
     const response = await request.post(`${BASE_URL}${ENDPOINT}`, {
       data: body,
@@ -299,8 +314,10 @@ test.describe.skip("Cashback Auth URL API", () => {
     };
 
     // Tính checkSum với userId khác
-    const { clientId, timestamp, checkSum } =
-      generateCashbackAuthHeaders("different_user");
+    const { clientId, timestamp, checkSum } = generateCashbackAuthHeaders(
+      "different_user",
+      body.tenantCode,
+    );
 
     const response = await request.post(`${BASE_URL}${ENDPOINT}`, {
       data: body,
@@ -325,6 +342,7 @@ test.describe.skip("Cashback Auth URL API", () => {
 
     const { clientId, timestamp, checkSum } = generateCashbackAuthHeaders(
       body.userId,
+      body.tenantCode,
     );
 
     const response = await request.post(`${BASE_URL}${ENDPOINT}`, {
@@ -352,6 +370,7 @@ test.describe.skip("Cashback Auth URL API", () => {
 
     const { clientId, timestamp, checkSum } = generateCashbackAuthHeaders(
       body.userId,
+      body.tenantCode,
     );
 
     const response = await request.post(`${BASE_URL}${ENDPOINT}`, {
@@ -379,6 +398,7 @@ test.describe.skip("Cashback Auth URL API", () => {
 
     const { clientId, timestamp, checkSum } = generateCashbackAuthHeaders(
       body.userId,
+      body.tenantCode,
     );
 
     const response = await request.post(`${BASE_URL}${ENDPOINT}`, {
@@ -407,6 +427,7 @@ test.describe.skip("Cashback Auth URL API", () => {
 
     const { clientId, timestamp, checkSum } = generateCashbackAuthHeaders(
       body.userId,
+      body.tenantCode,
     );
 
     const response = await request.post(`${BASE_URL}${ENDPOINT}`, {
@@ -439,6 +460,7 @@ test.describe.skip("Cashback Auth URL API", () => {
 
       const { clientId, timestamp, checkSum } = generateCashbackAuthHeaders(
         body.userId,
+        body.tenantCode,
       );
 
       const response = await request.post(`${BASE_URL}${ENDPOINT}`, {
@@ -490,8 +512,10 @@ test.describe.skip("Cashback Auth URL API", () => {
       tenantCode: "vp_bank",
     };
 
-    const { clientId, timestamp, checkSum } =
-      generateCashbackAuthHeaders(longUserId);
+    const { clientId, timestamp, checkSum } = generateCashbackAuthHeaders(
+      longUserId,
+      body.tenantCode,
+    );
 
     const response = await request.post(`${BASE_URL}${ENDPOINT}`, {
       data: body,
@@ -517,6 +541,7 @@ test.describe.skip("Cashback Auth URL API", () => {
 
     const { clientId, timestamp, checkSum } = generateCashbackAuthHeaders(
       body.userId,
+      body.tenantCode,
     );
 
     // Request đầu tiên

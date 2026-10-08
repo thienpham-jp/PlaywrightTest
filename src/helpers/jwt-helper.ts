@@ -37,6 +37,13 @@ export function generateJWT(userUid: string, secretKey: string): string {
   return `${headerEncoded}.${payloadEncoded}.${signatureEncoded}`;
 }
 
+const CASHBACK_SECRETS: Record<string, string> = {
+  vp_bank: "V8qLm2Xr7Np4Ks9Wc3Jt6Yh1Fa5Zd0BgUe8PxQ2Rn7M",
+  mb_bank: "K7mQ2vR9xL4pN8sT1wY6cF3hJ0dZ5aUeB2nX9qP4rS8=",
+  techcom_bank:
+    "a0f001af45424530a444e59e6951d22a0adae2c41b4743df92de9dae582a2aed",
+};
+
 /**
  * Tương đương pre-request script Postman:
  *   checkSum = HMAC_SHA256(userId + timestamp, secret) -> hex
@@ -44,16 +51,19 @@ export function generateJWT(userUid: string, secretKey: string): string {
  * Dùng crypto built-in của Node thay vì crypto-js để khỏi thêm dependency,
  * kết quả hex giống hệt CryptoJS.HmacSHA256(...).toString(CryptoJS.enc.Hex).
  */
-export function generateCashbackAuthHeaders(userId: string, secret?: string) {
-  const cashbackSecret =
-    secret ||
-    process.env.CASHBACK_SECRET ||
-    // "V8qLm2Xr7Np4Ks9Wc3Jt6Yh1Fa5Zd0BgUe8PxQ2Rn7M"; // vp
-    // "K7mQ2vR9xL4pN8sT1wY6cF3hJ0dZ5aUeB2nX9qP4rS8="; // mb
-    "a0f001af45424530a444e59e6951d22a0adae2c41b4743df92de9dae582a2aed"; // techcom
-
+export function generateCashbackAuthHeaders(
+  userId: string,
+  tenantCode?: string,
+) {
   if (!userId) {
-    throw new Error("Missing userId");
+    console.error("Missing userId");
+  }
+
+  const code = tenantCode || "mb_bank";
+  const cashbackSecret = CASHBACK_SECRETS[code] || process.env.CASHBACK_SECRET;
+
+  if (!cashbackSecret) {
+    throw new Error(`Unknown tenantCode: ${code}`);
   }
 
   const timestamp = Date.now().toString();
