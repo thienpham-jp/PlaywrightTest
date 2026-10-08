@@ -1,4 +1,5 @@
 import * as crypto from "crypto";
+import { exec } from "child_process";
 
 function base64UrlEncode(input: string): string {
   return Buffer.from(input, "utf-8")
@@ -77,4 +78,18 @@ export function generateCashbackAuthHeaders(
     timestamp,
     checkSum,
   };
+}
+
+export function copyToClipboard(text: string): void {
+  const cmd =
+    process.platform === "win32"
+      ? `echo ${text} | clip`
+      : process.platform === "darwin"
+        ? `echo "${text}" | pbcopy`
+        : `echo "${text}" | xclip -selection clipboard`;
+
+  exec(cmd, (error) => {
+    if (error) console.warn("Failed to copy to clipboard:", error.message);
+    // else console.log("✓ Token copied to clipboard");
+  });
 }
