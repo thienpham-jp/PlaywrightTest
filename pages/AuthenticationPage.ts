@@ -11,22 +11,11 @@ export class AuthenticationPage extends BasePage {
   }
 
   async login(username: string, password: string) {
-    try {
-      await this.navigate();
-    } catch (error) {
-      console.error("❌ Failed to navigate to sign-in page:", error);
-      throw error;
-    }
+    await this.navigate();
 
-    try {
-      await this.fill(this.usernameTextBox, username);
-      await this.fill(this.passwordTextBox, password);
-      await this.click(this.loginButton);
-    } catch (error) {
-      console.error("❌ Login failed:", error);
-      console.log("📸 Current URL:", this.page.url());
-      throw error;
-    }
+    await this.fill(this.usernameTextBox, username);
+    await this.fill(this.passwordTextBox, password);
+    await this.click(this.loginButton);
   }
 
   async isLoggedIn() {

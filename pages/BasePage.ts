@@ -59,10 +59,6 @@ export class BasePage {
         // Check if it's a network error that might be transient
         const isTransientError =
           lastError.name === "TimeoutError" ||
-          errorMessage.includes("ERR_HTTP_RESPONSE_CODE_FAILURE") ||
-          errorMessage.includes("ERR_CONNECTION_REFUSED") ||
-          errorMessage.includes("ERR_NETWORK_CHANGED") ||
-          errorMessage.includes("ERR_TUNNEL_CONNECTION_FAILED") ||
           errorMessage.includes("net::ERR_");
 
         if (!isTransientError) {
