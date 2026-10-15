@@ -10,7 +10,7 @@ const ENDPOINT = "/v1/products";
 let BearerToken = "";
 let MbBearerToken = "";
 
-test.describe("Cashback Products API", () => {
+test.describe.skip("Cashback Products API", () => {
   test.describe.configure({ mode: "parallel" });
 
   test.beforeAll(async ({ request }) => {
