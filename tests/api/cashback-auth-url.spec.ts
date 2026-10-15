@@ -1,7 +1,10 @@
 import { test, expect } from "@playwright/test";
 import { logResponse } from "./helpers/api-test-helper";
 import { delay } from "./helpers/api-test-helper";
-import { generateCashbackAuthHeaders } from "../../src/helpers/jwt-helper";
+import {
+  copyToClipboard,
+  generateCashbackAuthHeaders,
+} from "../../src/helpers/jwt-helper";
 
 const BASE_URL =
   process.env.CASHBACK_API_BASE_URL ||
@@ -10,7 +13,7 @@ const BASE_URL =
 const ENDPOINT = "/v1/cashback/auth/generate-auth-url";
 
 test.describe.skip("Cashback Auth URL API", () => {
-  test.describe.configure({ mode: "parallel", retries: 4 });
+  test.describe.configure({ mode: "parallel", retries: 5 });
   /*
    ? Test Cases for Cashback Auth URL API method `POST /v1/cashback/auth/generate-auth-url`
    * Test summary to cover:
@@ -77,6 +80,7 @@ test.describe.skip("Cashback Auth URL API", () => {
     const res = await logResponse(response!, false);
     const url = res.data.url;
     console.log(url);
+    copyToClipboard(url);
 
     expect(response!.status()).toBe(200);
     expect(url).toBeTruthy();

@@ -20,7 +20,7 @@ test.describe.skip("Cashback Products API", () => {
     let token;
     const body = {
       userId: "thien_pham",
-      tenantCode: "mb_bank",
+      tenantCode: "techcom_bank",
     };
 
     const { clientId, timestamp, checkSum } = generateCashbackAuthHeaders(
@@ -106,7 +106,7 @@ test.describe.skip("Cashback Products API", () => {
       headers: {
         Authorization: `Bearer ${BearerToken}`,
         accept: "*/*",
-        tenantCode: "mb_bank",
+        tenantCode: "techcom_bank",
       },
       params: {
         platform: "SHOPEE",
@@ -127,7 +127,7 @@ test.describe.skip("Cashback Products API", () => {
         headers: {
           Authorization: `Bearer ${BearerToken}`,
           accept: "*/*",
-          tenantCode: "mb_bank",
+          tenantCode: "techcom_bank",
         },
         params: {
           platform: platform,
@@ -138,6 +138,141 @@ test.describe.skip("Cashback Products API", () => {
       // Expecting either 200 or 404 if platform not supported
       expect(response!.status()).toBe(200);
     }
+  });
+
+  test("TC02a - Get products with showOffer parameter set to true", async ({
+    request,
+  }) => {
+    const response = await request.get(`${BASE_URL}${ENDPOINT}`, {
+      headers: {
+        Authorization: `Bearer ${BearerToken}`,
+        accept: "*/*",
+        tenantCode: "techcom_bank",
+      },
+      params: {
+        platform: "SHOPEE",
+        keyword: "phone",
+        showOffer: "true",
+      },
+    });
+
+    const body = await logResponse(response!, false);
+    expect(response!.status()).toBe(200);
+    // Products with offers should be returned
+    if (body.data && body.data.length > 0) {
+      expect(body.data[0]).toHaveProperty("name");
+    }
+  });
+
+  test("TC02b - Get products with showOffer parameter set to false", async ({
+    request,
+  }) => {
+    const response = await request.get(`${BASE_URL}${ENDPOINT}`, {
+      headers: {
+        Authorization: `Bearer ${BearerToken}`,
+        accept: "*/*",
+        tenantCode: "techcom_bank",
+      },
+      params: {
+        platform: "SHOPEE",
+        keyword: "phone",
+        showOffer: "false",
+      },
+    });
+
+    const body = await logResponse(response!, false);
+    expect(response!.status()).toBe(200);
+    // All products regardless of offers
+    if (body.data && body.data.length > 0) {
+      expect(body.data[0]).toHaveProperty("name");
+    }
+  });
+
+  test("TC02c - Compare products response with showOffer true vs false", async ({
+    request,
+  }) => {
+    // Get products with showOffer=true
+    const responseTrue = await request.get(`${BASE_URL}${ENDPOINT}`, {
+      headers: {
+        Authorization: `Bearer ${BearerToken}`,
+        accept: "*/*",
+        tenantCode: "techcom_bank",
+      },
+      params: {
+        platform: "SHOPEE",
+        keyword: "phone",
+        showOffer: "true",
+      },
+    });
+
+    // Get products with showOffer=false
+    const responseFalse = await request.get(`${BASE_URL}${ENDPOINT}`, {
+      headers: {
+        Authorization: `Bearer ${BearerToken}`,
+        accept: "*/*",
+        tenantCode: "techcom_bank",
+      },
+      params: {
+        platform: "SHOPEE",
+        keyword: "phone",
+        showOffer: "false",
+      },
+    });
+
+    const bodyTrue = await logResponse(responseTrue, false);
+    const bodyFalse = await logResponse(responseFalse, false);
+
+    expect(responseTrue.status()).toBe(200);
+    expect(responseFalse.status()).toBe(200);
+
+    // showOffer=false should return equal or more products than showOffer=true
+    if (bodyTrue.data && bodyFalse.data) {
+      expect(bodyFalse.data.length).toBeGreaterThanOrEqual(
+        bodyTrue.data.length,
+      );
+    }
+  });
+
+  test("TC02d - Get products with invalid showOffer parameter", async ({
+    request,
+  }) => {
+    const response = await request.get(`${BASE_URL}${ENDPOINT}`, {
+      headers: {
+        Authorization: `Bearer ${BearerToken}`,
+        accept: "*/*",
+        tenantCode: "techcom_bank",
+      },
+      params: {
+        platform: "SHOPEE",
+        keyword: "phone",
+        showOffer: "invalid",
+      },
+    });
+
+    await logResponse(response, false);
+    // Should handle gracefully - either ignore or reject
+    expect([200, 400]).toContain(response.status());
+  });
+
+  test("TC02e - Get products with showOffer parameter as number", async ({
+    request,
+  }) => {
+    const response = await request.get(`${BASE_URL}${ENDPOINT}`, {
+      headers: {
+        Authorization: `Bearer ${BearerToken}`,
+        accept: "*/*",
+        tenantCode: "techcom_bank",
+      },
+      params: {
+        platform: "SHOPEE",
+        keyword: "phone",
+        showOffer: 1,
+      },
+    });
+
+    await logResponse(response, false);
+    // Should handle gracefully
+    expect([200, 400]).toContain(response.status());
   });
 
   // ── MISSING PARAMETERS ──────────────────────────────

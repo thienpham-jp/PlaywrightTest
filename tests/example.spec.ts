@@ -40,7 +40,7 @@ test.describe("Example Tests", () => {
     const jwtToken = generateJWT(USER_UID, SECRET_KEY);
 
     const token = `Bearer ${jwtToken}`;
-    console.log(token);
+    copyToClipboard(token);
   });
 
   test("Get access token from Keycloak", async ({ request }) => {
@@ -78,7 +78,7 @@ test.describe("Example Tests", () => {
       },
     );
     const body2 = await logResponse(res2, false);
-    console.log(body2.access_token);
+    copyToClipboard(body2.access_token);
     expect(res2.status()).toBe(200);
   });
 
@@ -153,7 +153,6 @@ test.describe("Example Tests", () => {
     }
 
     const body2 = await logResponse(response2!, false);
-    console.log(body2.token);
     copyToClipboard(body2.token);
     expect(response2!.status()).toBe(200);
   });
