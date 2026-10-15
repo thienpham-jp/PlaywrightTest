@@ -1,45 +1,37 @@
-import { test, expect } from "@playwright/test";
-import { logResponse } from "./helpers/api-test-helper";
-import { delay } from "./helpers/api-test-helper";
-import { generateCashbackAuthHeaders } from "../../src/helpers/jwt-helper";
+import { test, expect, APIRequestContext } from "@playwright/test";
+import { delay, logResponse } from "./helpers/api-test-helper";
+import {
+  copyToClipboard,
+  generateCashbackAuthHeaders,
+} from "../../src/helpers/jwt-helper";
 
 const BASE_URL =
   process.env.CASHBACK_API_BASE_URL ||
   "https://mobile-dev-gurkha-id.asean-accesstrade.net";
 
-const ENDPOINT = "/v1/cashback/auth/generate-auth-url";
+const URL = `${BASE_URL}/v1/cashback/auth/generate-auth-url`;
 
-test.describe.skip("Cashback Auth URL API", () => {
-  test.describe.configure({ mode: "parallel", retries: 4 });
-  /*
-   ? Test Cases for Cashback Auth URL API method `POST /v1/cashback/auth/generate-auth-url`
-   * Test summary to cover:
-    - TC01: Happy path with valid userId and tenantCode
-    - TC02: Missing required field userId
-    - TC03: Missing required field tenantCode
-    - TC04: Invalid/empty value for userId
-    - TC05: Invalid/empty value for tenantCode  
-    - TC06: Invalid/empty values for both userId and tenantCode
-    - TC07: Invalid/empty values for all fields (userId and tenantCode)
-    - TC08: Extra unexpected fields in the request body
-    - TC09: Invalid HTTP method
-    - TC10: Invalid headers (missing or incorrect clientId, timestamp, or checkSum)
-    - TC11: Server error or unexpected response
-    - TC12: Response time and performance testing
-    - TC13: Edge cases and boundary testing
-    - TC14: Security testing (e.g., SQL injection, XSS)
-    - TC15: Combination of edge cases and security testing
-    - TC16: Rate limiting and throttling testing
-    - TC17: Internationalization and localization testing
-    - TC18: Combination of all previous edge cases and stress testing
-    - TC19: Combination of all previous edge cases and security testing
-   */
+type Body = { userId?: string; tenantCode?: string };
+
+// Signs with body.userId (or "default") + body.tenantCode unless headers are given.
+const methodSend = (
+  request: APIRequestContext,
+  data: Body,
+  headers: Record<string, string> = generateCashbackAuthHeaders(
+    data.userId ?? "default",
+    data.tenantCode,
+  ),
+) => request.post(URL, { data, headers });
+
+test.describe("Cashback Auth URL API", () => {
+  // retries also cover transient 503s from the dev server
+  test.describe.configure({ mode: "parallel", retries: 5 });
+  test.beforeEach(() => delay());
 
   // ── HAPPY PATH ──────────────────────────────────────
   test("TC01 - Return auth URL valid with userId + tenantCode", async ({
     request,
   }) => {
-    await delay();
     const body = {
       userId: "thien_pham",
       tenantCode: "techcom_bank",
@@ -55,7 +47,7 @@ test.describe.skip("Cashback Auth URL API", () => {
     const maxRetries = 5;
 
     while (retries < maxRetries) {
-      response = await request.post(`${BASE_URL}${ENDPOINT}`, {
+      response = await request.post(URL, {
         data: body,
         headers: {
           clientId,
@@ -76,313 +68,135 @@ test.describe.skip("Cashback Auth URL API", () => {
 
     const res = await logResponse(response!, false);
     const url = res.data.url;
-    console.log(url);
+    copyToClipboard(url);
 
-    expect(response!.status()).toBe(200);
+    expect(response?.status()).toBe(200);
     expect(url).toBeTruthy();
     expect(url).toContain("https://");
   });
 
   // ── MISSING REQUIRED FIELDS ─────────────────────────
   test("TC02 - Return error when userId is missing", async ({ request }) => {
-    await delay();
-    const body = {
-      tenantCode: "vp_bank",
-    };
+    const response = await methodSend(request, { tenantCode: "vp_bank" });
 
-    const { clientId, timestamp, checkSum } = generateCashbackAuthHeaders(
-      "default",
-      body.tenantCode,
-    );
-
-    const response = await request.post(`${BASE_URL}${ENDPOINT}`, {
-      data: body,
-      headers: {
-        clientId,
-        timestamp,
-        checkSum,
-      },
-    });
-
-    const body2 = await logResponse(response, false);
-
+    const body = await logResponse(response, false);
     expect(response.status()).toBe(400);
-    expect(body2.message).toContain("userId");
+    expect(body.message).toContain("userId");
   });
 
   test("TC03 - Return error when tenantCode is missing", async ({
     request,
   }) => {
-    await delay();
-    const body = {
-      userId: "thien_pham",
-    };
+    const response = await methodSend(request, { userId: "thien_pham" });
 
-    const { clientId, timestamp, checkSum } = generateCashbackAuthHeaders(
-      body.userId,
-    );
-
-    const response = await request.post(`${BASE_URL}${ENDPOINT}`, {
-      data: body,
-      headers: {
-        clientId,
-        timestamp,
-        checkSum,
-      },
-    });
-
-    const body2 = await logResponse(response, false);
-
+    const body = await logResponse(response, false);
     expect(response.status()).toBe(400);
-    expect(body2.message).toContain("tenantCode");
+    expect(body.message).toContain("tenantCode");
   });
 
   // ── INVALID/EMPTY VALUES ────────────────────────────
   test("TC04 - Return error when userId is empty", async ({ request }) => {
-    await delay();
-    const body = {
+    const response = await methodSend(request, {
       userId: "",
       tenantCode: "vp_bank",
-    };
-
-    const { clientId, timestamp, checkSum } = generateCashbackAuthHeaders(
-      body.userId,
-      body.tenantCode,
-    );
-
-    const response = await request.post(`${BASE_URL}${ENDPOINT}`, {
-      data: body,
-      headers: {
-        clientId,
-        timestamp,
-        checkSum,
-      },
     });
 
-    const res = await logResponse(response);
+    await logResponse(response);
     expect(response.status()).toBe(400);
   });
 
   test("TC05 - Return error when tenantCode is empty", async ({ request }) => {
-    await delay();
-    const body = {
+    const response = await methodSend(request, {
       userId: "thien_pham",
       tenantCode: "",
-    };
-
-    const { clientId, timestamp, checkSum } = generateCashbackAuthHeaders(
-      body.userId,
-      body.tenantCode,
-    );
-
-    const response = await request.post(`${BASE_URL}${ENDPOINT}`, {
-      data: body,
-      headers: {
-        clientId,
-        timestamp,
-        checkSum,
-      },
     });
 
-    const res = await logResponse(response);
-
+    await logResponse(response);
     expect(response.status()).toBe(404);
   });
 
   test("TC06 - Return error when tenantCode does not exist", async ({
     request,
   }) => {
-    await delay();
-    const body = {
-      userId: "thien_pham",
-      tenantCode: "invalid_tenant_xyz",
-    };
-
-    const { clientId, timestamp, checkSum } = generateCashbackAuthHeaders(
-      body.userId,
+    // Unknown tenant has no secret, so sign with the default one
+    const response = await methodSend(
+      request,
+      { userId: "thien_pham", tenantCode: "invalid_tenant_xyz" },
+      generateCashbackAuthHeaders("thien_pham"),
     );
 
-    const response = await request.post(`${BASE_URL}${ENDPOINT}`, {
-      data: body,
-      headers: {
-        clientId,
-        timestamp,
-        checkSum,
-      },
-    });
-
-    const res = await logResponse(response);
+    await logResponse(response);
     expect(response.status()).toBe(404);
   });
 
   // ── AUTH HEADER VALIDATION ──────────────────────────
+  const validBody = { userId: "thien_pham", tenantCode: "vp_bank" };
+
   test("TC07 - Return error when clientId is missing", async ({ request }) => {
-    await delay();
-    const body = {
-      userId: "thien_pham",
-      tenantCode: "vp_bank",
-    };
-
-    const { timestamp, checkSum } = generateCashbackAuthHeaders(
-      body.userId,
-      body.tenantCode,
+    const { clientId, ...headers } = generateCashbackAuthHeaders(
+      validBody.userId,
+      validBody.tenantCode,
     );
+    const response = await methodSend(request, validBody, headers);
 
-    const response = await request.post(`${BASE_URL}${ENDPOINT}`, {
-      data: body,
-      headers: {
-        timestamp,
-        checkSum,
-      },
-    });
-
-    const res = await logResponse(response);
+    await logResponse(response);
     expect(response.status()).toBe(400);
   });
 
   test("TC08 - Return error when checkSum is invalid", async ({ request }) => {
-    await delay();
-    const body = {
-      userId: "thien_pham",
-      tenantCode: "vp_bank",
-    };
+    const response = await methodSend(request, validBody, {
+      ...generateCashbackAuthHeaders(validBody.userId, validBody.tenantCode),
+      checkSum: "invalid_checksum_12345",
+    });
 
-    const { clientId, timestamp } = generateCashbackAuthHeaders(
-      body.userId,
-      body.tenantCode,
-    );
-
-    let response;
-    let retries = 0;
-    const maxRetries = 5;
-
-    while (retries < maxRetries) {
-      response = await request.post(`${BASE_URL}${ENDPOINT}`, {
-        data: body,
-        headers: {
-          clientId,
-          timestamp,
-          checkSum: "invalid_checksum_12345",
-        },
-      });
-
-      if (response.status() !== 503) {
-        break;
-      }
-
-      retries++;
-      if (retries < maxRetries) {
-        await delay();
-      }
-    }
-
-    const res = await logResponse(response!, false);
-    expect(response!.status()).toBe(401);
+    await logResponse(response, false);
+    expect(response.status()).toBe(401);
   });
 
   test("TC09 - Return error when timestamp is missing", async ({ request }) => {
-    await delay();
-    const body = {
-      userId: "thien_pham",
-      tenantCode: "vp_bank",
-    };
-
-    const { clientId, checkSum } = generateCashbackAuthHeaders(
-      body.userId,
-      body.tenantCode,
+    const { timestamp, ...headers } = generateCashbackAuthHeaders(
+      validBody.userId,
+      validBody.tenantCode,
     );
+    const response = await methodSend(request, validBody, headers);
 
-    const response = await request.post(`${BASE_URL}${ENDPOINT}`, {
-      data: body,
-      headers: {
-        clientId,
-        checkSum,
-      },
-    });
-
-    const res = await logResponse(response);
+    await logResponse(response);
     expect(response.status()).toBe(400);
   });
 
   test("TC10 - Return error when checkSum is calculated with a different userId", async ({
     request,
   }) => {
-    await delay();
-    const body = {
-      userId: "thien_pham",
-      tenantCode: "vp_bank",
-    };
-
-    // Tính checkSum với userId khác
-    const { clientId, timestamp, checkSum } = generateCashbackAuthHeaders(
-      "different_user",
-      body.tenantCode,
+    const response = await methodSend(
+      request,
+      validBody,
+      generateCashbackAuthHeaders("different_user", validBody.tenantCode),
     );
 
-    const response = await request.post(`${BASE_URL}${ENDPOINT}`, {
-      data: body,
-      headers: {
-        clientId,
-        timestamp,
-        checkSum,
-      },
-    });
-
-    const res = await logResponse(response);
+    await logResponse(response);
     expect(response.status()).toBe(401);
   });
 
   // ── SPECIAL CHARACTERS & SQL INJECTION ──────────────
   test("TC11 - Handle userId with special characters", async ({ request }) => {
-    await delay();
-    const body = {
+    const response = await methodSend(request, {
       userId: "user@example.com",
       tenantCode: "vp_bank",
-    };
-
-    const { clientId, timestamp, checkSum } = generateCashbackAuthHeaders(
-      body.userId,
-      body.tenantCode,
-    );
-
-    const response = await request.post(`${BASE_URL}${ENDPOINT}`, {
-      data: body,
-      headers: {
-        clientId,
-        timestamp,
-        checkSum,
-      },
     });
 
-    // Nên accept hoặc reject với status code rõ ràng
-    const res = await logResponse(response);
-    expect([400]).toContain(response.status());
+    await logResponse(response);
+    expect(response.status()).toBe(400);
   });
 
   test("TC12 - Return error when userId contains SQL injection", async ({
     request,
   }) => {
-    await delay();
-    const body = {
+    const response = await methodSend(request, {
       userId: "'; DROP TABLE users; --",
       tenantCode: "vp_bank",
-    };
-
-    const { clientId, timestamp, checkSum } = generateCashbackAuthHeaders(
-      body.userId,
-      body.tenantCode,
-    );
-
-    const response = await request.post(`${BASE_URL}${ENDPOINT}`, {
-      data: body,
-      headers: {
-        clientId,
-        timestamp,
-        checkSum,
-      },
     });
 
-    const res = await logResponse(response);
+    await logResponse(response);
     expect([400, 401]).toContain(response.status());
   });
 
@@ -390,25 +204,7 @@ test.describe.skip("Cashback Auth URL API", () => {
   test.skip("TC13 - Response is in the correct JSON format", async ({
     request,
   }) => {
-    await delay();
-    const body = {
-      userId: "thien_pham",
-      tenantCode: "vp_bank",
-    };
-
-    const { clientId, timestamp, checkSum } = generateCashbackAuthHeaders(
-      body.userId,
-      body.tenantCode,
-    );
-
-    const response = await request.post(`${BASE_URL}${ENDPOINT}`, {
-      data: body,
-      headers: {
-        clientId,
-        timestamp,
-        checkSum,
-      },
-    });
+    const response = await methodSend(request, validBody);
 
     expect(response.ok()).toBeTruthy();
     const jsonBody = await response.json();
@@ -419,57 +215,18 @@ test.describe.skip("Cashback Auth URL API", () => {
   test.skip("TC14 - Returned URL contains the necessary parameters", async ({
     request,
   }) => {
-    await delay();
-    const body = {
-      userId: "thien_pham",
-      tenantCode: "vp_bank",
-    };
+    const res = await logResponse(await methodSend(request, validBody));
 
-    const { clientId, timestamp, checkSum } = generateCashbackAuthHeaders(
-      body.userId,
-      body.tenantCode,
-    );
-
-    const response = await request.post(`${BASE_URL}${ENDPOINT}`, {
-      data: body,
-      headers: {
-        clientId,
-        timestamp,
-        checkSum,
-      },
-    });
-
-    const res = await logResponse(response);
-
-    // Kiểm tra URL có chứa các params như: userId, tenantCode, token, etc.
-    console.log(res.data.url);
     expect(res.data.url).toContain("https://");
     expect(res.data.url).toContain("token");
   });
 
   // ── DIFFERENT TENANT CODES ──────────────────────────
   test.skip("TC15 - Works with different tenant codes", async ({ request }) => {
-    await delay();
-    const tenants = ["vp_bank", "mb_bank", "agribank"];
-
-    for (const tenantCode of tenants) {
-      const body = {
+    for (const tenantCode of ["vp_bank", "mb_bank", "agribank"]) {
+      const response = await methodSend(request, {
         userId: "test_user",
         tenantCode,
-      };
-
-      const { clientId, timestamp, checkSum } = generateCashbackAuthHeaders(
-        body.userId,
-        body.tenantCode,
-      );
-
-      const response = await request.post(`${BASE_URL}${ENDPOINT}`, {
-        data: body,
-        headers: {
-          clientId,
-          timestamp,
-          checkSum,
-        },
       });
 
       if (response.ok()) {
@@ -482,48 +239,22 @@ test.describe.skip("Cashback Auth URL API", () => {
 
   // ── HTTP METHOD VALIDATION ──────────────────────────
   test("TC16 - GET request is not supported", async ({ request }) => {
-    await delay();
-    const response = await request.get(`${BASE_URL}${ENDPOINT}`);
-    expect([404]).toContain(response.status());
+    const response = await request.get(URL);
+    expect(response.status()).toBe(404);
   });
 
   test("TC17 - PUT request is not supported", async ({ request }) => {
-    await delay();
-    const body = {
-      userId: "thien_pham",
-      tenantCode: "vp_bank",
-    };
+    const response = await request.put(URL, { data: validBody });
 
-    const response = await request.put(`${BASE_URL}${ENDPOINT}`, {
-      data: body,
-    });
-
-    const res = await logResponse(response);
-
-    expect([404]).toContain(response.status());
+    await logResponse(response);
+    expect(response.status()).toBe(404);
   });
 
   // ── EDGE CASES ──────────────────────────────────────
   test.skip("TC18 - userId with a large length", async ({ request }) => {
-    await delay();
-    const longUserId = "a".repeat(500);
-    const body = {
-      userId: longUserId,
+    const response = await methodSend(request, {
+      userId: "a".repeat(500),
       tenantCode: "vp_bank",
-    };
-
-    const { clientId, timestamp, checkSum } = generateCashbackAuthHeaders(
-      longUserId,
-      body.tenantCode,
-    );
-
-    const response = await request.post(`${BASE_URL}${ENDPOINT}`, {
-      data: body,
-      headers: {
-        clientId,
-        timestamp,
-        checkSum,
-      },
     });
 
     // Nên có limit hoặc validation
@@ -533,40 +264,16 @@ test.describe.skip("Cashback Auth URL API", () => {
   test.skip("TC19 - Same userId but the 2nd request with an old timestamp", async ({
     request,
   }) => {
-    await delay();
-    const body = {
-      userId: "thien_pham",
-      tenantCode: "vp_bank",
-    };
-
-    const { clientId, timestamp, checkSum } = generateCashbackAuthHeaders(
-      body.userId,
-      body.tenantCode,
+    const headers = generateCashbackAuthHeaders(
+      validBody.userId,
+      validBody.tenantCode,
     );
 
-    // Request đầu tiên
-    const response1 = await request.post(`${BASE_URL}${ENDPOINT}`, {
-      data: body,
-      headers: {
-        clientId,
-        timestamp,
-        checkSum,
-      },
-    });
-
+    const response1 = await methodSend(request, validBody, headers);
     expect(response1.status()).toBe(200);
 
     // Request lần 2 với cùng timestamp (có thể bị reject nếu có anti-replay)
-    const response2 = await request.post(`${BASE_URL}${ENDPOINT}`, {
-      data: body,
-      headers: {
-        clientId,
-        timestamp,
-        checkSum,
-      },
-    });
-
-    // Nên check xem có anti-replay protection hay không
+    const response2 = await methodSend(request, validBody, headers);
     console.log(`Request 2 status: ${response2.status()}`);
   });
 });

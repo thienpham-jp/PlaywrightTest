@@ -6,11 +6,16 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests",
   testIgnore: [
-    "**/publisher/PublisherStagTest.spec.ts",
-    "**/istools/**",
-    "**/next-insight/**",
-    "**/cfd/**",
-    "**/cashback/**",
+    // Hosts resolve to 172.31.x.x (internal VPC), unreachable from GitHub-hosted runners
+    ...(process.env.CI
+      ? [
+          "**/cashback/**",
+          "**/api/cashback-*.spec.ts",
+          "**/api/tier-admin.spec.ts",
+          "**/istools/**",
+          "**/next-insight/**",
+        ]
+      : []),
   ],
   /* Run tests in files in parallel */
   fullyParallel: true,
@@ -21,7 +26,7 @@ export default defineConfig({
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 2 : 1,
   /* Increase test timeout for complex forms */
-  timeout: process.env.CI ? 30000 : 120000,
+  timeout: process.env.CI ? 60000 : 120000,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: process.env.CI
     ? [["html", { open: "never" }], ["allure-playwright"], ["list"]]
