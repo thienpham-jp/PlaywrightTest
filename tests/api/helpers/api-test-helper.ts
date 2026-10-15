@@ -1,5 +1,8 @@
-import { APIResponse } from "@playwright/test";
-import { generateJWT } from "../../../src/helpers/jwt-helper";
+import { APIRequestContext, APIResponse, expect } from "@playwright/test";
+import {
+  generateCashbackAuthHeaders,
+  generateJWT,
+} from "../../../src/helpers/jwt-helper";
 import { USER_UID, SECRET_KEY } from "../../../src/helpers/user-helper";
 
 // Placeholder credentials for restricted-access test cases
@@ -61,3 +64,51 @@ export async function logResponse(
 export const delay = async (ms: number = 5000) => {
   return new Promise((resolve) => setTimeout(resolve, ms));
 };
+
+const CASHBACK_AUTH_BASE_URL =
+  process.env.CASHBACK_API_BASE_URL ||
+  "https://mobile-dev-gurkha-id.asean-accesstrade.net";
+
+// POST, retrying up to `tries` times while the server answers 503.
+async function postRetry503(
+  request: APIRequestContext,
+  url: string,
+  options: Parameters<APIRequestContext["post"]>[1],
+  tries = 5,
+) {
+  let res = await request.post(url, options);
+  for (let i = 1; i < tries && res.status() === 503; i++) {
+    await delay(1000);
+    res = await request.post(url, options);
+  }
+  return res;
+}
+
+/**
+ * Runs the cashback auth flow (generate-auth-url → verify-one-time-token)
+ * and returns the Bearer token.
+ */
+export async function getCashbackToken(
+  request: APIRequestContext,
+  userId: string,
+  tenantCode: string,
+): Promise<string> {
+  const authRes = await postRetry503(
+    request,
+    `${CASHBACK_AUTH_BASE_URL}/v1/cashback/auth/generate-auth-url`,
+    {
+      data: { userId, tenantCode },
+      headers: generateCashbackAuthHeaders(userId, tenantCode),
+    },
+  );
+  expect(authRes.status()).toBe(200);
+  const oneTimeToken = (await authRes.json()).data.url.split("token=")[1];
+
+  const verifyRes = await postRetry503(
+    request,
+    `${CASHBACK_AUTH_BASE_URL}/v1/cashback/auth/verify-one-time-token`,
+    { headers: { clientId: "cash-back-client" }, data: { oneTimeToken } },
+  );
+  expect(verifyRes.status()).toBe(200);
+  return (await verifyRes.json()).token;
+}

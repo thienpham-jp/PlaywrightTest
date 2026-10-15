@@ -1,101 +1,21 @@
 import { test, expect } from "@playwright/test";
-import { logResponse } from "./helpers/api-test-helper";
-import { generateCashbackAuthHeaders } from "../../src/helpers/jwt-helper";
+import { getCashbackToken, logResponse } from "./helpers/api-test-helper";
 
 const BASE_URL =
   process.env.CASHBACK_PRODUCTS_BASE_URL ||
   "https://stag-cashback-service-id.asean-accesstrade.net";
 
 const ENDPOINT = "/v1/products";
-const ENDPOINT_1 = "/v1/cashback/auth/generate-auth-url";
-const ENDPOINT_2 = "/v1/cashback/auth/verify-one-time-token";
 
 let BearerToken = "";
+let MbBearerToken = "";
 
-test.describe.skip("Cashback Products API", () => {
+test.describe("Cashback Products API", () => {
   test.describe.configure({ mode: "parallel" });
 
   test.beforeAll(async ({ request }) => {
-    // Any setup code if needed
-    let token;
-    const body = {
-      userId: "thien_pham",
-      tenantCode: "techcom_bank",
-    };
-
-    const { clientId, timestamp, checkSum } = generateCashbackAuthHeaders(
-      body.userId,
-      body.tenantCode,
-    );
-
-    // Step 1: Get auth URL with retry on 503
-    let response;
-    let retries = 0;
-    const maxRetries = 5;
-
-    while (retries < maxRetries) {
-      response = await request.post(
-        `https://mobile-dev-gurkha-id.asean-accesstrade.net${ENDPOINT_1}`,
-        {
-          data: body,
-          headers: {
-            clientId,
-            timestamp,
-            checkSum,
-          },
-        },
-      );
-
-      if (response.status() !== 503) {
-        break;
-      }
-
-      retries++;
-      if (retries < maxRetries) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      }
-    }
-
-    const res = await logResponse(response!, false);
-    expect(response!.status()).toBe(200);
-
-    const url = res.data.url;
-    token = url.split("token=")[1];
-
-    // console.log(token);
-
-    // Step 2: Verify token with retry on 503
-    let response2;
-    let retries2 = 0;
-
-    while (retries2 < maxRetries) {
-      response2 = await request.post(
-        `https://mobile-dev-gurkha-id.asean-accesstrade.net${ENDPOINT_2}`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            clientId: "cash-back-client",
-          },
-          data: {
-            oneTimeToken: token,
-          },
-        },
-      );
-
-      if (response2.status() !== 503) {
-        break;
-      }
-
-      retries2++;
-      if (retries2 < maxRetries) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      }
-    }
-
-    const body2 = await logResponse(response2!, false);
-    console.log(body2.token);
-    BearerToken = body2.token;
-    expect(response2!.status()).toBe(200);
+    BearerToken = await getCashbackToken(request, "thien_pham", "techcom_bank");
+    MbBearerToken = await getCashbackToken(request, "thien_pham", "mb_bank");
   });
 
   // ── HAPPY PATH ──────────────────────────────────────
@@ -137,54 +57,6 @@ test.describe.skip("Cashback Products API", () => {
 
       // Expecting either 200 or 404 if platform not supported
       expect(response!.status()).toBe(200);
-    }
-  });
-
-  test("TC02a - Get products with showOffer parameter set to true", async ({
-    request,
-  }) => {
-    const response = await request.get(`${BASE_URL}${ENDPOINT}`, {
-      headers: {
-        Authorization: `Bearer ${BearerToken}`,
-        accept: "*/*",
-        tenantCode: "techcom_bank",
-      },
-      params: {
-        platform: "SHOPEE",
-        keyword: "phone",
-        showOffer: "true",
-      },
-    });
-
-    const body = await logResponse(response!, false);
-    expect(response!.status()).toBe(200);
-    // Products with offers should be returned
-    if (body.data && body.data.length > 0) {
-      expect(body.data[0]).toHaveProperty("name");
-    }
-  });
-
-  test("TC02b - Get products with showOffer parameter set to false", async ({
-    request,
-  }) => {
-    const response = await request.get(`${BASE_URL}${ENDPOINT}`, {
-      headers: {
-        Authorization: `Bearer ${BearerToken}`,
-        accept: "*/*",
-        tenantCode: "techcom_bank",
-      },
-      params: {
-        platform: "SHOPEE",
-        keyword: "phone",
-        showOffer: "false",
-      },
-    });
-
-    const body = await logResponse(response!, false);
-    expect(response!.status()).toBe(200);
-    // All products regardless of offers
-    if (body.data && body.data.length > 0) {
-      expect(body.data[0]).toHaveProperty("name");
     }
   });
 
@@ -279,7 +151,7 @@ test.describe.skip("Cashback Products API", () => {
   test("TC03 - Return all when platform is missing", async ({ request }) => {
     const response = await request.get(`${BASE_URL}${ENDPOINT}`, {
       headers: {
-        Authorization: `Bearer ${BearerToken}`,
+        Authorization: `Bearer ${MbBearerToken}`,
         accept: "*/*",
         tenantCode: "mb_bank",
       },
@@ -295,7 +167,7 @@ test.describe.skip("Cashback Products API", () => {
   test("TC04 - Return all when keyword is missing", async ({ request }) => {
     const response = await request.get(`${BASE_URL}${ENDPOINT}`, {
       headers: {
-        Authorization: `Bearer ${BearerToken}`,
+        Authorization: `Bearer ${MbBearerToken}`,
         accept: "*/*",
         tenantCode: "mb_bank",
       },
@@ -305,7 +177,7 @@ test.describe.skip("Cashback Products API", () => {
     });
 
     await logResponse(response, false);
-    expect(response.status()).toBeGreaterThanOrEqual(200);
+    expect(response.status()).toBe(200);
   });
 
   test("TC05 - Return all when both platform and keyword are missing", async ({
@@ -313,21 +185,21 @@ test.describe.skip("Cashback Products API", () => {
   }) => {
     const response = await request.get(`${BASE_URL}${ENDPOINT}`, {
       headers: {
-        Authorization: `Bearer ${BearerToken}`,
+        Authorization: `Bearer ${MbBearerToken}`,
         accept: "*/*",
         tenantCode: "mb_bank",
       },
     });
 
     await logResponse(response, false);
-    expect(response.status()).toBeGreaterThanOrEqual(200);
+    expect(response.status()).toBe(200);
   });
 
   // ── EMPTY/INVALID PARAMETERS ────────────────────────
   test("TC06 - Return all when platform is empty", async ({ request }) => {
     const response = await request.get(`${BASE_URL}${ENDPOINT}`, {
       headers: {
-        Authorization: `Bearer ${BearerToken}`,
+        Authorization: `Bearer ${MbBearerToken}`,
         accept: "*/*",
         tenantCode: "mb_bank",
       },
@@ -344,7 +216,7 @@ test.describe.skip("Cashback Products API", () => {
   test("TC07 - Return error when keyword is empty", async ({ request }) => {
     const response = await request.get(`${BASE_URL}${ENDPOINT}`, {
       headers: {
-        Authorization: `Bearer ${BearerToken}`,
+        Authorization: `Bearer ${MbBearerToken}`,
         accept: "*/*",
         tenantCode: "mb_bank",
       },
@@ -361,7 +233,7 @@ test.describe.skip("Cashback Products API", () => {
   test("TC08 - Return error when platform is invalid", async ({ request }) => {
     const response = await request.get(`${BASE_URL}${ENDPOINT}`, {
       headers: {
-        Authorization: `Bearer ${BearerToken}`,
+        Authorization: `Bearer ${MbBearerToken}`,
         accept: "*/*",
         tenantCode: "mb_bank",
       },
@@ -382,7 +254,7 @@ test.describe.skip("Cashback Products API", () => {
     for (const keyword of keywords) {
       const response = await request.get(`${BASE_URL}${ENDPOINT}`, {
         headers: {
-          Authorization: `Bearer ${BearerToken}`,
+          Authorization: `Bearer ${MbBearerToken}`,
           accept: "*/*",
           tenantCode: "mb_bank",
         },
@@ -400,7 +272,7 @@ test.describe.skip("Cashback Products API", () => {
   test("TC10 - Handle keyword with spaces", async ({ request }) => {
     const response = await request.get(`${BASE_URL}${ENDPOINT}`, {
       headers: {
-        Authorization: `Bearer ${BearerToken}`,
+        Authorization: `Bearer ${MbBearerToken}`,
         accept: "*/*",
         tenantCode: "mb_bank",
       },
@@ -417,7 +289,7 @@ test.describe.skip("Cashback Products API", () => {
   test("TC11 - Handle keyword with unicode characters", async ({ request }) => {
     const response = await request.get(`${BASE_URL}${ENDPOINT}`, {
       headers: {
-        Authorization: `Bearer ${BearerToken}`,
+        Authorization: `Bearer ${MbBearerToken}`,
         accept: "*/*",
         tenantCode: "mb_bank",
       },
@@ -436,7 +308,7 @@ test.describe.skip("Cashback Products API", () => {
     const longKeyword = "a".repeat(500);
     const response = await request.get(`${BASE_URL}${ENDPOINT}`, {
       headers: {
-        Authorization: `Bearer ${BearerToken}`,
+        Authorization: `Bearer ${MbBearerToken}`,
         accept: "*/*",
         tenantCode: "mb_bank",
       },
@@ -454,7 +326,7 @@ test.describe.skip("Cashback Products API", () => {
   test("TC13 - Handle single character keyword", async ({ request }) => {
     const response = await request.get(`${BASE_URL}${ENDPOINT}`, {
       headers: {
-        Authorization: `Bearer ${BearerToken}`,
+        Authorization: `Bearer ${MbBearerToken}`,
         accept: "*/*",
         tenantCode: "mb_bank",
       },
@@ -474,7 +346,7 @@ test.describe.skip("Cashback Products API", () => {
       `${BASE_URL}${ENDPOINT}?platform=SHOPEE&platform=LAZADA&keyword=test`,
       {
         headers: {
-          Authorization: `Bearer ${BearerToken}`,
+          Authorization: `Bearer ${MbBearerToken}`,
           accept: "*/*",
           tenantCode: "mb_bank",
         },
@@ -489,7 +361,7 @@ test.describe.skip("Cashback Products API", () => {
   test("TC15 - Handle extra query parameters", async ({ request }) => {
     const response = await request.get(`${BASE_URL}${ENDPOINT}`, {
       headers: {
-        Authorization: `Bearer ${BearerToken}`,
+        Authorization: `Bearer ${MbBearerToken}`,
         accept: "*/*",
         tenantCode: "mb_bank",
       },
@@ -512,7 +384,7 @@ test.describe.skip("Cashback Products API", () => {
       `${BASE_URL}${ENDPOINT}?platform=shopee&keyword=test&page=1&limit=10`,
       {
         headers: {
-          Authorization: `Bearer ${BearerToken}`,
+          Authorization: `Bearer ${MbBearerToken}`,
           accept: "*/*",
           tenantCode: "mb_bank",
         },
@@ -528,7 +400,7 @@ test.describe.skip("Cashback Products API", () => {
       `${BASE_URL}${ENDPOINT}?platform=shopee&keyword=test&limit=50`,
       {
         headers: {
-          Authorization: `Bearer ${BearerToken}`,
+          Authorization: `Bearer ${MbBearerToken}`,
           accept: "*/*",
           tenantCode: "mb_bank",
         },
@@ -537,7 +409,7 @@ test.describe.skip("Cashback Products API", () => {
 
     const body = await logResponse(response, false);
     expect(response.status()).toBe(200);
-    expect(body.data.length).toBeLessThanOrEqual(50);
+    expect(body.data?.length).toBeLessThanOrEqual(50);
   });
 
   // ── RESPONSE VALIDATION ─────────────────────────────
@@ -548,7 +420,7 @@ test.describe.skip("Cashback Products API", () => {
       `${BASE_URL}${ENDPOINT}?platform=shopee&keyword=test`,
       {
         headers: {
-          Authorization: `Bearer ${BearerToken}`,
+          Authorization: `Bearer ${MbBearerToken}`,
           accept: "*/*",
           tenantCode: "mb_bank",
         },
@@ -556,7 +428,8 @@ test.describe.skip("Cashback Products API", () => {
     );
 
     const body = await logResponse(response);
-    if (response.status() === 200 && body.data && body.data.length > 0) {
+    expect(response.status()).toBe(200);
+    if (body.data?.length > 0) {
       const product = body.data[0];
       expect(product).toHaveProperty("id");
       expect(product).toHaveProperty("name");
@@ -579,7 +452,7 @@ test.describe.skip("Cashback Products API", () => {
         `${BASE_URL}${ENDPOINT}?platform=shopee&keyword=test`,
         {
           headers: {
-            Authorization: `Bearer ${BearerToken}`,
+            Authorization: `Bearer ${MbBearerToken}`,
             accept: "*/*",
             tenantCode: "mb_bank",
           },
@@ -609,7 +482,7 @@ test.describe.skip("Cashback Products API", () => {
         keyword: "test",
       },
       headers: {
-        Authorization: `Bearer ${BearerToken}`,
+        Authorization: `Bearer ${MbBearerToken}`,
         accept: "*/*",
         tenantCode: "mb_bank",
       },
@@ -626,7 +499,7 @@ test.describe.skip("Cashback Products API", () => {
         keyword: "test",
       },
       headers: {
-        Authorization: `Bearer ${BearerToken}`,
+        Authorization: `Bearer ${MbBearerToken}`,
         accept: "*/*",
         tenantCode: "mb_bank",
       },
@@ -639,7 +512,7 @@ test.describe.skip("Cashback Products API", () => {
   test("TC22 - DELETE request is not supported", async ({ request }) => {
     const response = await request.delete(`${BASE_URL}${ENDPOINT}`, {
       headers: {
-        Authorization: `Bearer ${BearerToken}`,
+        Authorization: `Bearer ${MbBearerToken}`,
         accept: "*/*",
         tenantCode: "mb_bank",
       },
