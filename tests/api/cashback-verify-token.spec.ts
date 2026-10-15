@@ -7,7 +7,7 @@ const CLIENT_ID = "cash-back-client";
 
 const oneTimeToken = "Vw_TFFedamyPunmhYy3zbsj7o8l25M9r2hxzC23c_rs";
 
-test.describe.skip("Cashback Verify One-Time Token API", () => {
+test.describe("Cashback Verify One-Time Token API", () => {
   test("should verify valid one-time token successfully", async ({
     request,
   }) => {

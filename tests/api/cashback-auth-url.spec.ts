@@ -23,7 +23,7 @@ const methodSend = (
   ),
 ) => request.post(URL, { data, headers });
 
-test.describe.skip("Cashback Auth URL API", () => {
+test.describe("Cashback Auth URL API", () => {
   // retries also cover transient 503s from the dev server
   test.describe.configure({ mode: "parallel", retries: 5 });
   test.beforeEach(() => delay());

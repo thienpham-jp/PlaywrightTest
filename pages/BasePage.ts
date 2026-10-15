@@ -48,7 +48,8 @@ export class BasePage {
         await this.page.goto(url, {
           // "load" waits for every image/font/3rd-party script and can hang on a slow asset
           waitUntil: "domcontentloaded",
-          timeout: 30000,
+          // Keep per-attempt timeout well under the test timeout so retries can actually run
+          timeout: 10000,
         });
         console.log(`✓ Navigation to ${url} successful on attempt ${attempt}`);
         return;

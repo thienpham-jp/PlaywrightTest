@@ -71,7 +71,7 @@ test.describe("Example Tests", () => {
     expect(res2.status()).toBe(200);
   });
 
-  test("Get token BFF Cashback service", async ({ request }) => {
+  test.skip("Get token BFF Cashback service", async ({ request }) => {
     copyToClipboard(
       await getCashbackToken(request, "thien_pham", "techcom_bank"),
     );

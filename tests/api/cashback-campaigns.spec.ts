@@ -15,7 +15,7 @@ const headers = () => ({
   tenantCode: TENANT_CODE,
 });
 
-test.describe.skip("Cashback Campaigns API", () => {
+test.describe("Cashback Campaigns API", () => {
   test.describe.configure({ mode: "parallel" });
 
   test.beforeAll(async ({ request }) => {
