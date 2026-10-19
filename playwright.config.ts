@@ -14,6 +14,8 @@ export default defineConfig({
           "**/api/tier-admin.spec.ts",
           "**/istools/**",
           "**/next-insight/**",
+          "**/cfd/**",
+          "**/publisher/PublisherStagTest.spec.ts",
         ]
       : []),
   ],
