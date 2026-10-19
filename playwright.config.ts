@@ -14,6 +14,9 @@ export default defineConfig({
           "**/api/tier-admin.spec.ts",
           "**/istools/**",
           "**/next-insight/**",
+          // Staging UIs time out on page.goto from GitHub runners (~2h of timeouts+retries)
+          "**/cfd/**",
+          "**/publisher/PublisherStagTest.spec.ts",
         ]
       : []),
   ],
